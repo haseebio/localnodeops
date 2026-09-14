@@ -3,12 +3,3 @@ Expires: 2027-09-10T00:00:00.000Z
 Encryption: https://localnodeops.com/contact
 Preferred-Languages: en
 Canonical: https://localnodeops.com/.well-known/security.txt
-
-# Placeholder file — replace before deployment:
-# - Contact address is a placeholder; point it at a real, monitored inbox.
-# - Encryption currently points to the Contact page, which itself holds a
-#   placeholder PGP key block. Replace both with your real public key
-#   (or a direct link to a .asc file) before this is live.
-# - Expires is set 1 year out per common practice (RFC 9116 doesn't
-#   mandate a max, but stale files erode trust) — set a calendar reminder
-#   to renew it.

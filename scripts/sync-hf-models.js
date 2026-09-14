@@ -1,36 +1,16 @@
 #!/usr/bin/env node
-// Fetches GGUF file listings from Hugging Face for the repos configured
-// below, and writes/overwrites markdown files in src/content/models/
-// matching the `models` collection schema in src/content/config.ts.
-// This is a separate collection from `hardware` (GPU/CPU/Memory
-// benchmark cards) — do not point OUTPUT_DIR back at src/content/hardware/,
-// the schemas are incompatible and it will break the Hardware Hub build.
-//
-// Requires Node 18+ (uses global fetch). No npm dependencies.
-//
-// LIMITATION — read before relying on this script:
-// This only pulls file sizes for GGUF quantizations of specific models.
-// It does NOT determine tokens/sec, VRAM headroom, or hardware
-// compatibility on its own. VramCalculator.astro uses the exact size_gb
-// from this data for the model-weights term when a specific ingested
-// model is selected, but still estimates the KV-cache term from an
-// architecture bucket (7B/13B/70B/120B) matched by parsing a parameter
-// count out of the model's title string — this schema has no layer
-// count / head count / head dimension fields, so KV cache cannot be
-// computed exactly from this data alone. See VramCalculator.astro's
-// footnote for the precise breakdown of what's exact vs. estimated.
-//
-// UNVERIFIED: huggingface.co is not reachable from the sandbox this was
-// built in, so the actual network calls below have not been executed
-// against the real API. The parsing logic was tested against a mocked
-// response shape matching HF's documented tree endpoint format. Run
-// this for real before trusting it in CI.
 
 const REPOS = [
-  // Add/remove Hugging Face GGUF repos here. Each becomes one file at
-  // src/content/hardware/<slug>.md
+  'bartowski/Meta-Llama-3.1-8B-Instruct-GGUF',
+  'bartowski/Meta-Llama-3.1-70B-Instruct-GGUF',
+  'bartowski/gemma-2-9b-it-GGUF',
+  'bartowski/gemma-2-27b-it-GGUF',
+  'Qwen/Qwen2.5-7B-Instruct-GGUF',
+  'Qwen/Qwen2.5-32B-Instruct-GGUF',
+  'MaziyarPanahi/Phi-3-mini-4k-instruct-GGUF',
+  'TheBloke/Mixtral-8x7B-Instruct-v0.1-GGUF',
   'QuantFactory/Meta-Llama-3-8B-Instruct-GGUF',
-  'bartowski/Mistral-7B-Instruct-v0.3-GGUF',
+  'bartowski/Mistral-7B-Instruct-v0.3-GGUF'
 ];
 
 const OUTPUT_DIR = new URL('../src/content/models/', import.meta.url);
@@ -40,7 +20,6 @@ function slugify(repoId) {
   return repoId.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '');
 }
 
-// Extracts a quant label like "Q4_K_M" or "Q8_0" from a .gguf filename.
 function parseQuantType(filename) {
   const match = filename.match(/\.(Q\d[\w-]*|F16|F32|IQ\d[\w-]*)\.gguf$/i);
   return match ? match[1].toUpperCase() : filename.replace(/\.gguf$/i, '');
@@ -56,11 +35,6 @@ async function fetchRepoTree(repoId) {
 }
 
 async function fetchArchitecture(repoId) {
-  // Best-effort. HF's model info endpoint doesn't reliably expose
-  // architecture for every GGUF repo. Falls back to "unknown" rather
-  // than guessing — a wrong architecture label silently poisons any
-  // calculator math built on top of it later, which is worse than an
-  // honest gap.
   try {
     const res = await fetch(`https://huggingface.co/api/models/${repoId}`);
     if (!res.ok) return 'unknown';
@@ -75,10 +49,6 @@ function extractQuantizations(treeItems) {
   return treeItems
     .filter((item) => item.type === 'file' && item.path.toLowerCase().endsWith('.gguf'))
     .map((item) => {
-      // LFS-tracked files report their real size under .lfs.size —
-      // .size alone is the git pointer file size (a few hundred bytes),
-      // not the actual blob. Using .size alone would report ~0 GB for
-      // every quantization.
       const bytes = item.lfs?.size ?? item.size ?? 0;
       return {
         type: parseQuantType(item.path),
@@ -147,9 +117,6 @@ async function main() {
     }
   }
 
-  // If every single repo failed, it's almost certainly a network/API
-  // problem, not a data problem — fail the build loudly instead of
-  // silently shipping a Hardware Hub with stale or missing content.
   if (failures > 0 && failures === REPOS.length) {
     console.error('[sync-hf-models] All repos failed to sync. Aborting build.');
     process.exit(1);

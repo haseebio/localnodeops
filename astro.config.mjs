@@ -1,15 +1,14 @@
 import { defineConfig } from 'astro/config';
 import tailwind from '@astrojs/tailwind';
+import sitemap from '@astrojs/sitemap';
 
 export default defineConfig({
   site: 'https://localnodeops.com',
   integrations: [
     tailwind({
-      // We ship our own @tailwind base/components/utilities in global.css,
-      // so Astro's auto-injected base stylesheet is disabled to avoid
-      // duplicate/conflicting base styles.
       applyBaseStyles: false,
     }),
+    sitemap(),
   ],
   markdown: {
     shikiConfig: {
