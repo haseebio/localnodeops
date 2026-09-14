@@ -1,0 +1,77 @@
+---
+import { getCollection } from 'astro:content';
+import BaseLayout from '../../layouts/BaseLayout.astro';
+
+const errorEntries = await getCollection('errors');
+
+const modules = [...new Set(errorEntries.map((e) => e.data.module))];
+const grouped = modules.map((module) => ({
+  module,
+  entries: errorEntries.filter((e) => e.data.module === module),
+}));
+
+const severityStyle = {
+  critical: 'border-accent-error text-accent-error',
+  warning: 'border-accent-secondary text-accent-secondary',
+  info: 'border-border text-secondary',
+};
+
+const jsonLd = [
+  {
+    '@context': 'https://schema.org',
+    '@type': 'CollectionPage',
+    name: 'LocalNodeOps Error Directory',
+  },
+];
+---
+
+<BaseLayout
+  title="Troubleshooting: Local LLM Inference Errors"
+  description="A directory of common CUDA, vLLM, Ollama, and PyTorch errors during local inference, sorted by module."
+  jsonLd={jsonLd}
+>
+  <section class="max-w-shell mx-auto px-lg pt-2xl pb-md">
+    <h1 class="text-display-hero text-primary max-w-reading">Error directory</h1>
+    <p class="text-body-lg text-secondary max-w-reading mt-md">
+      Common failures during local inference, grouped by the module that
+      throws them.
+    </p>
+  </section>
+
+  <section class="max-w-shell mx-auto px-lg pb-md">
+    <div class="relative max-w-reading">
+      <label for="error-search" class="sr-only">Search errors</label>
+      <input
+        id="error-search"
+        type="search"
+        disabled
+        placeholder="Search error codes or messages (coming soon)"
+        class="w-full min-h-touch-min rounded-md border border-border bg-surface
+          text-primary text-body-lg px-md font-mono placeholder:text-secondary
+          disabled:cursor-not-allowed disabled:opacity-70"
+      />
+    </div>
+  </section>
+
+  <section class="max-w-shell mx-auto px-lg pb-2xl">
+    {grouped.map((group) => (
+      <div class="mb-xl">
+        <h2 class="text-headline-lg text-primary mb-md">{group.module}</h2>
+        <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-md">
+          {group.entries.map((entry) => (
+            <article class="border border-border rounded-md bg-surface p-md flex flex-col gap-sm">
+              <div class="flex items-center justify-between gap-sm">
+                <code class="text-code-mono text-secondary font-mono">{entry.data.errorCode}</code>
+                <span class:list={['text-body-md rounded-full px-xs py-[0.125rem] border', severityStyle[entry.data.severity]]}>
+                  {entry.data.severity}
+                </span>
+              </div>
+              <h3 class="text-headline-md text-primary m-0">{entry.data.title}</h3>
+              <p class="text-body-md text-secondary m-0 flex-1">{entry.data.summary}</p>
+            </article>
+          ))}
+        </div>
+      </div>
+    ))}
+  </section>
+</BaseLayout>

@@ -1,0 +1,78 @@
+---
+import { getCollection, type CollectionEntry } from 'astro:content';
+import BaseLayout from '../../layouts/BaseLayout.astro';
+import DocsSidebar from '../../components/DocsSidebar.astro';
+
+export async function getStaticPaths() {
+  const docs = await getCollection('docs');
+  return docs.map((entry) => ({
+    params: { slug: entry.slug },
+    props: { entry },
+  }));
+}
+
+interface Props {
+  entry: CollectionEntry<'docs'>;
+}
+
+const { entry } = Astro.props;
+const { Content } = await entry.render();
+const { title, description, version } = entry.data;
+
+const allDocs = (await getCollection('docs')).sort(
+  (a, b) => a.data.sidebarPosition - b.data.sidebarPosition
+);
+
+const jsonLd = [
+  {
+    '@context': 'https://schema.org',
+    '@type': 'TechArticle',
+    headline: title,
+    description,
+    softwareVersion: version,
+  },
+];
+---
+
+<BaseLayout title={title} description={description} jsonLd={jsonLd}>
+  <div class="max-w-shell mx-auto px-lg py-xl grid grid-cols-1 lg:grid-cols-[16rem_1fr] gap-xl">
+    <aside class="hidden lg:block">
+      <DocsSidebar allDocs={allDocs} activeSlug={entry.slug} />
+    </aside>
+
+    <article class="max-w-reading min-w-0">
+      <p class="text-body-md text-secondary">Version {version}</p>
+      <h1 class="text-display-hero text-primary mt-xs">{title}</h1>
+      <p class="text-body-lg text-secondary mt-sm">{description}</p>
+
+      <div class="docs-content mt-lg" id="docs-content">
+        <Content />
+      </div>
+    </article>
+  </div>
+</BaseLayout>
+
+<script is:inline>
+  (function () {
+    const content = document.getElementById('docs-content');
+    if (!content) return;
+
+    content.querySelectorAll('pre').forEach((pre) => {
+      const btn = document.createElement('button');
+      btn.type = 'button';
+      btn.textContent = 'Copy';
+      btn.className = 'copy-btn';
+      btn.addEventListener('click', function () {
+        const code = pre.querySelector('code');
+        const text = code ? code.textContent : pre.textContent;
+        navigator.clipboard.writeText(text || '').then(function () {
+          btn.textContent = 'Copied';
+          setTimeout(function () {
+            btn.textContent = 'Copy';
+          }, 2000);
+        });
+      });
+      pre.appendChild(btn);
+    });
+  })();
+</script>

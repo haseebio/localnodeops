@@ -1,0 +1,74 @@
+---
+import BaseLayout from '../layouts/BaseLayout.astro';
+
+const jsonLd = [
+  {
+    '@context': 'https://schema.org',
+    '@type': 'WebPage',
+    name: 'Privacy Policy',
+  },
+];
+
+const lastUpdated = '2026-09-10';
+---
+
+<BaseLayout
+  title="Privacy Policy"
+  description="LocalNodeOps privacy policy: no third-party analytics, no ad trackers, no server-side accounts. Theme preference only, stored locally."
+  jsonLd={jsonLd}
+>
+  <article class="max-w-reading mx-auto px-lg py-2xl">
+    <h1 class="text-display-hero text-primary">Privacy Policy</h1>
+    <p class="text-body-md text-secondary mt-xs">Last updated: {lastUpdated}</p>
+
+    <section class="mt-lg">
+      <h2 class="text-headline-lg text-primary">What we collect</h2>
+      <p class="text-body-lg text-secondary mt-sm">
+        LocalNodeOps does not run third-party analytics, advertising
+        trackers, or session-recording scripts. There is no user account
+        system and no server-side database of visitor activity — the site is
+        statically generated and served with no backend collecting personal
+        data.
+      </p>
+    </section>
+
+    <section class="mt-lg">
+      <h2 class="text-headline-lg text-primary">Local storage</h2>
+      <p class="text-body-lg text-secondary mt-sm">
+        The only data this site stores about you is a single
+        <code>theme</code> value (light or dark) saved in your browser's
+        <code>localStorage</code>. It stays on your device, is never
+        transmitted to any server, and exists only to remember your display
+        preference between visits. See the <a href="/cookies">Cookies
+        page</a> for why this is technically not a cookie.
+      </p>
+    </section>
+
+    <section class="mt-lg">
+      <h2 class="text-headline-lg text-primary">Hosting logs</h2>
+      <p class="text-body-lg text-secondary mt-sm">
+        Like any web host, our deployment platform (Vercel) may retain
+        standard server access logs (IP address, request timestamp,
+        requested path) for operational and security purposes. We do not
+        access or process these logs for analytics or tracking.
+      </p>
+    </section>
+
+    <section class="mt-lg">
+      <h2 class="text-headline-lg text-primary">Third-party links</h2>
+      <p class="text-body-lg text-secondary mt-sm">
+        Pages may link to external sites (documentation, hardware vendor
+        pages, GitHub repositories). Those sites have their own privacy
+        practices, which this policy does not cover.
+      </p>
+    </section>
+
+    <section class="mt-lg">
+      <h2 class="text-headline-lg text-primary">Contact</h2>
+      <p class="text-body-lg text-secondary mt-sm">
+        Questions about this policy can be sent to the address on the
+        <a href="/contact">Contact page</a>.
+      </p>
+    </section>
+  </article>
+</BaseLayout>

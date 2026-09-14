@@ -1,0 +1,86 @@
+---
+import BaseLayout from '../layouts/BaseLayout.astro';
+
+const jsonLd = [
+  {
+    '@context': 'https://schema.org',
+    '@type': 'WebPage',
+    name: 'Terms of Service',
+  },
+];
+
+const lastUpdated = '2026-09-12';
+---
+
+<BaseLayout
+  title="Terms of Service"
+  description="Terms of service for LocalNodeOps benchmarks, guides, and calculators — an open-source hardware benchmarking resource."
+  jsonLd={jsonLd}
+>
+  <article class="max-w-reading mx-auto px-lg py-2xl">
+    <h1 class="text-display-hero text-primary">Terms of Service</h1>
+    <p class="text-body-md text-secondary mt-xs">Last updated: {lastUpdated}</p>
+
+    <section class="mt-lg">
+      <h2 class="text-headline-lg text-primary">Nature of the content</h2>
+      <p class="text-body-lg text-secondary mt-sm">
+        LocalNodeOps publishes hardware benchmarks, guides, and interactive
+        calculators (such as the VRAM estimator) for informational purposes.
+        Benchmark figures and calculator outputs are estimates based on
+        published specifications and reference architectures — not
+        guarantees of real-world performance for your specific hardware,
+        model, or configuration. Verify critical decisions against your own
+        testing before making a purchase.
+      </p>
+    </section>
+
+    <section class="mt-lg">
+      <h2 class="text-headline-lg text-primary">Open-source content</h2>
+      <p class="text-body-lg text-secondary mt-sm">
+        Where a repository or code sample is marked open-source, it is
+        provided under the license stated in that repository. Absent an
+        explicit license, no permission is granted to redistribute site
+        content commercially.
+      </p>
+    </section>
+
+    <section class="mt-lg">
+      <h2 class="text-headline-lg text-primary">Affiliate and sponsored links</h2>
+      <p class="text-body-lg text-secondary mt-sm">
+        This site participates in affiliate/referral programs with select
+        cloud GPU providers (currently RunPod and Lambda Labs). If you click
+        one of these links and rent an instance, we may earn a commission
+        at no additional cost to you. Affiliate links are only shown as a
+        clearly labeled, separate suggestion when a calculated
+        configuration exceeds the VRAM of the local hardware profiles
+        listed on this site — never blended into the benchmark data or the
+        VRAM calculator's output itself.
+      </p>
+      <p class="text-body-lg text-secondary mt-sm">
+        The calculator's math (model weight size, KV cache estimate,
+        runtime overhead, and which local GPU profiles a configuration
+        fits) is computed identically regardless of whether an affiliate
+        relationship exists with any provider, and is never adjusted based
+        on affiliate revenue. See <a href="/methodology" class="text-accent-primary hover:underline">/methodology</a>
+        for the exact formula.
+      </p>
+    </section>
+
+    <section class="mt-lg">
+      <h2 class="text-headline-lg text-primary">No warranty</h2>
+      <p class="text-body-lg text-secondary mt-sm">
+        Content is provided "as is," without warranty of any kind. We are
+        not liable for hardware purchase decisions, configuration choices,
+        or outcomes based on information published on this site.
+      </p>
+    </section>
+
+    <section class="mt-lg">
+      <h2 class="text-headline-lg text-primary">Changes</h2>
+      <p class="text-body-lg text-secondary mt-sm">
+        These terms may be updated as the site evolves. Material changes
+        will update the "Last updated" date above.
+      </p>
+    </section>
+  </article>
+</BaseLayout>

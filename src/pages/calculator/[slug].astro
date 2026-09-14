@@ -1,0 +1,118 @@
+---
+import { getCollection } from 'astro:content';
+import BaseLayout from '../../layouts/BaseLayout.astro';
+import VramCalculator from '../../components/VramCalculator.astro';
+import { parseParamsB, nearestBucket, estimateVram } from '../../lib/vram-math';
+
+export async function getStaticPaths() {
+  const models = await getCollection('models');
+  return models.map((entry) => ({
+    params: { slug: entry.slug },
+    props: { entry },
+  }));
+}
+
+const { entry } = Astro.props;
+const { title, last_synced, quantizations } = entry.data;
+
+const paramsB = parseParamsB(title);
+const bucket = nearestBucket(paramsB);
+const syncedDate = last_synced.slice(0, 10);
+
+// Real, per-model numbers computed at build time — this is what makes
+// each of these pages distinct content instead of a duplicate shell.
+// 4096 tokens matches the calculator's own default context length, so
+// the number quoted here matches what a visitor sees if they don't
+// touch the slider.
+const DEFAULT_CONTEXT = 4096;
+const quantEstimates = quantizations.map((q) => ({
+  ...q,
+  estimate: estimateVram(q.size_gb, bucket, DEFAULT_CONTEXT),
+}));
+
+const faq = quantEstimates.map((q) => ({
+  question: `How much VRAM does ${title} need at ${q.type}?`,
+  answer:
+    `The ${q.type} quantization is ${q.size_gb.toFixed(2)} GB on disk (exact, synced from Hugging Face). ` +
+    `At a ${DEFAULT_CONTEXT.toLocaleString()}-token context, using the ${bucket.label} reference architecture for the ` +
+    `KV cache estimate${paramsB == null ? ' (no parameter count could be parsed from the model name, so this defaults to the 7B architecture)' : ''}, ` +
+    `total estimated VRAM is approximately ${q.estimate.totalGb.toFixed(2)} GB. ` +
+    `This total includes a KV cache estimate and a 10% runtime overhead margin — only the weight size is exact.`,
+}));
+
+const jsonLd = [
+  {
+    '@context': 'https://schema.org',
+    '@type': 'TechArticle',
+    headline: `VRAM requirements for ${title}`,
+    description: `Exact GGUF file sizes and estimated total VRAM requirements for ${title}, by quantization and context length.`,
+    dateModified: last_synced,
+  },
+  {
+    '@context': 'https://schema.org',
+    '@type': 'FAQPage',
+    mainEntity: faq.map((item) => ({
+      '@type': 'Question',
+      name: item.question,
+      acceptedAnswer: {
+        '@type': 'Answer',
+        text: item.answer,
+      },
+    })),
+  },
+];
+---
+
+<BaseLayout
+  title={`VRAM Requirements for ${title}`}
+  description={`Exact GGUF file sizes and estimated VRAM requirements for ${title} across ${quantizations.length} quantization${quantizations.length === 1 ? '' : 's'}.`}
+  jsonLd={jsonLd}
+>
+  <section class="max-w-shell mx-auto px-lg pt-2xl pb-md">
+    <p class="text-body-md text-secondary">Synced from Hugging Face — {syncedDate}</p>
+    <h1 class="text-display-hero text-primary max-w-reading mt-xs">
+      How much VRAM does {title} need?
+    </h1>
+    <p class="text-body-lg text-secondary max-w-reading mt-md">
+      Exact on-disk weight sizes below are pulled directly from Hugging Face.
+      Total VRAM figures also include an estimated KV cache and runtime
+      overhead — see the breakdown per quantization, and the calculator
+      below to adjust context length.
+    </p>
+  </section>
+
+  <section class="max-w-shell mx-auto px-lg pb-xl">
+    <h2 class="text-headline-lg text-primary mb-md">By quantization</h2>
+    <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-md">
+      {quantEstimates.map((q) => (
+        <div class="border border-border rounded-md bg-surface p-md">
+          <p class="text-body-md text-secondary m-0">{q.type}</p>
+          <p class="font-mono m-0 mt-xs">
+            <span class="text-headline-md text-accent-primary">{q.size_gb.toFixed(2)} GB</span>
+            <span class="text-body-md text-secondary ml-xs">exact, on disk</span>
+          </p>
+          <p class="text-body-md text-secondary mt-sm mb-0">
+            ~{q.estimate.totalGb.toFixed(2)} GB total estimated VRAM at {DEFAULT_CONTEXT.toLocaleString()} tokens context
+            <span class="text-secondary"> (KV cache + overhead estimated, not exact)</span>
+          </p>
+        </div>
+      ))}
+    </div>
+  </section>
+
+  <section class="max-w-shell mx-auto px-lg pb-xl">
+    <VramCalculator preselectedModel={entry.slug} />
+  </section>
+
+  <section class="max-w-shell mx-auto px-lg pb-2xl">
+    <h2 class="text-headline-lg text-primary mb-md">FAQ</h2>
+    <div class="flex flex-col gap-md max-w-reading">
+      {faq.map((item) => (
+        <div class="border border-border rounded-md bg-surface p-md">
+          <h3 class="text-headline-md text-primary m-0">{item.question}</h3>
+          <p class="text-body-md text-secondary mt-xs m-0">{item.answer}</p>
+        </div>
+      ))}
+    </div>
+  </section>
+</BaseLayout>

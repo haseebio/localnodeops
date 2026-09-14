@@ -1,0 +1,47 @@
+---
+import type { CollectionEntry } from 'astro:content';
+
+interface Props {
+  entry: CollectionEntry<'hardware'>;
+}
+
+const { entry } = Astro.props;
+const { title, category, metricLabel, metricValue, status, summary } = entry.data;
+---
+
+<a
+  href={`/hardware/${entry.slug}`}
+  class="group block border border-border rounded-md bg-surface p-md flex flex-col gap-sm
+    no-underline cursor-pointer transition-colors
+    hover:border-accent-primary hover:bg-surface-elevated"
+  data-category={category}
+>
+  <div class="flex items-center justify-between gap-sm">
+    <span class="text-body-md text-secondary">{category}</span>
+    <span
+      class:list={[
+        'text-body-md rounded-full px-xs py-[0.125rem] border',
+        status === 'verified'
+          ? 'border-accent-tertiary text-accent-tertiary'
+          : 'border-border text-secondary',
+      ]}
+    >
+      {status === 'verified' ? 'Verified' : 'Community-reported'}
+    </span>
+  </div>
+
+  <h3 class="text-headline-md text-primary m-0 group-hover:underline">
+    {title}
+  </h3>
+
+  <div class="font-mono">
+    <span class="text-headline-lg text-accent-primary">{metricValue}</span>
+    <span class="text-body-md text-secondary ml-xs">{metricLabel}</span>
+  </div>
+
+  <p class="text-body-md text-secondary m-0">{summary}</p>
+
+  <span class="text-body-md text-accent-primary min-h-touch-min flex items-center group-hover:underline">
+    View benchmark
+  </span>
+</a>

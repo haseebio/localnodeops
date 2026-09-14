@@ -1,0 +1,49 @@
+---
+import { getCollection } from 'astro:content';
+import BaseLayout from '../../layouts/BaseLayout.astro';
+import DocsSidebar from '../../components/DocsSidebar.astro';
+
+const allDocs = (await getCollection('docs')).sort(
+  (a, b) => a.data.sidebarPosition - b.data.sidebarPosition
+);
+
+const jsonLd = [
+  {
+    '@context': 'https://schema.org',
+    '@type': 'CollectionPage',
+    name: 'LocalNodeOps Documentation',
+  },
+];
+---
+
+<BaseLayout
+  title="Documentation"
+  description="Guides for setting up, configuring, and troubleshooting local LLM inference — from first run to quantization tuning."
+  jsonLd={jsonLd}
+>
+  <div class="max-w-shell mx-auto px-lg py-xl grid grid-cols-1 lg:grid-cols-[16rem_1fr] gap-xl">
+    <aside class="hidden lg:block">
+      <DocsSidebar allDocs={allDocs} />
+    </aside>
+
+    <div class="max-w-reading min-w-0">
+      <h1 class="text-display-hero text-primary">Documentation</h1>
+      <p class="text-body-lg text-secondary mt-md">
+        Start here if you're setting up local inference for the first time,
+        or jump to a specific topic using the sidebar.
+      </p>
+
+      <div class="grid grid-cols-1 gap-md mt-lg">
+        {allDocs.map((doc) => (
+          <a
+            href={`/docs/${doc.slug}`}
+            class="border border-border rounded-md bg-surface p-md no-underline hover:border-accent-primary"
+          >
+            <h2 class="text-headline-md text-primary m-0">{doc.data.title}</h2>
+            <p class="text-body-md text-secondary mt-xs m-0">{doc.data.description}</p>
+          </a>
+        ))}
+      </div>
+    </div>
+  </div>
+</BaseLayout>

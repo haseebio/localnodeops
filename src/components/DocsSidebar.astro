@@ -1,0 +1,40 @@
+---
+import type { CollectionEntry } from 'astro:content';
+
+interface Props {
+  allDocs: CollectionEntry<'docs'>[];
+  activeSlug?: string;
+}
+
+const { allDocs, activeSlug } = Astro.props;
+---
+
+<nav
+  aria-label="Documentation"
+  class="sticky top-lg border border-border rounded-md bg-surface p-sm"
+>
+  <p class="text-body-md text-secondary font-bold px-sm pt-xs pb-sm uppercase tracking-wide">
+    Documentation
+  </p>
+  <ul class="list-none p-0 m-0 flex flex-col gap-[0.125rem]">
+    {allDocs.map((doc) => {
+      const isActive = doc.slug === activeSlug;
+      return (
+        <li>
+          <a
+            href={`/docs/${doc.slug}`}
+            aria-current={isActive ? 'page' : undefined}
+            class:list={[
+              'flex items-center min-h-touch-min px-sm rounded-md text-body-md border-l-2 transition-colors',
+              isActive
+                ? 'border-accent-primary bg-accent-primary-container text-primary font-bold'
+                : 'border-transparent text-secondary hover:bg-surface-elevated hover:text-primary',
+            ]}
+          >
+            {doc.data.title}
+          </a>
+        </li>
+      );
+    })}
+  </ul>
+</nav>

@@ -1,0 +1,176 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  :root {
+    --bg-base: #FAFAFA;
+    --bg-surface: #FFFFFF;
+    --bg-surface-elevated: #F4F4F5;
+    --bg-surface-lowest: #FFFFFF;
+
+    --text-primary: #09090B;
+    --text-secondary: #52525B;
+
+    --border-color: #E4E4E7;
+    --border-subtle: #F0F0F1;
+
+    --accent-primary: #2563EB;
+    --accent-primary-container: #DBEAFE;
+    --on-primary: #FFFFFF;
+    --on-primary-container: #1E3A8A;
+
+    --accent-secondary: #7C3AED;
+    --accent-secondary-container: #EDE9FE;
+    --on-secondary: #FFFFFF;
+    --on-secondary-container: #4C1D95;
+
+    /* Dedicated solid-fill button background. accent-primary itself
+       (#2563EB light / #3B82F6 dark) is used for text, links, and
+       borders. In dark mode it fails WCAG AA (3.68:1) when paired with
+       white button text — measured, not assumed. This reuses the
+       already-defined container blue, which passes at 6.70:1. */
+    --accent-primary-solid: #2563EB;
+
+    --accent-tertiary: #059669;
+    --accent-tertiary-container: #D1FAE5;
+    --on-tertiary: #FFFFFF;
+    --on-tertiary-container: #064E3B;
+
+    --accent-error: #DC2626;
+    --accent-error-container: #FEE2E2;
+    --on-error: #FFFFFF;
+    --on-error-container: #7F1D1D;
+  }
+
+  .dark {
+    --bg-base: #09090B;
+    --bg-surface: #121214;
+    --bg-surface-elevated: #18181B;
+    --bg-surface-lowest: #050507;
+
+    --text-primary: #F4F4F5;
+    --text-secondary: #A1A1AA;
+
+    --border-color: #27272A;
+    --border-subtle: #1C1C1F;
+
+    --accent-primary: #3B82F6;
+    --accent-primary-container: #1D4ED8;
+    --on-primary: #FFFFFF;
+    --on-primary-container: #EFF6FF;
+
+    --accent-secondary: #8B5CF6;
+    --accent-secondary-container: #6D28D9;
+    --on-secondary: #FFFFFF;
+    --on-secondary-container: #F5F3FF;
+
+    --accent-primary-solid: #1D4ED8;
+
+    --accent-tertiary: #10B981;
+    --accent-tertiary-container: #047857;
+    --on-tertiary: #FFFFFF;
+    --on-tertiary-container: #ECFDF5;
+
+    --accent-error: #EF4444;
+    --accent-error-container: #7F1D1D;
+    --on-error: #FFFFFF;
+    --on-error-container: #FEF2F2;
+  }
+
+  html {
+    color-scheme: light;
+  }
+  html.dark {
+    color-scheme: dark;
+  }
+
+  body {
+    @apply bg-base text-primary antialiased;
+    font-family: theme('fontFamily.sans');
+  }
+
+  :focus-visible {
+    outline: 2px solid var(--accent-primary);
+    outline-offset: 2px;
+    border-radius: 0.25rem;
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    *, *::before, *::after {
+      animation-duration: 0.01ms !important;
+      animation-iteration-count: 1 !important;
+      transition-duration: 0.01ms !important;
+      scroll-behavior: auto !important;
+    }
+  }
+}
+
+@layer components {
+  .skip-link {
+    @apply sr-only focus:not-sr-only focus:fixed focus:top-md focus:left-md
+      focus:z-50 focus:bg-accent-primary focus:text-accent-on-primary
+      focus:px-md focus:py-sm focus:rounded-md focus:text-body-md;
+  }
+
+  .docs-content h2 {
+    @apply text-headline-lg text-primary mt-xl mb-sm;
+    scroll-margin-top: 1.5rem;
+  }
+  .docs-content h3 {
+    @apply text-headline-md text-primary mt-lg mb-xs;
+    scroll-margin-top: 1.5rem;
+  }
+  .docs-content p {
+    @apply text-body-lg text-secondary mb-md;
+  }
+  .docs-content ul,
+  .docs-content ol {
+    @apply text-body-lg text-secondary mb-md pl-lg;
+  }
+  .docs-content a {
+    @apply text-accent-primary hover:underline;
+  }
+  .docs-content pre {
+    @apply relative bg-surface-lowest border border-border rounded-md
+      p-md overflow-x-auto font-mono text-code-mono mb-md;
+    padding-top: 2.5rem;
+  }
+  .docs-content :not(pre) > code {
+    @apply bg-surface-elevated border border-border rounded-sm
+      px-[0.25rem] py-[0.0625rem] font-mono text-code-mono;
+  }
+  .copy-btn {
+    @apply absolute top-xs right-xs text-body-md rounded-md border
+      border-border bg-surface px-xs py-[0.125rem] text-secondary
+      hover:text-primary min-h-touch-min flex items-center;
+  }
+}
+
+/*
+ * Shiki dual-theme wiring.
+ * astro.config.mjs sets markdown.shikiConfig.themes = { light, dark }.
+ * In that mode Astro emits inline CSS custom properties per token
+ * (--shiki-light / --shiki-light-bg and --shiki-dark / --shiki-dark-bg)
+ * instead of picking one theme at build time — but nothing switches
+ * between them automatically. This block is what makes the toggle
+ * actually recolor code blocks; without it every code block silently
+ * stays on the light theme regardless of the .dark class.
+ */
+.astro-code,
+.astro-code span {
+  color: var(--shiki-light);
+  background-color: var(--shiki-light-bg) !important;
+  font-style: var(--shiki-light-font-style);
+  font-weight: var(--shiki-light-font-weight);
+  text-decoration: var(--shiki-light-text-decoration);
+}
+
+html.dark .astro-code,
+html.dark .astro-code span {
+  color: var(--shiki-dark);
+  background-color: var(--shiki-dark-bg) !important;
+  font-style: var(--shiki-dark-font-style);
+  font-weight: var(--shiki-dark-font-weight);
+  text-decoration: var(--shiki-dark-text-decoration);
+}

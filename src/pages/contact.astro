@@ -1,0 +1,71 @@
+---
+import BaseLayout from '../layouts/BaseLayout.astro';
+
+const jsonLd = [
+  {
+    '@context': 'https://schema.org',
+    '@type': 'ContactPage',
+    name: 'Contact LocalNodeOps',
+  },
+];
+---
+
+<BaseLayout
+  title="Contact LocalNodeOps"
+  description="Reach LocalNodeOps for corrections, sponsorship inquiries, or secure vulnerability disclosures."
+  jsonLd={jsonLd}
+>
+  <section class="max-w-reading mx-auto px-lg pt-2xl pb-xl">
+    <h1 class="text-display-hero text-primary">Contact</h1>
+    <p class="text-body-lg text-secondary mt-md">
+      Pick the channel that matches what you need — it gets you a faster
+      answer than a general inbox.
+    </p>
+  </section>
+
+  <section class="max-w-reading mx-auto px-lg pb-xl">
+    <div class="grid grid-cols-1 sm:grid-cols-2 gap-md">
+      <div class="border border-border rounded-md bg-surface p-md">
+        <h2 class="text-headline-md text-primary m-0">General & corrections</h2>
+        <p class="text-body-md text-secondary mt-xs">
+          Factual errors, broken benchmarks, or content questions.
+        </p>
+        <a href="mailto:corrections@localnodeops.com" class="text-accent-primary hover:underline mt-sm inline-block">
+          corrections@localnodeops.com
+        </a>
+      </div>
+
+      <div class="border border-border rounded-md bg-surface p-md">
+        <h2 class="text-headline-md text-primary m-0">Sponsorship</h2>
+        <p class="text-body-md text-secondary mt-xs">
+          Hardware for review or sponsorship inquiries. Disclosed on any
+          related page per our editorial policy.
+        </p>
+        <a href="mailto:sponsorship@localnodeops.com" class="text-accent-primary hover:underline mt-sm inline-block">
+          sponsorship@localnodeops.com
+        </a>
+      </div>
+    </div>
+  </section>
+
+  <section class="max-w-reading mx-auto px-lg pb-2xl">
+    <h2 class="text-headline-lg text-primary">Secure disclosure</h2>
+    <p class="text-body-lg text-secondary mt-sm">
+      For security vulnerabilities, encrypt your message with the key below
+      rather than emailing plain text.
+    </p>
+
+    <div class="border border-accent-error rounded-md bg-surface p-md mt-md font-mono text-code-mono text-secondary overflow-x-auto">
+      <p class="text-body-md text-accent-error font-sans mb-xs">
+        Placeholder — not a real key. Replace before publishing, or this box
+        actively misleads anyone who tries to use it.
+      </p>
+      <pre class="whitespace-pre-wrap m-0">-----BEGIN PGP PUBLIC KEY BLOCK-----
+
+[Paste your real exported public key here —
+gpg --armor --export you@localnodeops.com]
+
+-----END PGP PUBLIC KEY BLOCK-----</pre>
+    </div>
+  </section>
+</BaseLayout>

@@ -1,0 +1,109 @@
+---
+import { getCollection } from 'astro:content';
+import BaseLayout from '../../layouts/BaseLayout.astro';
+import HardwareCard from '../../components/HardwareCard.astro';
+import CategoryFilter from '../../components/CategoryFilter.astro';
+import VramCalculator from '../../components/VramCalculator.astro';
+
+const hardwareEntries = (await getCollection('hardware')).sort(
+  (a, b) => b.data.publishedAt.valueOf() - a.data.publishedAt.valueOf()
+);
+const categories = [...new Set(hardwareEntries.map((e) => e.data.category))];
+
+// Real answers, matching exactly what the calculator's own footnote and
+// the /methodology page state — no claim here that isn't true elsewhere
+// on the site too.
+const calculatorFaq = [
+  {
+    question: 'How accurate is the VRAM calculator?',
+    answer:
+      'It depends on the mode. In "Generic estimate" mode, both the model weight size and the KV cache figure are estimates based on a reference architecture for the selected size bucket. In "model-specific" mode, the weight size is exact — pulled directly from the real .gguf file size synced from Hugging Face — but the KV cache figure is still an estimate, for the reasons below.',
+  },
+  {
+    question: 'Why is KV cache always an estimate, even for synced models?',
+    answer:
+      'KV cache size depends on a model\u2019s layer count, attention head count, and head dimension. The Hugging Face data this calculator syncs (exact .gguf file sizes) does not include those architecture details, so the calculator matches each model to the nearest reference architecture bucket by parsing an approximate parameter count from its name. See /methodology for the exact formula and its limitations.',
+  },
+  {
+    question: 'Does more VRAM always mean I can run a bigger model?',
+    answer:
+      'No. VRAM is consumed by three separate things: model weights, KV cache, and runtime overhead. A long context window can consume more VRAM than the model weights themselves, especially on older MHA-style architectures. Sizing for weights alone is the most common mistake people make.',
+  },
+  {
+    question: 'What does "Fits on" actually check?',
+    answer:
+      'It compares the calculator\u2019s total estimated VRAM figure against the stated VRAM of a few common consumer GPU configurations. It does not account for VRAM already in use by your OS, other applications, or a second model already loaded.',
+  },
+];
+
+const jsonLd = [
+  {
+    '@context': 'https://schema.org',
+    '@type': 'CollectionPage',
+    name: 'Hardware Benchmarks',
+  },
+  {
+    '@context': 'https://schema.org',
+    '@type': 'FAQPage',
+    mainEntity: calculatorFaq.map((item) => ({
+      '@type': 'Question',
+      name: item.question,
+      acceptedAnswer: {
+        '@type': 'Answer',
+        text: item.answer,
+      },
+    })),
+  },
+];
+---
+
+<BaseLayout
+  title="Hardware Benchmarks for Local LLM Inference"
+  description="Verified and community-reported benchmarks for GPUs, CPUs, memory, and quantization methods used in local LLM inference."
+  jsonLd={jsonLd}
+>
+  <section class="max-w-shell mx-auto px-lg pt-2xl pb-md">
+    <h1 class="text-display-hero text-primary max-w-reading">Hardware benchmarks</h1>
+    <p class="text-body-lg text-secondary max-w-reading mt-md">
+      Tokens-per-second, memory bandwidth, and quantization quality loss,
+      measured on real hardware.
+    </p>
+  </section>
+
+  <section class="max-w-shell mx-auto px-lg pb-md">
+    <div class="border border-border rounded-md bg-surface p-md flex items-center justify-between flex-wrap gap-sm">
+      <span class="text-body-md text-primary">System status</span>
+      <span class="flex items-center gap-xs text-body-md text-secondary">
+        <span class="w-2 h-2 rounded-full bg-accent-tertiary" aria-hidden="true"></span>
+        Static placeholder — not yet wired to live telemetry
+      </span>
+    </div>
+  </section>
+
+  <section class="max-w-shell mx-auto px-lg pb-xl">
+    <VramCalculator />
+  </section>
+
+  <section class="max-w-shell mx-auto px-lg pb-xl">
+    <h2 class="text-headline-lg text-primary mb-md">Calculator FAQ</h2>
+    <div class="flex flex-col gap-md max-w-reading">
+      {calculatorFaq.map((item) => (
+        <div class="border border-border rounded-md bg-surface p-md">
+          <h3 class="text-headline-md text-primary m-0">{item.question}</h3>
+          <p class="text-body-md text-secondary mt-xs m-0">{item.answer}</p>
+        </div>
+      ))}
+    </div>
+  </section>
+
+  <section class="max-w-shell mx-auto px-lg pb-2xl">
+    <div class="mb-md">
+      <CategoryFilter categories={categories} />
+    </div>
+    <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-md">
+      {hardwareEntries.map((entry) => (
+        <HardwareCard entry={entry} />
+      ))}
+    </div>
+  </section>
+</BaseLayout>

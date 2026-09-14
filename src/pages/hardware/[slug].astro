@@ -1,0 +1,55 @@
+---
+import { getCollection } from 'astro:content';
+import BaseLayout from '../../layouts/BaseLayout.astro';
+
+export async function getStaticPaths() {
+  const entries = await getCollection('hardware');
+  return entries.map((entry) => ({
+    params: { slug: entry.slug },
+    props: { entry },
+  }));
+}
+
+const { entry } = Astro.props;
+const { Content } = await entry.render();
+const { title, category, metricLabel, metricValue, status, summary, publishedAt } = entry.data;
+
+const jsonLd = [
+  {
+    '@context': 'https://schema.org',
+    '@type': 'TechArticle',
+    headline: title,
+    description: summary,
+    datePublished: publishedAt.toISOString(),
+  },
+];
+---
+
+<BaseLayout title={title} description={summary} jsonLd={jsonLd}>
+  <article class="max-w-reading mx-auto px-lg py-xl">
+    <p class="text-body-md text-secondary">{category}</p>
+    <h1 class="text-display-hero text-primary mt-xs">{title}</h1>
+    <p class="text-body-lg text-secondary mt-sm">{summary}</p>
+
+    <div class="flex items-center gap-md mt-md flex-wrap">
+      <div class="font-mono">
+        <span class="text-headline-lg text-accent-primary">{metricValue}</span>
+        <span class="text-body-md text-secondary ml-xs">{metricLabel}</span>
+      </div>
+      <span
+        class:list={[
+          'text-body-md rounded-full px-xs py-[0.125rem] border',
+          status === 'verified'
+            ? 'border-accent-tertiary text-accent-tertiary'
+            : 'border-border text-secondary',
+        ]}
+      >
+        {status === 'verified' ? 'Verified' : 'Community-reported'}
+      </span>
+    </div>
+
+    <div class="docs-content mt-lg">
+      <Content />
+    </div>
+  </article>
+</BaseLayout>

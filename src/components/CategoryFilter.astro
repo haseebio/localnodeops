@@ -1,0 +1,73 @@
+---
+interface Props {
+  categories: string[];
+}
+
+const { categories } = Astro.props;
+---
+
+<div
+  role="group"
+  aria-label="Filter hardware benchmarks by category"
+  class="flex items-center gap-sm overflow-x-auto pb-xs"
+  id="category-filter"
+>
+  <button
+    type="button"
+    class="filter-btn min-h-touch-min px-md rounded-full border border-accent-primary bg-accent-primary-solid text-accent-on-primary text-body-md whitespace-nowrap cursor-pointer"
+    data-filter="All"
+    aria-pressed="true"
+  >
+    All
+  </button>
+  {categories.map((category) => (
+    <button
+      type="button"
+      class="filter-btn min-h-touch-min px-md rounded-full border border-border text-primary text-body-md whitespace-nowrap hover:bg-surface-elevated cursor-pointer"
+      data-filter={category}
+      aria-pressed="false"
+    >
+      {category}
+    </button>
+  ))}
+</div>
+
+<script is:inline>
+  document.addEventListener('DOMContentLoaded', function () {
+    const container = document.getElementById('category-filter');
+    if (!container) return;
+
+    const buttons = Array.from(container.querySelectorAll('.filter-btn'));
+    const cards = Array.from(document.querySelectorAll('[data-category]'));
+
+    function setActive(filter) {
+      buttons.forEach((btn) => {
+        const isActive = btn.dataset.filter === filter;
+        btn.setAttribute('aria-pressed', String(isActive));
+
+        btn.classList.toggle('bg-accent-primary-solid', isActive);
+        btn.classList.toggle('text-accent-on-primary', isActive);
+        btn.classList.toggle('border-accent-primary', isActive);
+        btn.classList.toggle('text-primary', !isActive);
+        btn.classList.toggle('border-border', !isActive);
+
+        // The bug: this class used to be static in the markup and
+        // never got removed, so an ACTIVE button (white text on blue)
+        // still carried the light hover background meant for INACTIVE
+        // buttons. Hovering the selected filter swapped its background
+        // to near-white while the text stayed white — invisible. Now
+        // it's only present on inactive buttons.
+        btn.classList.toggle('hover:bg-surface-elevated', !isActive);
+      });
+
+      cards.forEach((card) => {
+        const matches = filter === 'All' || card.dataset.category === filter;
+        card.classList.toggle('hidden', !matches);
+      });
+    }
+
+    buttons.forEach((btn) => {
+      btn.addEventListener('click', () => setActive(btn.dataset.filter));
+    });
+  });
+</script>

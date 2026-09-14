@@ -1,0 +1,46 @@
+---
+import BaseLayout from '../layouts/BaseLayout.astro';
+
+const jsonLd = [
+  {
+    '@context': 'https://schema.org',
+    '@type': 'WebPage',
+    name: '404 Not Found',
+  },
+];
+
+const helpfulLinks = [
+  { href: '/', label: 'Home' },
+  { href: '/hardware', label: 'Hardware benchmarks' },
+  { href: '/docs', label: 'Documentation' },
+  { href: '/errors', label: 'Error directory' },
+];
+---
+
+<BaseLayout
+  title="Page Not Found"
+  description="The page you're looking for doesn't exist or may have moved."
+  jsonLd={jsonLd}
+>
+  <section class="max-w-shell mx-auto px-lg py-2xl">
+    <p class="text-headline-md text-accent-primary font-mono m-0">404</p>
+    <h1 class="text-display-hero text-primary max-w-reading mt-xs">
+      This page doesn't exist.
+    </h1>
+    <p class="text-body-lg text-secondary max-w-reading mt-md">
+      The link might be broken, or the page may have moved. Try one of these instead:
+    </p>
+
+    <div class="grid grid-cols-1 sm:grid-cols-2 gap-md mt-lg max-w-reading">
+      {helpfulLinks.map((link) => (
+        <a href={link.href}
+          class="border border-border rounded-md bg-surface p-md text-body-lg text-primary
+            no-underline cursor-pointer transition-colors
+            hover:border-accent-primary hover:bg-surface-elevated"
+        >
+          {link.label}
+        </a>
+      ))}
+    </div>
+  </section>
+</BaseLayout>

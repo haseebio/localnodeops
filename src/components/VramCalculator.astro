@@ -1,0 +1,399 @@
+---
+import { getCollection } from 'astro:content';
+import CloudFallbackCTA from './CloudFallbackCTA.astro';
+
+interface Props {
+  // Optional slug from the `models` collection. When set, the
+  // calculator opens pre-selected to that model instead of defaulting
+  // to "Generic estimate" — used by /calculator/[slug].astro.
+  preselectedModel?: string;
+}
+
+const { preselectedModel } = Astro.props;
+
+const modelEntries = await getCollection('models');
+const models = modelEntries.map((entry) => ({
+  slug: entry.slug,
+  title: entry.data.title,
+  lastSynced: entry.data.last_synced,
+  quantizations: entry.data.quantizations,
+}));
+
+const preselectedIndex = preselectedModel
+  ? models.findIndex((m) => m.slug === preselectedModel)
+  : -1;
+---
+
+<div class="border border-border rounded-md bg-surface p-md" id="vram-calculator">
+  <h2 class="text-headline-lg text-primary m-0">VRAM calculator</h2>
+  <p class="text-body-md text-secondary mt-xs mb-md">
+    Estimate total VRAM for a given model size, quantization, and context
+    length. Estimates only — see the note at the bottom.
+  </p>
+
+  <div class="mb-md">
+    <label for="model-source" class="text-body-md text-primary block mb-xs">
+      Weight size source
+    </label>
+    <select
+      id="model-source"
+      class="w-full min-h-touch-min rounded-md border border-border bg-surface text-primary text-body-lg px-sm font-mono"
+    >
+      <option value="generic" selected={preselectedIndex === -1}>Generic estimate (by parameter count)</option>
+      {models.map((model, index) => (
+        <option value={`model:${index}`} selected={index === preselectedIndex}>{model.title} (exact, synced from HF)</option>
+      ))}
+    </select>
+  </div>
+
+  <div class="grid grid-cols-1 md:grid-cols-2 gap-lg">
+    <div class="flex flex-col gap-lg">
+      <div id="generic-model-size-row">
+        <label for="model-size" class="text-body-md text-primary block mb-xs">
+          Model size: <span id="model-size-label" class="font-mono text-accent-primary">7B</span>
+        </label>
+        <input
+          type="range"
+          id="model-size"
+          min="0"
+          max="3"
+          step="1"
+          value="0"
+          class="w-full"
+          aria-valuetext="7B"
+        />
+        <div class="flex justify-between text-body-md text-secondary mt-[0.125rem]">
+          <span>7B</span><span>13B</span><span>70B</span><span>120B</span>
+        </div>
+      </div>
+
+      <div id="generic-quant-row">
+        <label for="quant" class="text-body-md text-primary block mb-xs">
+          Quantization
+        </label>
+        <select
+          id="quant"
+          class="w-full min-h-touch-min rounded-md border border-border bg-surface text-primary text-body-lg px-sm font-mono"
+        >
+          <option value="16">FP16 (16 bpw)</option>
+          <option value="8.5">Q8_0 (~8.5 bpw)</option>
+          <option value="4.83" selected>Q4_K_M (~4.83 bpw)</option>
+          <option value="4">EXL2 4.0bpw (exact)</option>
+        </select>
+      </div>
+
+      <div id="model-quant-row" class="hidden">
+        <label for="model-quant" class="text-body-md text-primary block mb-xs">
+          Quantization (exact file size)
+        </label>
+        <select
+          id="model-quant"
+          class="w-full min-h-touch-min rounded-md border border-border bg-surface text-primary text-body-lg px-sm font-mono"
+        ></select>
+        <p class="text-body-md text-secondary mt-xs" id="model-match-note"></p>
+      </div>
+
+      <div>
+        <label for="context" class="text-body-md text-primary block mb-xs">
+          Context length: <span id="context-label" class="font-mono text-accent-primary">4096</span> tokens
+        </label>
+        <input
+          type="range"
+          id="context"
+          min="0"
+          max="6"
+          step="1"
+          value="1"
+          class="w-full"
+          aria-valuetext="4096 tokens"
+        />
+        <div class="flex justify-between text-body-md text-secondary mt-[0.125rem]">
+          <span>2K</span><span>4K</span><span>8K</span><span>16K</span><span>32K</span><span>64K</span><span>128K</span>
+        </div>
+      </div>
+    </div>
+
+    <div class="flex flex-col gap-sm">
+      <div class="border border-border rounded-md bg-surface-elevated p-md">
+        <dl class="grid grid-cols-2 gap-y-xs text-body-md">
+          <dt class="text-secondary">Model weights</dt>
+          <dd class="text-primary font-mono text-right" id="out-weights">—</dd>
+
+          <dt class="text-secondary">KV cache</dt>
+          <dd class="text-primary font-mono text-right" id="out-kv">—</dd>
+
+          <dt class="text-secondary">Runtime overhead (10%)</dt>
+          <dd class="text-primary font-mono text-right" id="out-overhead">—</dd>
+
+          <dt class="text-primary font-bold border-t border-border pt-xs mt-xs">Total VRAM</dt>
+          <dd class="text-accent-primary font-mono text-right font-bold border-t border-border pt-xs mt-xs" id="out-total">—</dd>
+        </dl>
+      </div>
+
+      <div>
+        <p class="text-body-md text-primary mb-xs">Fits on:</p>
+        <ul class="flex flex-col gap-[0.125rem]" id="out-profiles"></ul>
+        <CloudFallbackCTA />
+      </div>
+    </div>
+  </div>
+
+  <!-- Live change log — records each committed manipulation (slider
+       release, dropdown selection) with the resulting total at that
+       moment. Most recent first, capped at 8 entries. -->
+  <div class="mt-md border-t border-border pt-sm">
+    <p class="text-body-md text-primary mb-xs">Live changes</p>
+    <ul id="change-log" class="flex flex-col gap-[0.125rem] text-body-md text-secondary font-mono max-h-40 overflow-y-auto">
+      <li id="change-log-empty" class="text-secondary italic">No changes yet — adjust a control above.</li>
+    </ul>
+  </div>
+
+  <p class="text-body-md text-secondary mt-md border-t border-border pt-sm">
+    <strong class="text-primary">Generic estimate:</strong> weight size
+    is bits-per-weight × parameter count; KV cache uses a reference
+    architecture for the selected size bucket (7B/13B/70B: real published
+    models; 120B: extrapolated, no real model exists at that exact
+    size). <strong class="text-primary">Model-specific (HF-synced):</strong>
+    weight size is the exact <code>.gguf</code> file size fetched from
+    Hugging Face — no estimation. KV cache is <em>still estimated</em>:
+    this schema doesn't carry layer count, head count, or head dimension,
+    so the calculator parses an approximate parameter count from the
+    model's title (e.g. "8B") and reuses the nearest size bucket's
+    reference architecture for the KV math, same caveats as the generic
+    mode. If no parameter count can be parsed from the title, it falls
+    back to the 7B architecture and says so next to the quantization
+    dropdown. Batch size is fixed at 1 in both modes. Treat all figures
+    here as a starting estimate, not a guarantee. Full formula and known
+    limitations: <a href="/methodology" class="text-accent-primary hover:underline">/methodology</a>.
+  </p>
+</div>
+
+<script is:inline type="application/json" id="models-data" set:html={JSON.stringify(models)} />
+
+<script is:inline>
+  (function () {
+    const MODEL_SIZES = [
+      { label: '7B', params: 7e9, layers: 32, kvHeads: 8, headDim: 128 },
+      { label: '13B', params: 13e9, layers: 40, kvHeads: 40, headDim: 128 },
+      { label: '70B', params: 70e9, layers: 80, kvHeads: 8, headDim: 128 },
+      { label: '120B', params: 120e9, layers: 88, kvHeads: 8, headDim: 128 },
+    ];
+
+    const CONTEXT_LENGTHS = [2048, 4096, 8192, 16384, 32768, 65536, 131072];
+
+    const PROFILES = [
+      { label: 'RTX 3060 12GB', vramGb: 12 },
+      { label: 'RTX 4060 Ti 16GB', vramGb: 16 },
+      { label: 'RTX 3090 / 4090 24GB', vramGb: 24 },
+      { label: 'Dual RTX 3090/4090 48GB', vramGb: 48 },
+    ];
+
+    const GB = 1024 ** 3;
+    const MAX_LOG_ENTRIES = 8;
+
+    let ingestedModels = [];
+    try {
+      const raw = document.getElementById('models-data').textContent;
+      ingestedModels = raw ? JSON.parse(raw) : [];
+    } catch {
+      ingestedModels = [];
+    }
+
+    const sourceSelect = document.getElementById('model-source');
+    const genericSizeRow = document.getElementById('generic-model-size-row');
+    const genericQuantRow = document.getElementById('generic-quant-row');
+    const modelQuantRow = document.getElementById('model-quant-row');
+    const modelQuantSelect = document.getElementById('model-quant');
+    const modelMatchNote = document.getElementById('model-match-note');
+
+    const modelSlider = document.getElementById('model-size');
+    const modelLabel = document.getElementById('model-size-label');
+    const contextSlider = document.getElementById('context');
+    const contextLabel = document.getElementById('context-label');
+    const quantSelect = document.getElementById('quant');
+
+    const outWeights = document.getElementById('out-weights');
+    const outKv = document.getElementById('out-kv');
+    const outOverhead = document.getElementById('out-overhead');
+    const outTotal = document.getElementById('out-total');
+    const outProfiles = document.getElementById('out-profiles');
+
+    const changeLog = document.getElementById('change-log');
+    const changeLogEmpty = document.getElementById('change-log-empty');
+    const logEntries = [];
+
+    function formatGb(bytes) {
+      return (bytes / GB).toFixed(2) + ' GB';
+    }
+
+    function parseParamsB(title) {
+      const match = title.match(/(\d+(?:\.\d+)?)\s?B/i);
+      return match ? parseFloat(match[1]) : null;
+    }
+
+    function nearestBucket(paramsB) {
+      if (paramsB == null) return null;
+      let closest = MODEL_SIZES[0];
+      let closestDiff = Infinity;
+      for (const bucket of MODEL_SIZES) {
+        const diff = Math.abs(bucket.params / 1e9 - paramsB);
+        if (diff < closestDiff) {
+          closestDiff = diff;
+          closest = bucket;
+        }
+      }
+      return closest;
+    }
+
+    function populateModelQuantOptions(model) {
+      modelQuantSelect.innerHTML = '';
+      model.quantizations.forEach((q, i) => {
+        const opt = document.createElement('option');
+        opt.value = String(i);
+        opt.textContent = `${q.type} (${q.size_gb.toFixed(2)} GB exact)`;
+        modelQuantSelect.appendChild(opt);
+      });
+
+      const paramsB = parseParamsB(model.title);
+      const bucket = nearestBucket(paramsB);
+      const syncedDate = model.lastSynced ? model.lastSynced.slice(0, 10) : 'unknown date';
+
+      if (bucket && paramsB != null) {
+        modelMatchNote.textContent =
+          `KV cache estimated using ${bucket.label} reference architecture ` +
+          `(matched from "${paramsB}B" in the model name). Weights synced ${syncedDate}.`;
+      } else {
+        modelMatchNote.textContent =
+          `Could not parse a parameter count from this model's name — ` +
+          `defaulting to 7B reference architecture for the KV cache estimate. ` +
+          `Weights synced ${syncedDate}.`;
+      }
+    }
+
+    function updateSourceVisibility() {
+      const isGeneric = sourceSelect.value === 'generic';
+      genericSizeRow.classList.toggle('hidden', !isGeneric);
+      genericQuantRow.classList.toggle('hidden', !isGeneric);
+      modelQuantRow.classList.toggle('hidden', isGeneric);
+
+      if (!isGeneric) {
+        const index = Number(sourceSelect.value.split(':')[1]);
+        const model = ingestedModels[index];
+        if (model) populateModelQuantOptions(model);
+      }
+    }
+
+    function compute() {
+      const context = CONTEXT_LENGTHS[Number(contextSlider.value)];
+      contextLabel.textContent = context.toLocaleString();
+      contextSlider.setAttribute('aria-valuetext', context.toLocaleString() + ' tokens');
+
+      let weightBytes;
+      let kvBucket;
+
+      if (sourceSelect.value === 'generic') {
+        const model = MODEL_SIZES[Number(modelSlider.value)];
+        const bpw = Number(quantSelect.value);
+        modelLabel.textContent = model.label;
+        modelSlider.setAttribute('aria-valuetext', model.label);
+
+        weightBytes = model.params * (bpw / 8);
+        kvBucket = model;
+      } else {
+        const index = Number(sourceSelect.value.split(':')[1]);
+        const model = ingestedModels[index];
+        if (!model || model.quantizations.length === 0) return;
+
+        const quantIndex = Number(modelQuantSelect.value || 0);
+        const quant = model.quantizations[quantIndex];
+        weightBytes = quant.size_gb * GB;
+
+        const paramsB = parseParamsB(model.title);
+        kvBucket = nearestBucket(paramsB) ?? MODEL_SIZES[0];
+      }
+
+      const kvBytes = 2 * kvBucket.layers * kvBucket.kvHeads * kvBucket.headDim * context * 2;
+      const overheadBytes = (weightBytes + kvBytes) * 0.1;
+      const totalBytes = weightBytes + kvBytes + overheadBytes;
+
+      outWeights.textContent = formatGb(weightBytes);
+      outKv.textContent = formatGb(kvBytes);
+      outOverhead.textContent = formatGb(overheadBytes);
+      outTotal.textContent = formatGb(totalBytes);
+
+      const totalGb = totalBytes / GB;
+
+      outProfiles.innerHTML = '';
+      PROFILES.forEach((profile) => {
+        const fits = totalGb <= profile.vramGb;
+        const li = document.createElement('li');
+        li.className =
+          'flex items-center gap-xs text-body-md ' +
+          (fits ? 'text-accent-tertiary' : 'text-accent-error');
+        li.innerHTML =
+          '<span aria-hidden="true">' + (fits ? '✓' : '✗') + '</span>' +
+          '<span>' + profile.label + '</span>';
+        outProfiles.appendChild(li);
+      });
+
+      // Vendor-blind: this only reads the totalGb this same function
+      // already computed above from vram-math's formula. The CTA
+      // component itself has zero knowledge of VRAM figures — it's
+      // shown or hidden purely based on this one boolean.
+      const noneFit = PROFILES.every((profile) => totalGb > profile.vramGb);
+      const cloudCta = document.getElementById('cloud-fallback-cta');
+      if (cloudCta) cloudCta.classList.toggle('hidden', !noneFit);
+    }
+
+    // Appends one line to the live change log with the total VRAM at
+    // the moment this specific manipulation was committed. Called
+    // separately from compute() so slider drags (which call compute()
+    // continuously via 'input') don't spam one log entry per frame —
+    // logging only happens on 'change' (slider release / dropdown
+    // selection), while the numeric output still updates live while
+    // dragging.
+    function logChange(message) {
+      logEntries.unshift(`${message} → Total: ${outTotal.textContent}`);
+      if (logEntries.length > MAX_LOG_ENTRIES) logEntries.length = MAX_LOG_ENTRIES;
+
+      changeLog.innerHTML = '';
+      logEntries.forEach((entry) => {
+        const li = document.createElement('li');
+        li.textContent = entry;
+        changeLog.appendChild(li);
+      });
+      if (logEntries.length === 0) {
+        changeLog.appendChild(changeLogEmpty);
+      }
+    }
+
+    sourceSelect.addEventListener('change', () => {
+      updateSourceVisibility();
+      compute();
+      logChange('Source → ' + sourceSelect.options[sourceSelect.selectedIndex].text);
+    });
+
+    modelSlider.addEventListener('input', compute);
+    modelSlider.addEventListener('change', () => {
+      logChange('Model size → ' + modelLabel.textContent);
+    });
+
+    contextSlider.addEventListener('input', compute);
+    contextSlider.addEventListener('change', () => {
+      logChange('Context → ' + contextLabel.textContent + ' tokens');
+    });
+
+    quantSelect.addEventListener('change', () => {
+      compute();
+      logChange('Quantization → ' + quantSelect.options[quantSelect.selectedIndex].text);
+    });
+
+    modelQuantSelect.addEventListener('change', () => {
+      compute();
+      logChange('Quantization → ' + modelQuantSelect.options[modelQuantSelect.selectedIndex].text);
+    });
+
+    updateSourceVisibility();
+    compute();
+  })();
+</script>

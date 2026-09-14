@@ -1,0 +1,192 @@
+---
+import '../styles/global.css';
+
+interface Props {
+  title: string;
+  description: string;
+  canonicalURL?: string;
+  ogImage?: string;
+  jsonLd?: object[];
+}
+
+const {
+  title,
+  description,
+  canonicalURL = new URL(Astro.url.pathname, Astro.site).toString(),
+  ogImage = '/og-default.png',
+  jsonLd = [],
+} = Astro.props;
+
+if (description.length > 155) {
+  console.warn(
+    `[SEO] Meta description for "${title}" is ${description.length} chars — over the 155 limit. Path: ${Astro.url.pathname}`
+  );
+}
+
+const siteName = 'LocalNodeOps';
+
+const baseSchema = {
+  '@context': 'https://schema.org',
+  '@type': 'WebSite',
+  name: siteName,
+  url: Astro.site?.toString() ?? canonicalURL,
+};
+
+const allSchema = [baseSchema, ...jsonLd];
+
+const navItems = [
+  { href: '/', label: 'Home' },
+  { href: '/docs', label: 'Docs' },
+  { href: '/hardware', label: 'Hardware' },
+  { href: '/methodology', label: 'Methodology' },
+  { href: '/errors', label: 'Errors' },
+  { href: '/about', label: 'About' },
+  { href: '/contact', label: 'Contact' },
+];
+
+// Active-page detection for the nav — startsWith (not exact match) so
+// /docs/getting-started still highlights "Docs", /hardware/rtx-4090...
+// still highlights "Hardware", etc. Home is checked for an exact match
+// only, since every path starts with "/" and would otherwise always
+// match it.
+const currentPath = Astro.url.pathname;
+function isActivePath(href: string) {
+  if (href === '/') return currentPath === '/';
+  return currentPath === href || currentPath.startsWith(href + '/');
+}
+---
+
+<!doctype html>
+<html lang="en">
+  <head>
+    <script is:inline>
+      (function () {
+        const stored = localStorage.getItem('theme');
+        const prefersDark = window.matchMedia('(prefers-color-scheme: dark)').matches;
+        const theme = stored ?? (prefersDark ? 'dark' : 'light');
+        if (theme === 'dark') {
+          document.documentElement.classList.add('dark');
+        }
+      })();
+    </script>
+
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <meta name="generator" content={Astro.generator} />
+
+    <title>{title} · {siteName}</title>
+    <meta name="description" content={description} />
+    <link rel="canonical" href={canonicalURL} />
+
+    <meta property="og:type" content="website" />
+    <meta property="og:site_name" content={siteName} />
+    <meta property="og:title" content={title} />
+    <meta property="og:description" content={description} />
+    <meta property="og:url" content={canonicalURL} />
+    <meta property="og:image" content={new URL(ogImage, Astro.site)} />
+
+    <meta name="twitter:card" content="summary_large_image" />
+    <meta name="twitter:title" content={title} />
+    <meta name="twitter:description" content={description} />
+    <meta name="twitter:image" content={new URL(ogImage, Astro.site)} />
+
+    {allSchema.map((schema) => (
+      <script is:inline type="application/ld+json" set:html={JSON.stringify(schema)} />
+    ))}
+
+    <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
+  </head>
+
+  <body class="min-h-screen flex flex-col">
+    <a href="#main-content" class="skip-link">Skip to content</a>
+
+    <header class="border-b border-border bg-surface">
+      <div class="max-w-shell mx-auto flex items-center justify-between px-lg py-sm">
+        <a href="/" class="font-mono text-body-lg font-bold text-primary no-underline">
+          LocalNodeOps
+        </a>
+
+        <nav aria-label="Main navigation">
+          <ul class="flex items-center gap-lg list-none m-0 p-0">
+            {navItems.map((item) => {
+              const active = isActivePath(item.href);
+              return (
+                <li>
+                  <a href={item.href}
+                    aria-current={active ? 'page' : undefined}
+                    class:list={[
+                      'text-body-md min-h-touch-min flex items-center px-sm rounded-md border-b-2 transition-colors',
+                      active
+                        ? 'text-primary font-bold border-accent-primary bg-accent-primary-container'
+                        : 'text-secondary border-transparent hover:text-primary hover:bg-surface-elevated',
+                    ]}
+                  >
+                    {item.label}
+                  </a>
+                </li>
+              );
+            })}
+          </ul>
+        </nav>
+
+        <button
+          id="theme-toggle"
+          type="button"
+          aria-pressed="false"
+          aria-label="Switch to dark theme"
+          class="min-h-touch-min min-w-touch-min flex items-center justify-center rounded-md border border-border text-primary hover:bg-surface-elevated"
+        >
+          <svg id="icon-sun" xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+            <circle cx="12" cy="12" r="4"></circle>
+            <path d="M12 2v2M12 20v2M4.93 4.93l1.41 1.41M17.66 17.66l1.41 1.41M2 12h2M20 12h2M6.34 17.66l-1.41 1.41M19.07 4.93l-1.41 1.41"></path>
+          </svg>
+          <svg id="icon-moon" xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" class="hidden">
+            <path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"></path>
+          </svg>
+        </button>
+      </div>
+    </header>
+
+    <main id="main-content" class="flex-1">
+      <slot />
+    </main>
+
+    <footer class="border-t border-border bg-surface-elevated">
+      <div class="max-w-shell mx-auto px-lg py-lg flex flex-col md:flex-row items-center justify-between gap-md text-body-md text-secondary">
+        <p class="m-0">© {new Date().getFullYear()} LocalNodeOps. All rights reserved.</p>
+        <nav aria-label="Legal">
+          <ul class="flex items-center gap-lg list-none m-0 p-0">
+            <li><a href="/privacy" class="hover:text-primary hover:underline">Privacy</a></li>
+            <li><a href="/terms" class="hover:text-primary hover:underline">Terms</a></li>
+            <li><a href="/cookies" class="hover:text-primary hover:underline">Cookies</a></li>
+          </ul>
+        </nav>
+      </div>
+    </footer>
+
+    <script is:inline>
+      (function () {
+        const btn = document.getElementById('theme-toggle');
+        const sunIcon = document.getElementById('icon-sun');
+        const moonIcon = document.getElementById('icon-moon');
+        const html = document.documentElement;
+
+        function syncIcons() {
+          const isDark = html.classList.contains('dark');
+          btn.setAttribute('aria-pressed', String(isDark));
+          btn.setAttribute('aria-label', isDark ? 'Switch to light theme' : 'Switch to dark theme');
+          sunIcon.classList.toggle('hidden', isDark);
+          moonIcon.classList.toggle('hidden', !isDark);
+        }
+
+        syncIcons();
+
+        btn.addEventListener('click', function () {
+          const isDark = html.classList.toggle('dark');
+          localStorage.setItem('theme', isDark ? 'dark' : 'light');
+          syncIcons();
+        });
+      })();
+    </script>
+  </body>
+</html>

@@ -1,0 +1,151 @@
+---
+import BaseLayout from '../layouts/BaseLayout.astro';
+
+// Author fields below are exactly what was provided directly — name,
+// tagline, location, and social links. Nothing invented.
+const author = {
+  name: 'Muhammad Haseeb Ur Rehman',
+  tagline:
+    'Full Stack + AI Engineer | React.js • Next.js • Node.js • Python | AI-Powered Applications | LLM Integrations | Building Scalable Web Solutions',
+  location: 'Lahore, Punjab, Pakistan',
+  sameAs: [
+    { url: 'https://github.com/haseebio', label: 'GitHub' },
+    { url: 'https://www.linkedin.com/in/haseebio', label: 'LinkedIn' },
+    { url: 'https://haseebio-portfolio.netlify.app', label: 'Portfolio' },
+  ],
+};
+
+const pillars = [
+  {
+    title: 'Experience',
+    body: 'Every benchmark on this site is run on physical hardware we own or have direct access to. Community-reported figures are labeled as such and never presented as independently verified.',
+  },
+  {
+    title: 'Expertise',
+    body: 'Coverage focuses on the practical side of local inference: quantization trade-offs, VRAM budgeting, and diagnosing failures in CUDA, vLLM, Ollama, and llama.cpp — the tools people actually run in production and at home.',
+  },
+  {
+    title: 'Trustworthiness',
+    body: 'Benchmark methodology, hardware specs, and software versions are published alongside every result. Corrections are dated, not silently edited. This site does participate in affiliate programs with select cloud GPU providers — disclosed inline wherever a link appears, not just buried in Terms — and those relationships never influence the calculator\u2019s math or which local hardware profiles a configuration is shown to fit.',
+  },
+];
+
+const methodology = [
+  'Every figure is tagged verified (measured directly on hardware we control) or community-reported (submitted by someone else) — the two are never blended into one number.',
+  'The VRAM calculator states plainly which parts of its output are exact (synced file sizes) and which are estimated (KV cache math) — see its own footnote for the breakdown.',
+  'Hardware specs and software versions are published next to results, not buried in a separate methodology page nobody reads.',
+  'Corrections are dated when made, not quietly rewritten.',
+  'Affiliate links (currently RunPod, Lambda Labs) are shown only as a separate, clearly labeled card when a configuration exceeds local hardware — they never change the VRAM math itself, which is computed identically with or without an affiliate relationship.',
+];
+
+const jsonLd = [
+  {
+    '@context': 'https://schema.org',
+    '@type': 'Person',
+    name: author.name,
+    description: author.tagline,
+    address: {
+      '@type': 'PostalAddress',
+      addressLocality: 'Lahore',
+      addressRegion: 'Punjab',
+      addressCountry: 'PK',
+    },
+    sameAs: author.sameAs.map((s) => s.url),
+  },
+  {
+    '@context': 'https://schema.org',
+    '@type': 'AboutPage',
+    name: 'About LocalNodeOps',
+  },
+];
+---
+
+<BaseLayout
+  title="About LocalNodeOps"
+  description="Who runs LocalNodeOps, how benchmarks are measured, and the editorial standards behind every guide."
+  jsonLd={jsonLd}
+>
+  <section class="max-w-shell mx-auto px-lg pt-2xl pb-lg">
+    <h1 class="text-display-hero text-primary max-w-reading">About LocalNodeOps</h1>
+    <p class="text-body-lg text-secondary max-w-reading mt-md">
+      LocalNodeOps publishes measured, reproducible benchmarks for local LLM
+      inference hardware — not vendor claims, not marketing numbers. It
+      exists because most "which GPU should I buy for local AI" advice
+      online is either outdated, unverified, or lifted from a vendor spec
+      sheet rather than an actual run. This site tries to close that gap:
+      real numbers, labeled honestly, with the estimation math shown rather
+      than hidden.
+    </p>
+  </section>
+
+  <!-- Author identity card -->
+  <section class="max-w-shell mx-auto px-lg pb-xl">
+    <div class="border border-border rounded-md bg-surface p-lg flex flex-col sm:flex-row gap-lg items-start">
+      <div
+        class="w-20 h-20 shrink-0 rounded-full bg-accent-primary-container
+          flex items-center justify-center text-headline-lg font-bold text-primary font-mono"
+        aria-hidden="true"
+      >
+        {author.name.slice(0, 1)}
+      </div>
+
+      <div class="flex-1 min-w-0">
+        <h2 class="text-headline-lg text-primary m-0">{author.name}</h2>
+        <p class="text-body-md text-secondary mt-[0.125rem] mb-xs">{author.location}</p>
+        <p class="text-body-lg text-secondary m-0">{author.tagline}</p>
+
+        <div class="flex flex-wrap items-center gap-sm mt-md">
+          {author.sameAs.map((s) => (
+            <a href={s.url}
+              rel="me"
+              class="inline-flex items-center min-h-touch-min px-md rounded-full border border-border
+                text-body-md text-primary no-underline cursor-pointer transition-colors
+                hover:border-accent-primary hover:bg-accent-primary-container hover:text-primary"
+            >
+              {s.label}
+            </a>
+          ))}
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- E-E-A-T pillars -->
+  <section class="max-w-shell mx-auto px-lg pb-xl">
+    <h2 class="text-headline-lg text-primary mb-md">How this site operates</h2>
+    <div class="grid grid-cols-1 md:grid-cols-3 gap-md">
+      {pillars.map((pillar) => (
+        <div class="border border-border rounded-md bg-surface p-md">
+          <h3 class="text-headline-md text-primary m-0">{pillar.title}</h3>
+          <p class="text-body-md text-secondary mt-xs m-0">{pillar.body}</p>
+        </div>
+      ))}
+    </div>
+  </section>
+
+  <!-- Methodology -->
+  <section class="max-w-shell mx-auto px-lg pb-xl">
+    <h2 class="text-headline-lg text-primary mb-md">Methodology, in practice</h2>
+    <div class="border border-border rounded-md bg-surface p-md max-w-reading">
+      <ul class="flex flex-col gap-sm m-0 pl-lg text-body-lg text-secondary">
+        {methodology.map((item) => <li>{item}</li>)}
+      </ul>
+    </div>
+  </section>
+
+  <!-- Closing CTA -->
+  <section class="max-w-shell mx-auto px-lg pb-2xl">
+    <div class="border border-border rounded-md bg-surface-elevated p-md flex flex-col sm:flex-row sm:items-center sm:justify-between gap-md">
+      <p class="text-body-lg text-primary m-0">
+        Found something wrong, or want a specific model benchmarked?
+      </p>
+      <a href="/contact"
+        class="inline-flex items-center justify-center min-h-touch-min px-md rounded-md
+          bg-accent-primary-solid text-accent-on-primary text-body-md no-underline cursor-pointer
+          hover:opacity-90 transition-opacity"
+      >
+        Get in touch
+      </a>
+    </div>
+  </section>
+</BaseLayout>

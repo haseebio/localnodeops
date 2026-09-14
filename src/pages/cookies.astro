@@ -1,0 +1,57 @@
+---
+import BaseLayout from '../layouts/BaseLayout.astro';
+
+const jsonLd = [
+  {
+    '@context': 'https://schema.org',
+    '@type': 'WebPage',
+    name: 'Cookie Policy',
+  },
+];
+
+const lastUpdated = '2026-09-10';
+---
+
+<BaseLayout
+  title="Cookie Policy"
+  description="LocalNodeOps does not use cookies. Theme preference is stored in browser localStorage only, which is a different mechanism."
+  jsonLd={jsonLd}
+>
+  <article class="max-w-reading mx-auto px-lg py-2xl">
+    <h1 class="text-display-hero text-primary">Cookie Policy</h1>
+    <p class="text-body-md text-secondary mt-xs">Last updated: {lastUpdated}</p>
+
+    <section class="mt-lg">
+      <h2 class="text-headline-lg text-primary">Short answer: we don't use cookies</h2>
+      <p class="text-body-lg text-secondary mt-sm">
+        This site sets no cookies — no analytics cookies, no advertising
+        cookies, no session cookies. There is nothing to opt out of, and no
+        cookie consent banner, because there is nothing being consented to.
+      </p>
+    </section>
+
+    <section class="mt-lg">
+      <h2 class="text-headline-lg text-primary">What we do use: localStorage</h2>
+      <p class="text-body-lg text-secondary mt-sm">
+        The dark/light theme toggle saves one value —
+        <code>theme: "light"</code> or <code>theme: "dark"</code> — in your
+        browser's <code>localStorage</code>. This is a different technology
+        from cookies: it is never sent to any server on page requests, it
+        isn't accessible to third parties, and it exists purely so the site
+        remembers your display preference on your next visit. You can clear
+        it at any time through your browser's site data settings.
+      </p>
+    </section>
+
+    <section class="mt-lg">
+      <h2 class="text-headline-lg text-primary">Third-party embeds</h2>
+      <p class="text-body-lg text-secondary mt-sm">
+        This site does not embed third-party trackers, ad networks, or
+        analytics scripts that would set their own cookies. If that changes
+        in the future, this page will be updated before any such script
+        ships, and a consent mechanism will be added if required by
+        applicable law.
+      </p>
+    </section>
+  </article>
+</BaseLayout>

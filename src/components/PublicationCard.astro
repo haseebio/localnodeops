@@ -1,0 +1,37 @@
+---
+import type { CollectionEntry } from 'astro:content';
+
+interface Props {
+  entry: CollectionEntry<'posts'>;
+}
+
+const { entry } = Astro.props;
+const { title, excerpt, category, pubDate, readingTime } = entry.data;
+
+const formattedDate = pubDate.toLocaleDateString('en-US', {
+  year: 'numeric',
+  month: 'short',
+  day: 'numeric',
+});
+---
+
+<a
+  href={`/posts/${entry.slug}`}
+  class="group block border border-border rounded-md bg-surface p-md flex flex-col gap-sm h-full
+    no-underline cursor-pointer transition-colors
+    hover:border-accent-primary hover:bg-surface-elevated"
+>
+  <span class="text-body-md text-secondary">{category}</span>
+
+  <h3 class="text-headline-md text-primary m-0 group-hover:underline">
+    {title}
+  </h3>
+
+  <p class="text-body-md text-secondary m-0 flex-1">{excerpt}</p>
+
+  <div class="text-body-md text-secondary flex items-center gap-sm">
+    <time datetime={pubDate.toISOString()}>{formattedDate}</time>
+    <span aria-hidden="true">·</span>
+    <span>{readingTime} min read</span>
+  </div>
+</a>

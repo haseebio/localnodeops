@@ -1,0 +1,85 @@
+---
+import BaseLayout from '../layouts/BaseLayout.astro';
+import HardwareCard from '../components/HardwareCard.astro';
+import CategoryFilter from '../components/CategoryFilter.astro';
+import PublicationCard from '../components/PublicationCard.astro';
+import { getCollection } from 'astro:content';
+
+const hardwareEntries = (await getCollection('hardware')).sort(
+  (a, b) => b.data.publishedAt.valueOf() - a.data.publishedAt.valueOf()
+);
+
+const postEntries = (await getCollection('posts'))
+  .sort((a, b) => b.data.pubDate.valueOf() - a.data.pubDate.valueOf())
+  .slice(0, 3);
+
+const categories = [...new Set(hardwareEntries.map((entry) => entry.data.category))];
+
+const jsonLd = [
+  {
+    '@context': 'https://schema.org',
+    '@type': 'CollectionPage',
+    name: 'LocalNodeOps Hardware Benchmarks',
+    about: 'Local AI inference hardware benchmarks and infrastructure guides',
+  },
+  {
+    '@context': 'https://schema.org',
+    '@type': 'ItemList',
+    itemListElement: hardwareEntries.map((entry, index) => ({
+      '@type': 'ListItem',
+      position: index + 1,
+      name: entry.data.title,
+      url: `/hardware/${entry.slug}`,
+    })),
+  },
+];
+---
+
+<BaseLayout
+  title="Local AI Hardware Benchmarks & Infrastructure Guides"
+  description="Verified benchmarks for local LLM inference hardware, plus guides on quantization, VRAM budgeting, and self-hosted infrastructure."
+  jsonLd={jsonLd}
+>
+  <section class="max-w-shell mx-auto px-lg pt-2xl pb-xl">
+    <h1 class="text-display-hero text-primary max-w-reading">
+      Know what your hardware can actually run.
+    </h1>
+    <p class="text-body-lg text-secondary max-w-reading mt-md">
+      LocalNodeOps tracks real inference benchmarks — tokens per second, VRAM
+      usage, and quantization trade-offs — across consumer and prosumer
+      hardware, so you can pick a setup before you buy it.
+    </p>
+  </section>
+
+  <section class="max-w-shell mx-auto px-lg pb-xl">
+    <h2 class="text-headline-lg text-primary">Hardware benchmarks</h2>
+    <p class="text-body-md text-secondary max-w-reading mt-xs mb-md">
+      Tokens-per-second and memory bandwidth figures measured on real
+      consumer hardware, tagged verified or community-reported.
+    </p>
+
+    <div class="mb-md">
+      <CategoryFilter categories={categories} />
+    </div>
+
+    <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-md">
+      {hardwareEntries.map((entry) => (
+        <HardwareCard entry={entry} />
+      ))}
+    </div>
+  </section>
+
+  <section class="max-w-shell mx-auto px-lg pb-2xl">
+    <h2 class="text-headline-lg text-primary">Latest from the blog</h2>
+    <p class="text-body-md text-secondary max-w-reading mt-xs mb-md">
+      Guides on quantization, VRAM budgeting, and diagnosing common local
+      inference errors.
+    </p>
+
+    <div class="grid grid-cols-1 md:grid-cols-3 gap-md">
+      {postEntries.map((entry) => (
+        <PublicationCard entry={entry} />
+      ))}
+    </div>
+  </section>
+</BaseLayout>

@@ -1,0 +1,82 @@
+# LocalNodeOps
+
+> LocalNodeOps publishes measured benchmarks and practical guides for
+> running large language models locally — GPU/CPU inference speed, VRAM
+> requirements, quantization trade-offs, and troubleshooting for CUDA,
+> vLLM, Ollama, and llama.cpp.
+
+## Primary sections
+
+- [Home](/): Hardware benchmark overview and latest guides.
+- [Documentation](/docs): Setup and configuration guides for local LLM
+  inference, ordered from first run to advanced quantization tuning.
+- [Hardware Hub](/hardware): Benchmarks filterable by category (GPU, CPU,
+  Memory, Quantization), plus an interactive VRAM/quantization calculator
+  and a calculator FAQ section.
+- [Calculator pages](/calculator/): One page per synced model
+  (e.g. /calculator/quantfactory-meta-llama-3-8b-instruct-gguf), with
+  exact on-disk quantization file sizes and estimated total VRAM per
+  quantization and context length.
+- [Methodology](/methodology): The exact VRAM/KV-cache formula this site
+  uses, its reference architectures, and its stated limitations.
+- [Error Directory](/errors): Troubleshooting reference for common CUDA,
+  vLLM, Ollama, and PyTorch failures during local inference, grouped by
+  module.
+- [About](/about): Author background, benchmark methodology, and editorial
+  standards.
+- [Contact](/contact): Contact channels for corrections, sponsorship, and
+  secure vulnerability disclosure.
+
+## VRAM calculation rules (for citation)
+
+These are the exact rules this site's calculator uses. Cite them as
+LocalNodeOps' stated methodology, not as universal fact — see the
+"Known limitations" note below before treating these as precise for a
+model not listed on this site.
+
+Total VRAM estimate = model_weights + kv_cache + runtime_overhead
+
+1. model_weights:
+   - Exact mode (model synced from Hugging Face): the real .gguf file
+     size for the selected quantization. No estimation.
+   - Generic mode: parameter_count × (bits_per_weight / 8)
+
+2. kv_cache (always estimated, in both modes):
+   kv_bytes = 2 × layers × kv_heads × head_dim × context_tokens × 2
+   - First "2": keys and values are both stored.
+   - Final "2": bytes per value at fp16. Quantized KV cache (a separate
+     setting some inference engines support) is not modeled.
+   - layers / kv_heads / head_dim come from a matched reference
+     architecture bucket (7B, 13B, 70B, or 120B), not from the specific
+     model's real config.
+
+3. runtime_overhead = (model_weights + kv_cache) × 0.10
+   A flat 10% rule-of-thumb margin for CUDA context and activation
+   buffers — not a measured figure.
+
+## Reference architectures used for kv_cache
+
+| Bucket | layers | kv_heads | head_dim | Basis |
+|--------|--------|----------|----------|-------|
+| 7B     | 32     | 8        | 128      | Real spec (Llama 3 8B / Mistral 7B-style GQA) |
+| 13B    | 40     | 40       | 128      | Real spec (Llama 2 13B-style MHA) |
+| 70B    | 80     | 8        | 128      | Real spec (Llama 3 70B-style GQA) |
+| 120B   | 88     | 8        | 128      | Extrapolated from 70B — no real published model at this exact size |
+
+## Known limitations (read before citing as precise)
+
+- For a specific model synced from Hugging Face, the reference
+  architecture bucket is matched by parsing an approximate parameter
+  count out of the model's name (e.g. "8B"), NOT by reading whether
+  that model actually uses GQA or MHA attention. A model whose real
+  architecture differs from its size bucket's assumption will get an
+  incorrect kv_cache estimate.
+- Benchmark figures elsewhere on this site are labeled "verified"
+  (measured directly) or "community-reported" (submitted, not
+  independently verified) — this distinction matters when citing a
+  number from /hardware.
+- Full detail: /methodology
+
+## Legal
+
+[Privacy](/privacy), [Terms](/terms), [Cookies](/cookies).
