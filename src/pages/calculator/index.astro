@@ -1,0 +1,54 @@
+---
+import { getCollection } from 'astro:content';
+import BaseLayout from '../../layouts/BaseLayout.astro';
+
+const models = (await getCollection('models')).sort((a, b) =>
+  a.data.title.localeCompare(b.data.title)
+);
+
+const jsonLd = [
+  {
+    '@context': 'https://schema.org',
+    '@type': 'CollectionPage',
+    name: 'VRAM Calculator Pages',
+  },
+];
+---
+
+<BaseLayout
+  title="Per-Model VRAM Calculators"
+  description="Exact GGUF file sizes and estimated VRAM requirements, synced from Hugging Face, for every model tracked on this site."
+  jsonLd={jsonLd}
+>
+  <section class="max-w-shell mx-auto px-lg pt-2xl pb-lg">
+    <h1 class="text-display-hero text-primary max-w-reading">Per-model VRAM calculators</h1>
+    <p class="text-body-lg text-secondary max-w-reading mt-md">
+      Exact on-disk quantization sizes synced from Hugging Face, with
+      estimated total VRAM per quantization and context length. See the
+      generic calculator on <a href="/hardware" class="text-accent-primary hover:underline">/hardware</a>
+      if your model isn't listed here.
+    </p>
+  </section>
+
+  <section class="max-w-shell mx-auto px-lg pb-2xl">
+    {models.length === 0 ? (
+      <p class="text-body-lg text-secondary max-w-reading">
+        No models synced yet — run <code>npm run sync:hf</code> to populate this list.
+      </p>
+    ) : (
+      <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-md">
+        {models.map((model) => (
+          <a href={`/calculator/${model.slug}`}
+            class="border border-border rounded-md bg-surface p-md no-underline cursor-pointer
+              transition-colors hover:border-accent-primary hover:bg-surface-elevated"
+          >
+            <p class="text-headline-md text-primary m-0">{model.data.title}</p>
+            <p class="text-body-md text-secondary mt-xs mb-0">
+              {model.data.quantizations.length} quantization{model.data.quantizations.length === 1 ? '' : 's'} synced
+            </p>
+          </a>
+        ))}
+      </div>
+    )}
+  </section>
+</BaseLayout>

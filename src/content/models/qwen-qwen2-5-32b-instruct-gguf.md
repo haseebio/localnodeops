@@ -1,6 +1,6 @@
 ---
 title: "Qwen2.5-32B-Instruct-GGUF"
-last_synced: "2026-09-14T08:35:26.737Z"
+last_synced: "2026-09-14T08:56:36.171Z"
 architecture: "unknown"
 quantizations:
   - type: "qwen2.5-32b-instruct-fp16-00001-of-00017"

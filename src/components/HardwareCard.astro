@@ -7,10 +7,21 @@ interface Props {
 
 const { entry } = Astro.props;
 const { title, category, metricLabel, metricValue, status, summary } = entry.data;
+
+const STATUS_LABELS: Record<string, string> = {
+  verified: 'Verified',
+  community: 'Community-reported',
+  estimated: 'Estimated — not yet benchmarked',
+};
+
+const STATUS_STYLES: Record<string, string> = {
+  verified: 'border-accent-tertiary text-accent-tertiary',
+  community: 'border-border text-secondary',
+  estimated: 'border-accent-secondary text-secondary',
+};
 ---
 
-<a
-  href={`/hardware/${entry.slug}`}
+<a href={`/hardware/${entry.slug}`}
   class="group block border border-border rounded-md bg-surface p-md flex flex-col gap-sm
     no-underline cursor-pointer transition-colors
     hover:border-accent-primary hover:bg-surface-elevated"
@@ -20,13 +31,11 @@ const { title, category, metricLabel, metricValue, status, summary } = entry.dat
     <span class="text-body-md text-secondary">{category}</span>
     <span
       class:list={[
-        'text-body-md rounded-full px-xs py-[0.125rem] border',
-        status === 'verified'
-          ? 'border-accent-tertiary text-accent-tertiary'
-          : 'border-border text-secondary',
+        'text-body-md rounded-full px-xs py-[0.125rem] border whitespace-nowrap',
+        STATUS_STYLES[status],
       ]}
     >
-      {status === 'verified' ? 'Verified' : 'Community-reported'}
+      {STATUS_LABELS[status]}
     </span>
   </div>
 

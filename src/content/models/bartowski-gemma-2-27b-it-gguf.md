@@ -1,6 +1,6 @@
 ---
 title: "gemma-2-27b-it-GGUF"
-last_synced: "2026-09-14T08:35:25.714Z"
+last_synced: "2026-09-14T08:56:30.477Z"
 architecture: "unknown"
 quantizations:
   - type: "gemma-2-27b-it-IQ2_M"

@@ -6,4 +6,53 @@ summary: "The model, context, or batch size requested more VRAM than the GPU has
 severity: "critical"
 ---
 
-Full fix guide pending.
+## What's actually happening
+
+`CUDA_ERROR_OUT_OF_MEMORY` fires when the CUDA driver can't satisfy an
+allocation request — it does not tell you *which* allocation failed or
+why your total demand exceeded available VRAM. Treat this as a
+starting point for diagnosis, not a complete diagnosis on its own.
+
+## Diagnostic steps, in order
+
+**1. Confirm nothing else is holding VRAM before you start.**
+
+```bash
+nvidia-smi --query-compute-apps=pid,used_memory --format=csv
+```
+
+If `used_memory` is nonzero before you've launched your inference
+process, kill whatever's holding it or account for it in your budget.
+
+**2. Check whether the failure happens on load or during generation.**
+
+Failure immediately on model load points to weights alone exceeding
+VRAM — check your model's file size at its quantization level against
+`nvidia-smi --query-gpu=memory.total --format=csv`. Failure partway
+through a session, after some tokens have already been generated,
+points to KV cache growth from accumulating context — see the
+[VRAM budgeting guide](/posts/vram-budget-for-70b-models) for the exact
+math.
+
+**3. If it only happens under concurrent load, it's a batching issue,
+not a sizing issue.**
+
+Check `gpu_memory_utilization` (vLLM) or equivalent batch/queue
+settings — defaults are often too permissive for the VRAM actually
+available when multiple requests overlap.
+
+## Fixes, by cause
+
+- **Weights too large**: drop to a more aggressive quantization
+  (Q4_K_M instead of Q8_0), or reduce parameter count.
+- **KV cache growth**: lower `--ctx-size` (llama.cpp) or the
+  equivalent context window setting; enable KV cache quantization if
+  your inference engine supports it.
+- **Concurrent batching**: lower `gpu_memory_utilization` or the
+  equivalent max-batch-size setting to leave real headroom.
+- **Fragmentation on long-running processes**: restart the inference
+  process. If OOM recurs immediately after a fresh restart, it's not
+  fragmentation — go back to the causes above.
+
+Full diagnostic walkthrough: [Diagnosing CUDA OOM
+errors](/posts/diagnosing-cuda-oom-errors).

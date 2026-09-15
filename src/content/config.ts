@@ -7,7 +7,7 @@ const hardware = defineCollection({
     category: z.enum(['GPU', 'CPU', 'Memory', 'Quantization']),
     metricLabel: z.string(),
     metricValue: z.string(),
-    status: z.enum(['verified', 'community']),
+    status: z.enum(['verified', 'community', 'estimated']),
     summary: z.string().max(160),
     publishedAt: z.date(),
   }),

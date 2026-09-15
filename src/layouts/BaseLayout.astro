@@ -78,6 +78,8 @@ function isActivePath(href: string) {
     <meta name="description" content={description} />
     <link rel="canonical" href={canonicalURL} />
 
+    <meta name="google-site-verification" content="kHi3p-gpJyu38qRNRyQ15EO0rr0Z5L-wIPh3_7wnnFQ" />
+
     <meta property="og:type" content="website" />
     <meta property="og:site_name" content={siteName} />
     <meta property="og:title" content={title} />
@@ -95,6 +97,15 @@ function isActivePath(href: string) {
     ))}
 
     <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
+
+    <!-- Google tag (gtag.js) -->
+    <script async src="https://www.googletagmanager.com/gtag/js?id=G-21TNRN01XX"></script>
+    <script is:inline>
+      window.dataLayer = window.dataLayer || [];
+      function gtag(){dataLayer.push(arguments);}
+      gtag('js', new Date());
+      gtag('config', 'G-21TNRN01XX');
+    </script>
   </head>
 
   <body class="min-h-screen flex flex-col">
