@@ -1,5 +1,41 @@
+# Dependencies
 node_modules/
+
+# Build output
 dist/
 .astro/
+.vercel/
+.netlify/
+
+# Environment variables
 .env
+.env.local
+.env.*.local
+
+# Secrets and keys — NEVER commit these
+*.asc
+*.key
+*.pem
+*.gpg
+*.pgp
+*.p12
+*.pfx
+private-key-backup.asc
+secring.*
+
+# OS files
 .DS_Store
+Thumbs.db
+desktop.ini
+
+# Editor
+.vscode/
+.idea/
+*.swp
+
+# Logs
+*.log
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+pnpm-debug.log*
