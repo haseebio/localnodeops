@@ -20,8 +20,13 @@ function slugify(repoId) {
   return repoId.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '');
 }
 
+// Matches both `model.Q4_K_M.gguf` (dot-separated, common on TheBloke/
+// QuantFactory repos) and `model-Q4_K_M.gguf` (hyphen-separated, common
+// on bartowski repos). Previously only matched the dot form, so every
+// hyphen-separated filename fell through to the raw-filename fallback
+// below and produced garbage "type" values.
 function parseQuantType(filename) {
-  const match = filename.match(/\.(Q\d[\w-]*|F16|F32|IQ\d[\w-]*)\.gguf$/i);
+  const match = filename.match(/[.-](Q\d[\w-]*|F16|F32|IQ\d[\w-]*)\.gguf$/i);
   return match ? match[1].toUpperCase() : filename.replace(/\.gguf$/i, '');
 }
 
@@ -34,7 +39,27 @@ async function fetchRepoTree(repoId) {
   return res.json();
 }
 
+// config.model_type is frequently missing or wrong for GGUF-only repos
+// (the config.json HF reads may belong to a tokenizer/quantizer tool
+// rather than the base model — this is how Phi-3 was previously
+// mislabeled "mistral"). We don't have a reliable API-only source of
+// truth for architecture across arbitrary repos, so we derive it from
+// known name patterns instead of trusting config.model_type blindly.
+function inferArchitectureFromRepoId(repoId) {
+  const name = repoId.toLowerCase();
+  if (name.includes('llama-3')) return 'llama-3';
+  if (name.includes('gemma-2')) return 'gemma-2';
+  if (name.includes('qwen2.5') || name.includes('qwen2-5')) return 'qwen2.5';
+  if (name.includes('phi-3')) return 'phi-3';
+  if (name.includes('mixtral')) return 'mixtral';
+  if (name.includes('mistral')) return 'mistral';
+  return 'unknown';
+}
+
 async function fetchArchitecture(repoId) {
+  const inferred = inferArchitectureFromRepoId(repoId);
+  if (inferred !== 'unknown') return inferred;
+
   try {
     const res = await fetch(`https://huggingface.co/api/models/${repoId}`);
     if (!res.ok) return 'unknown';
