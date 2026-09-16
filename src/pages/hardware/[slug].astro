@@ -26,6 +26,12 @@ const STATUS_STYLES: Record<string, string> = {
   estimated: 'border-accent-secondary text-secondary',
 };
 
+const STATUS_SCHEMA_DESCRIPTIONS: Record<string, string> = {
+  verified: `Verified benchmark: ${metricValue} ${metricLabel}`,
+  community: `Community-reported value, not independently verified: ${metricValue} ${metricLabel}`,
+  estimated: `Estimated value, not yet independently benchmarked: ${metricValue} ${metricLabel}`,
+};
+
 const jsonLd = [
   {
     '@context': 'https://schema.org',
@@ -33,6 +39,13 @@ const jsonLd = [
     headline: title,
     description: summary,
     datePublished: publishedAt.toISOString(),
+    about: {
+      '@type': 'Dataset',
+      name: `${title} — ${metricLabel}`,
+      description: STATUS_SCHEMA_DESCRIPTIONS[status],
+      variableMeasured: metricLabel,
+      value: metricValue,
+    },
   },
 ];
 ---
