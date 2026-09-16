@@ -35,14 +35,33 @@ export function parseParamsB(title: string): number | null {
   return match ? parseFloat(match[1]) : null;
 }
 
-// Matches to the NEAREST bucket by parameter count only. This does not
-// verify whether the actual model is GQA or MHA — it assumes the
-// bucket's architecture applies. For 7B/70B-scale current models this
-// is usually right (GQA is now the common choice at those sizes), but
-// it is a heuristic, not a detection, and can be wrong for a specific
-// model that doesn't follow the pattern its size bucket assumes.
-export function nearestBucket(paramsB: number | null): ArchBucket {
-  if (paramsB == null) return MODEL_SIZES[0];
+// Max allowed distance (in billions of params) between a model's actual
+// size and a reference bucket's size before we consider the bucket's
+// architecture assumptions (layer count, KV head count) too unreliable
+// to use. Below this, treating the bucket as a stand-in is a reasonable
+// approximation. Above it, forcing a match produces a number that looks
+// precise but is not — e.g. a 32B model estimated with the 13B bucket's
+// KV cache shape.
+const BUCKET_DISTANCE_CAP_B = 5;
+
+// Name patterns that indicate a mixture-of-experts model. MoE models
+// don't fit the dense-architecture assumptions baked into MODEL_SIZES
+// at all — their active vs. total parameter count and KV cache shape
+// don't scale the way a dense model's does. We exclude these outright
+// rather than force a dense-model bucket match, regardless of distance.
+const MOE_NAME_PATTERN = /\bmoe\b|mixtral|\d+x\d+b/i;
+
+// Matches to the nearest bucket by parameter count, but returns null
+// rather than force-matching when:
+//  - no parameter count could be parsed from the title, or
+//  - the model name indicates a MoE architecture, or
+//  - the nearest bucket is still more than BUCKET_DISTANCE_CAP_B away.
+// Callers must handle a null return — it means "no confident estimate
+// is possible for this model," not an error.
+export function nearestBucket(paramsB: number | null, modelName?: string): ArchBucket | null {
+  if (paramsB == null) return null;
+  if (modelName && MOE_NAME_PATTERN.test(modelName)) return null;
+
   let closest = MODEL_SIZES[0];
   let closestDiff = Infinity;
   for (const bucket of MODEL_SIZES) {
@@ -52,6 +71,8 @@ export function nearestBucket(paramsB: number | null): ArchBucket {
       closest = bucket;
     }
   }
+
+  if (closestDiff > BUCKET_DISTANCE_CAP_B) return null;
   return closest;
 }
 

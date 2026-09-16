@@ -16,8 +16,9 @@ const { entry } = Astro.props;
 const { title, last_synced, quantizations } = entry.data;
 
 const paramsB = parseParamsB(title);
-const bucket = nearestBucket(paramsB);
+const bucket = nearestBucket(paramsB, title);
 const syncedDate = last_synced.slice(0, 10);
+const hasEstimate = bucket !== null;
 
 // Real, per-model numbers computed at build time — this is what makes
 // each of these pages distinct content instead of a duplicate shell.
@@ -25,49 +26,40 @@ const syncedDate = last_synced.slice(0, 10);
 // the number quoted here matches what a visitor sees if they don't
 // touch the slider.
 const DEFAULT_CONTEXT = 4096;
-const quantEstimates = quantizations.map((q) => ({
-  ...q,
-  estimate: estimateVram(q.size_gb, bucket, DEFAULT_CONTEXT),
-}));
+const quantEstimates = hasEstimate
+  ? quantizations.map((q) => ({
+      ...q,
+      estimate: estimateVram(q.size_gb, bucket, DEFAULT_CONTEXT),
+    }))
+  : [];
 
-// Bucket-match confidence: nearestBucket() picks the closest param count
-// with no distance cap and no MoE awareness. Below a small diff this is
-// a reasonable stand-in; above it, the KV-cache shape assumption is
-// likely wrong, not just imprecise (undersized dense models forced into
-// an oversized bucket, or MoE models like Mixtral parsed by a dense-style
-// param count entirely). Surfaced here so the page doesn't caveat only
-// the KV math and stay silent on a worse mismatch underneath it.
-const BUCKET_CONFIDENCE_THRESHOLD_B = 5;
-const bucketDiffB = paramsB == null ? null : Math.abs(bucket.params / 1e9 - paramsB);
-const lowBucketConfidence = bucketDiffB == null || bucketDiffB > BUCKET_CONFIDENCE_THRESHOLD_B;
-
-const faq = quantEstimates.map((q) => ({
-  question: `How much VRAM does ${title} need at ${q.type}?`,
-  answer:
-    `The ${q.type} quantization is ${q.size_gb.toFixed(2)} GB on disk (exact, synced from Hugging Face). ` +
-    `At a ${DEFAULT_CONTEXT.toLocaleString()}-token context, using the ${bucket.label} reference architecture for the ` +
-    `KV cache estimate${paramsB == null ? ' (no parameter count could be parsed from the model name, so this defaults to the 7B architecture)' : ''}, ` +
-    `total estimated VRAM is approximately ${q.estimate.totalGb.toFixed(2)} GB. ` +
-    `This total includes a KV cache estimate and a 10% runtime overhead margin — only the weight size is exact.` +
-    (lowBucketConfidence
-      ? ` Note: this model's actual size or architecture (e.g. mixture-of-experts) differs enough from the ${bucket.label} reference that the KV cache portion of this estimate may be structurally inaccurate, not just approximate.`
-      : ''),
-}));
+const faq = hasEstimate
+  ? quantEstimates.map((q) => ({
+      question: `How much VRAM does ${title} need at ${q.type}?`,
+      answer:
+        `The ${q.type} quantization is ${q.size_gb.toFixed(2)} GB on disk (exact, synced from Hugging Face). ` +
+        `At a ${DEFAULT_CONTEXT.toLocaleString()}-token context, using the ${bucket.label} reference architecture for the ` +
+        `KV cache estimate, total estimated VRAM is approximately ${q.estimate.totalGb.toFixed(2)} GB. ` +
+        `This total includes a KV cache estimate and a 10% runtime overhead margin — only the weight size is exact.`,
+    }))
+  : quantizations.map((q) => ({
+      question: `How much VRAM does ${title} need at ${q.type}?`,
+      answer:
+        `The ${q.type} quantization is ${q.size_gb.toFixed(2)} GB on disk (exact, synced from Hugging Face). ` +
+        `A total VRAM estimate isn't available for this model — its size or architecture (e.g. mixture-of-experts) ` +
+        `doesn't closely match any of our reference architectures, and we'd rather show nothing than a number ` +
+        `that looks precise but likely isn't.`,
+    }));
 
 const jsonLd = [
   {
     '@context': 'https://schema.org',
     '@type': 'TechArticle',
     headline: `VRAM requirements for ${title}`,
-    description: `Exact GGUF file sizes and estimated total VRAM requirements for ${title}, by quantization and context length.`,
+    description: hasEstimate
+      ? `Exact GGUF file sizes and estimated total VRAM requirements for ${title}, by quantization and context length.`
+      : `Exact GGUF file sizes for ${title}. Total VRAM estimate not available — no reference architecture closely matches this model.`,
     dateModified: last_synced,
-    about: {
-      '@type': 'Dataset',
-      name: `${title} — estimated VRAM requirements`,
-      description: lowBucketConfidence
-        ? `Low-confidence estimate: reference architecture bucket (${bucket.label}) may not match this model's actual architecture.`
-        : `Estimate based on closest-matching reference architecture bucket (${bucket.label}).`,
-    },
   },
   {
     '@context': 'https://schema.org',
@@ -86,7 +78,7 @@ const jsonLd = [
 
 <BaseLayout
   title={`VRAM Requirements for ${title}`}
-  description={`Exact GGUF file sizes and estimated VRAM requirements for ${title} across ${quantizations.length} quantization${quantizations.length === 1 ? '' : 's'}.`}
+  description={`Exact GGUF file sizes${hasEstimate ? ` and estimated VRAM requirements` : ''} for ${title} across ${quantizations.length} quantization${quantizations.length === 1 ? '' : 's'}.`}
   jsonLd={jsonLd}
 >
   <section class="max-w-shell mx-auto px-lg pt-2xl pb-md">
@@ -96,42 +88,60 @@ const jsonLd = [
     </h1>
     <p class="text-body-lg text-secondary max-w-reading mt-md">
       Exact on-disk weight sizes below are pulled directly from Hugging Face.
-      Total VRAM figures also include an estimated KV cache and runtime
-      overhead — see the breakdown per quantization, and the calculator
-      below to adjust context length.
+      {hasEstimate
+        ? ' Total VRAM figures also include an estimated KV cache and runtime overhead — see the breakdown per quantization, and the calculator below to adjust context length.'
+        : ' A total VRAM estimate isn\'t shown for this model — see why below.'}
     </p>
-    {lowBucketConfidence && (
-      <p class="text-body-md text-secondary mt-sm border border-border rounded-md bg-surface p-sm">
-        This model's size doesn't closely match any reference architecture
-        used for the KV cache estimate below. The weight sizes are still
-        exact; the total VRAM figure may be less accurate than for models
-        closer to a reference size.
-      </p>
-    )}
   </section>
 
   <section class="max-w-shell mx-auto px-lg pb-xl">
     <h2 class="text-headline-lg text-primary mb-md">By quantization</h2>
-    <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-md">
-      {quantEstimates.map((q) => (
-        <div class="border border-border rounded-md bg-surface p-md">
-          <p class="text-body-md text-secondary m-0">{q.type}</p>
-          <p class="font-mono m-0 mt-xs">
-            <span class="text-headline-md text-accent-primary">{q.size_gb.toFixed(2)} GB</span>
-            <span class="text-body-md text-secondary ml-xs">exact, on disk</span>
-          </p>
-          <p class="text-body-md text-secondary mt-sm mb-0">
-            ~{q.estimate.totalGb.toFixed(2)} GB total estimated VRAM at {DEFAULT_CONTEXT.toLocaleString()} tokens context
-            <span class="text-secondary"> (KV cache + overhead estimated, not exact)</span>
-          </p>
+    {hasEstimate ? (
+      <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-md">
+        {quantEstimates.map((q) => (
+          <div class="border border-border rounded-md bg-surface p-md">
+            <p class="text-body-md text-secondary m-0">{q.type}</p>
+            <p class="font-mono m-0 mt-xs">
+              <span class="text-headline-md text-accent-primary">{q.size_gb.toFixed(2)} GB</span>
+              <span class="text-body-md text-secondary ml-xs">exact, on disk</span>
+            </p>
+            <p class="text-body-md text-secondary mt-sm mb-0">
+              ~{q.estimate.totalGb.toFixed(2)} GB total estimated VRAM at {DEFAULT_CONTEXT.toLocaleString()} tokens context
+              <span class="text-secondary"> (KV cache + overhead estimated, not exact)</span>
+            </p>
+          </div>
+        ))}
+      </div>
+    ) : (
+      <div class="border border-border rounded-md bg-surface p-md max-w-reading">
+        <p class="text-body-lg text-primary m-0">
+          Precise VRAM estimations are not yet available for this specific architecture or parameter size.
+        </p>
+        <p class="text-body-md text-secondary mt-sm mb-0">
+          Exact on-disk weight sizes for each quantization are still listed below — only the total
+          VRAM estimate (KV cache + overhead) is withheld, because none of our reference architectures
+          are a close enough match to produce a reliable number.
+        </p>
+        <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-md mt-md">
+          {quantizations.map((q) => (
+            <div class="border border-border rounded-md bg-surface-elevated p-md">
+              <p class="text-body-md text-secondary m-0">{q.type}</p>
+              <p class="font-mono m-0 mt-xs">
+                <span class="text-headline-md text-accent-primary">{q.size_gb.toFixed(2)} GB</span>
+                <span class="text-body-md text-secondary ml-xs">exact, on disk</span>
+              </p>
+            </div>
+          ))}
         </div>
-      ))}
-    </div>
+      </div>
+    )}
   </section>
 
-  <section class="max-w-shell mx-auto px-lg pb-xl">
-    <VramCalculator preselectedModel={entry.slug} />
-  </section>
+  {hasEstimate && (
+    <section class="max-w-shell mx-auto px-lg pb-xl">
+      <VramCalculator preselectedModel={entry.slug} />
+    </section>
+  )}
 
   <section class="max-w-shell mx-auto px-lg pb-2xl">
     <h2 class="text-headline-lg text-primary mb-md">FAQ</h2>
