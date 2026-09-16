@@ -46,7 +46,7 @@ const faq = hasEstimate
       question: `How much VRAM does ${title} need at ${q.type}?`,
       answer:
         `The ${q.type} quantization is ${q.size_gb.toFixed(2)} GB on disk (exact, synced from Hugging Face). ` +
-        `A total VRAM estimate isn't available for this model — its size or architecture (e.g. mixture-of-experts) ` +
+        `A total VRAM estimate isn't available for this model — its parameter count or architecture ` +
         `doesn't closely match any of our reference architectures, and we'd rather show nothing than a number ` +
         `that looks precise but likely isn't.`,
     }));
