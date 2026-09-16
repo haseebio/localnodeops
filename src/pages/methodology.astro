@@ -122,9 +122,42 @@ const jsonLd = [
     </div>
   </section>
 
+  <section class="max-w-shell mx-auto px-lg pb-xl">
+    <h2 class="text-headline-lg text-primary mb-md">When no estimate is shown</h2>
+    <div class="max-w-reading text-body-lg text-secondary flex flex-col gap-sm">
+      <p>
+        For some models, this site shows no total VRAM estimate at all —
+        only the exact on-disk weight size per quantization. This happens
+        when either of two conditions is true:
+      </p>
+      <ul class="pl-lg flex flex-col gap-xs">
+        <li>
+          <strong class="text-primary">Distance cap.</strong> If a model's
+          parsed parameter count is more than 5B away from the nearest
+          reference bucket, we don't force a match. A 32B model estimated
+          with the 13B bucket's KV cache shape, for example, would produce
+          a number that looks precise but likely understates real usage
+          substantially — we'd rather show nothing.
+        </li>
+        <li>
+          <strong class="text-primary">Mixture-of-experts (MoE) models.</strong>
+          Models like Mixtral are excluded outright, regardless of parsed
+          parameter count. MoE architectures don't scale the way the dense
+          reference buckets assume — a name like "8x7B" parses as "7B" by
+          our naming heuristic, but a dense 7B model's KV cache shape does
+          not describe a MoE model's actual memory behavior.
+        </li>
+      </ul>
+      <p>
+        In both cases, the exact synced weight size is still shown — only
+        the KV cache estimate (and therefore the total) is withheld.
+      </p>
+    </div>
+  </section>
+
   <section class="max-w-shell mx-auto px-lg pb-2xl">
     <h2 class="text-headline-lg text-primary mb-md">What's exact vs. estimated, summarized</h2>
-    <div class="max-w-reading grid grid-cols-1 sm:grid-cols-2 gap-md">
+    <div class="max-w-reading grid grid-cols-1 sm:grid-cols-3 gap-md">
       <div class="border border-accent-tertiary rounded-md bg-surface p-md">
         <p class="text-headline-md text-accent-tertiary m-0">Exact</p>
         <ul class="text-body-md text-secondary mt-xs pl-lg">
@@ -138,6 +171,12 @@ const jsonLd = [
           <li>KV cache, in both modes, always</li>
           <li>Runtime overhead (flat 10% rule of thumb)</li>
           <li>Which reference architecture applies to a given synced model</li>
+        </ul>
+      </div>
+      <div class="border border-border rounded-md bg-surface p-md">
+        <p class="text-headline-md text-primary m-0">Not shown</p>
+        <ul class="text-body-md text-secondary mt-xs pl-lg">
+          <li>Total VRAM estimate for MoE models or models &gt;5B from any reference bucket</li>
         </ul>
       </div>
     </div>
