@@ -1,4 +1,4 @@
-Contact: mailto:security@localnodeops.com
+Contact: mailto:haseebur4322@gmail.com
 Expires: 2027-09-10T00:00:00.000Z
 Encryption: https://localnodeops.com/contact
 Preferred-Languages: en
