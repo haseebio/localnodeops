@@ -1,53 +1,53 @@
 ---
 title: "gemma-2-27b-it-GGUF"
-last_synced: "2026-09-14T08:56:30.477Z"
-architecture: "unknown"
+last_synced: "2026-09-16T05:31:25.010Z"
+architecture: "gemma-2"
 quantizations:
-  - type: "gemma-2-27b-it-IQ2_M"
+  - type: "IQ2_M"
     size_gb: 8.75
-  - type: "gemma-2-27b-it-IQ2_S"
+  - type: "IQ2_S"
     size_gb: 8.06
-  - type: "gemma-2-27b-it-IQ2_XS"
+  - type: "IQ2_XS"
     size_gb: 7.82
-  - type: "gemma-2-27b-it-IQ3_M"
+  - type: "IQ3_M"
     size_gb: 11.6
-  - type: "gemma-2-27b-it-IQ3_XS"
+  - type: "IQ3_XS"
     size_gb: 10.76
-  - type: "gemma-2-27b-it-IQ3_XXS"
+  - type: "IQ3_XXS"
     size_gb: 10.01
-  - type: "gemma-2-27b-it-IQ4_XS"
+  - type: "IQ4_XS"
     size_gb: 13.8
-  - type: "gemma-2-27b-it-Q2_K"
+  - type: "Q2_K"
     size_gb: 9.73
-  - type: "gemma-2-27b-it-Q2_K_L"
+  - type: "Q2_K_L"
     size_gb: 10
-  - type: "gemma-2-27b-it-Q3_K_L"
+  - type: "Q3_K_L"
     size_gb: 13.52
-  - type: "gemma-2-27b-it-Q3_K_M"
+  - type: "Q3_K_M"
     size_gb: 12.5
-  - type: "gemma-2-27b-it-Q3_K_S"
+  - type: "Q3_K_S"
     size_gb: 11.33
-  - type: "gemma-2-27b-it-Q3_K_XL"
+  - type: "Q3_K_XL"
     size_gb: 13.79
-  - type: "gemma-2-27b-it-Q4_K_L"
+  - type: "Q4_K_L"
     size_gb: 15.77
-  - type: "gemma-2-27b-it-Q4_K_M"
+  - type: "Q4_K_M"
     size_gb: 15.5
-  - type: "gemma-2-27b-it-Q4_K_S"
+  - type: "Q4_K_S"
     size_gb: 14.66
-  - type: "gemma-2-27b-it-Q5_K_L"
+  - type: "Q5_K_L"
     size_gb: 18.34
-  - type: "gemma-2-27b-it-Q5_K_M"
+  - type: "Q5_K_M"
     size_gb: 18.08
-  - type: "gemma-2-27b-it-Q5_K_S"
+  - type: "Q5_K_S"
     size_gb: 17.59
-  - type: "gemma-2-27b-it-Q6_K"
+  - type: "Q6_K"
     size_gb: 20.81
-  - type: "gemma-2-27b-it-Q6_K_L"
+  - type: "Q6_K_L"
     size_gb: 21.08
-  - type: "gemma-2-27b-it-Q8_0"
+  - type: "Q8_0"
     size_gb: 26.95
-  - type: "gemma-2-27b-it-Q8_0_L"
+  - type: "Q8_0_L"
     size_gb: 27.98
   - type: "gemma-2-27b-it-f32.gguf/gemma-2-27b-it-f32-00001-of-00003"
     size_gb: 36.89

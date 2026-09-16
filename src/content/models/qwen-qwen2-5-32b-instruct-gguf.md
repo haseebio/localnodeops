@@ -1,7 +1,7 @@
 ---
 title: "Qwen2.5-32B-Instruct-GGUF"
-last_synced: "2026-09-14T08:56:36.171Z"
-architecture: "unknown"
+last_synced: "2026-09-16T05:31:25.597Z"
+architecture: "qwen2.5"
 quantizations:
   - type: "qwen2.5-32b-instruct-fp16-00001-of-00017"
     size_gb: 3.65
@@ -37,99 +37,99 @@ quantizations:
     size_gb: 3.63
   - type: "qwen2.5-32b-instruct-fp16-00017-of-00017"
     size_gb: 2.89
-  - type: "qwen2.5-32b-instruct-q2_k-00001-of-00004"
+  - type: "Q2_K-00001-OF-00004"
     size_gb: 3.73
-  - type: "qwen2.5-32b-instruct-q2_k-00002-of-00004"
+  - type: "Q2_K-00002-OF-00004"
     size_gb: 3.71
-  - type: "qwen2.5-32b-instruct-q2_k-00003-of-00004"
+  - type: "Q2_K-00003-OF-00004"
     size_gb: 3.17
-  - type: "qwen2.5-32b-instruct-q2_k-00004-of-00004"
+  - type: "Q2_K-00004-OF-00004"
     size_gb: 0.86
-  - type: "qwen2.5-32b-instruct-q3_k_m-00001-of-00005"
+  - type: "Q3_K_M-00001-OF-00005"
     size_gb: 3.71
-  - type: "qwen2.5-32b-instruct-q3_k_m-00002-of-00005"
+  - type: "Q3_K_M-00002-OF-00005"
     size_gb: 3.68
-  - type: "qwen2.5-32b-instruct-q3_k_m-00003-of-00005"
+  - type: "Q3_K_M-00003-OF-00005"
     size_gb: 3.68
-  - type: "qwen2.5-32b-instruct-q3_k_m-00004-of-00005"
+  - type: "Q3_K_M-00004-OF-00005"
     size_gb: 3.68
-  - type: "qwen2.5-32b-instruct-q3_k_m-00005-of-00005"
+  - type: "Q3_K_M-00005-OF-00005"
     size_gb: 0.09
-  - type: "qwen2.5-32b-instruct-q4_0-00001-of-00005"
+  - type: "Q4_0-00001-OF-00005"
     size_gb: 3.72
-  - type: "qwen2.5-32b-instruct-q4_0-00002-of-00005"
+  - type: "Q4_0-00002-OF-00005"
     size_gb: 3.67
-  - type: "qwen2.5-32b-instruct-q4_0-00003-of-00005"
+  - type: "Q4_0-00003-OF-00005"
     size_gb: 3.73
-  - type: "qwen2.5-32b-instruct-q4_0-00004-of-00005"
+  - type: "Q4_0-00004-OF-00005"
     size_gb: 3.68
-  - type: "qwen2.5-32b-instruct-q4_0-00005-of-00005"
+  - type: "Q4_0-00005-OF-00005"
     size_gb: 2.56
-  - type: "qwen2.5-32b-instruct-q4_k_m-00001-of-00005"
+  - type: "Q4_K_M-00001-OF-00005"
     size_gb: 3.69
-  - type: "qwen2.5-32b-instruct-q4_k_m-00002-of-00005"
+  - type: "Q4_K_M-00002-OF-00005"
     size_gb: 3.68
-  - type: "qwen2.5-32b-instruct-q4_k_m-00003-of-00005"
+  - type: "Q4_K_M-00003-OF-00005"
     size_gb: 3.72
-  - type: "qwen2.5-32b-instruct-q4_k_m-00004-of-00005"
+  - type: "Q4_K_M-00004-OF-00005"
     size_gb: 3.68
-  - type: "qwen2.5-32b-instruct-q4_k_m-00005-of-00005"
+  - type: "Q4_K_M-00005-OF-00005"
     size_gb: 3.72
-  - type: "qwen2.5-32b-instruct-q5_0-00001-of-00006"
+  - type: "Q5_0-00001-OF-00006"
     size_gb: 3.72
-  - type: "qwen2.5-32b-instruct-q5_0-00002-of-00006"
+  - type: "Q5_0-00002-OF-00006"
     size_gb: 3.65
-  - type: "qwen2.5-32b-instruct-q5_0-00003-of-00006"
+  - type: "Q5_0-00003-OF-00006"
     size_gb: 3.71
-  - type: "qwen2.5-32b-instruct-q5_0-00004-of-00006"
+  - type: "Q5_0-00004-OF-00006"
     size_gb: 3.65
-  - type: "qwen2.5-32b-instruct-q5_0-00005-of-00006"
+  - type: "Q5_0-00005-OF-00006"
     size_gb: 3.66
-  - type: "qwen2.5-32b-instruct-q5_0-00006-of-00006"
+  - type: "Q5_0-00006-OF-00006"
     size_gb: 2.69
-  - type: "qwen2.5-32b-instruct-q5_k_m-00001-of-00006"
+  - type: "Q5_K_M-00001-OF-00006"
     size_gb: 3.68
-  - type: "qwen2.5-32b-instruct-q5_k_m-00002-of-00006"
+  - type: "Q5_K_M-00002-OF-00006"
     size_gb: 3.69
-  - type: "qwen2.5-32b-instruct-q5_k_m-00003-of-00006"
+  - type: "Q5_K_M-00003-OF-00006"
     size_gb: 3.71
-  - type: "qwen2.5-32b-instruct-q5_k_m-00004-of-00006"
+  - type: "Q5_K_M-00004-OF-00006"
     size_gb: 3.71
-  - type: "qwen2.5-32b-instruct-q5_k_m-00005-of-00006"
+  - type: "Q5_K_M-00005-OF-00006"
     size_gb: 3.64
-  - type: "qwen2.5-32b-instruct-q5_k_m-00006-of-00006"
+  - type: "Q5_K_M-00006-OF-00006"
     size_gb: 3.24
-  - type: "qwen2.5-32b-instruct-q6_k-00001-of-00007"
+  - type: "Q6_K-00001-OF-00007"
     size_gb: 3.71
-  - type: "qwen2.5-32b-instruct-q6_k-00002-of-00007"
+  - type: "Q6_K-00002-OF-00007"
     size_gb: 3.71
-  - type: "qwen2.5-32b-instruct-q6_k-00003-of-00007"
+  - type: "Q6_K-00003-OF-00007"
     size_gb: 3.72
-  - type: "qwen2.5-32b-instruct-q6_k-00004-of-00007"
+  - type: "Q6_K-00004-OF-00007"
     size_gb: 3.62
-  - type: "qwen2.5-32b-instruct-q6_k-00005-of-00007"
+  - type: "Q6_K-00005-OF-00007"
     size_gb: 3.72
-  - type: "qwen2.5-32b-instruct-q6_k-00006-of-00007"
+  - type: "Q6_K-00006-OF-00007"
     size_gb: 3.71
-  - type: "qwen2.5-32b-instruct-q6_k-00007-of-00007"
+  - type: "Q6_K-00007-OF-00007"
     size_gb: 2.85
-  - type: "qwen2.5-32b-instruct-q8_0-00001-of-00009"
+  - type: "Q8_0-00001-OF-00009"
     size_gb: 3.67
-  - type: "qwen2.5-32b-instruct-q8_0-00002-of-00009"
+  - type: "Q8_0-00002-OF-00009"
     size_gb: 3.66
-  - type: "qwen2.5-32b-instruct-q8_0-00003-of-00009"
+  - type: "Q8_0-00003-OF-00009"
     size_gb: 3.72
-  - type: "qwen2.5-32b-instruct-q8_0-00004-of-00009"
+  - type: "Q8_0-00004-OF-00009"
     size_gb: 3.72
-  - type: "qwen2.5-32b-instruct-q8_0-00005-of-00009"
+  - type: "Q8_0-00005-OF-00009"
     size_gb: 3.66
-  - type: "qwen2.5-32b-instruct-q8_0-00006-of-00009"
+  - type: "Q8_0-00006-OF-00009"
     size_gb: 3.72
-  - type: "qwen2.5-32b-instruct-q8_0-00007-of-00009"
+  - type: "Q8_0-00007-OF-00009"
     size_gb: 3.72
-  - type: "qwen2.5-32b-instruct-q8_0-00008-of-00009"
+  - type: "Q8_0-00008-OF-00009"
     size_gb: 3.66
-  - type: "qwen2.5-32b-instruct-q8_0-00009-of-00009"
+  - type: "Q8_0-00009-OF-00009"
     size_gb: 2.9
 ---
 

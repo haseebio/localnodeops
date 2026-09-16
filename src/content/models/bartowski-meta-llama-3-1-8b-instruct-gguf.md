@@ -1,55 +1,55 @@
 ---
 title: "Meta-Llama-3.1-8B-Instruct-GGUF"
-last_synced: "2026-09-14T08:56:29.354Z"
-architecture: "unknown"
+last_synced: "2026-09-16T05:31:24.050Z"
+architecture: "llama-3"
 quantizations:
-  - type: "Meta-Llama-3.1-8B-Instruct-IQ2_M"
+  - type: "IQ2_M"
     size_gb: 2.75
-  - type: "Meta-Llama-3.1-8B-Instruct-IQ3_M"
+  - type: "IQ3_M"
     size_gb: 3.52
-  - type: "Meta-Llama-3.1-8B-Instruct-IQ3_XS"
+  - type: "IQ3_XS"
     size_gb: 3.28
-  - type: "Meta-Llama-3.1-8B-Instruct-IQ4_NL"
+  - type: "IQ4_NL"
     size_gb: 4.36
-  - type: "Meta-Llama-3.1-8B-Instruct-IQ4_XS"
+  - type: "IQ4_XS"
     size_gb: 4.14
-  - type: "Meta-Llama-3.1-8B-Instruct-Q2_K"
+  - type: "Q2_K"
     size_gb: 2.96
-  - type: "Meta-Llama-3.1-8B-Instruct-Q2_K_L"
+  - type: "Q2_K_L"
     size_gb: 3.44
-  - type: "Meta-Llama-3.1-8B-Instruct-Q3_K_L"
+  - type: "Q3_K_L"
     size_gb: 4.03
-  - type: "Meta-Llama-3.1-8B-Instruct-Q3_K_M"
+  - type: "Q3_K_M"
     size_gb: 3.74
-  - type: "Meta-Llama-3.1-8B-Instruct-Q3_K_S"
+  - type: "Q3_K_S"
     size_gb: 3.41
-  - type: "Meta-Llama-3.1-8B-Instruct-Q3_K_XL"
+  - type: "Q3_K_XL"
     size_gb: 4.45
-  - type: "Meta-Llama-3.1-8B-Instruct-Q4_0_4_4"
+  - type: "Q4_0_4_4"
     size_gb: 4.34
-  - type: "Meta-Llama-3.1-8B-Instruct-Q4_0_4_8"
+  - type: "Q4_0_4_8"
     size_gb: 4.34
-  - type: "Meta-Llama-3.1-8B-Instruct-Q4_0_8_8"
+  - type: "Q4_0_8_8"
     size_gb: 4.34
-  - type: "Meta-Llama-3.1-8B-Instruct-Q4_K_L"
+  - type: "Q4_K_L"
     size_gb: 4.95
-  - type: "Meta-Llama-3.1-8B-Instruct-Q4_K_M"
+  - type: "Q4_K_M"
     size_gb: 4.58
-  - type: "Meta-Llama-3.1-8B-Instruct-Q4_K_S"
+  - type: "Q4_K_S"
     size_gb: 4.37
-  - type: "Meta-Llama-3.1-8B-Instruct-Q5_K_L"
+  - type: "Q5_K_L"
     size_gb: 5.64
-  - type: "Meta-Llama-3.1-8B-Instruct-Q5_K_M"
+  - type: "Q5_K_M"
     size_gb: 5.34
-  - type: "Meta-Llama-3.1-8B-Instruct-Q5_K_S"
+  - type: "Q5_K_S"
     size_gb: 5.21
-  - type: "Meta-Llama-3.1-8B-Instruct-Q6_K"
+  - type: "Q6_K"
     size_gb: 6.14
-  - type: "Meta-Llama-3.1-8B-Instruct-Q6_K_L"
+  - type: "Q6_K_L"
     size_gb: 6.38
-  - type: "Meta-Llama-3.1-8B-Instruct-Q8_0"
+  - type: "Q8_0"
     size_gb: 7.95
-  - type: "Meta-Llama-3.1-8B-Instruct-f32"
+  - type: "F32"
     size_gb: 29.92
 ---
 
