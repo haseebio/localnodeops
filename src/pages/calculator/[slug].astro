@@ -30,6 +30,17 @@ const quantEstimates = quantizations.map((q) => ({
   estimate: estimateVram(q.size_gb, bucket, DEFAULT_CONTEXT),
 }));
 
+// Bucket-match confidence: nearestBucket() picks the closest param count
+// with no distance cap and no MoE awareness. Below a small diff this is
+// a reasonable stand-in; above it, the KV-cache shape assumption is
+// likely wrong, not just imprecise (undersized dense models forced into
+// an oversized bucket, or MoE models like Mixtral parsed by a dense-style
+// param count entirely). Surfaced here so the page doesn't caveat only
+// the KV math and stay silent on a worse mismatch underneath it.
+const BUCKET_CONFIDENCE_THRESHOLD_B = 5;
+const bucketDiffB = paramsB == null ? null : Math.abs(bucket.params / 1e9 - paramsB);
+const lowBucketConfidence = bucketDiffB == null || bucketDiffB > BUCKET_CONFIDENCE_THRESHOLD_B;
+
 const faq = quantEstimates.map((q) => ({
   question: `How much VRAM does ${title} need at ${q.type}?`,
   answer:
@@ -37,7 +48,10 @@ const faq = quantEstimates.map((q) => ({
     `At a ${DEFAULT_CONTEXT.toLocaleString()}-token context, using the ${bucket.label} reference architecture for the ` +
     `KV cache estimate${paramsB == null ? ' (no parameter count could be parsed from the model name, so this defaults to the 7B architecture)' : ''}, ` +
     `total estimated VRAM is approximately ${q.estimate.totalGb.toFixed(2)} GB. ` +
-    `This total includes a KV cache estimate and a 10% runtime overhead margin — only the weight size is exact.`,
+    `This total includes a KV cache estimate and a 10% runtime overhead margin — only the weight size is exact.` +
+    (lowBucketConfidence
+      ? ` Note: this model's actual size or architecture (e.g. mixture-of-experts) differs enough from the ${bucket.label} reference that the KV cache portion of this estimate may be structurally inaccurate, not just approximate.`
+      : ''),
 }));
 
 const jsonLd = [
@@ -47,6 +61,13 @@ const jsonLd = [
     headline: `VRAM requirements for ${title}`,
     description: `Exact GGUF file sizes and estimated total VRAM requirements for ${title}, by quantization and context length.`,
     dateModified: last_synced,
+    about: {
+      '@type': 'Dataset',
+      name: `${title} — estimated VRAM requirements`,
+      description: lowBucketConfidence
+        ? `Low-confidence estimate: reference architecture bucket (${bucket.label}) may not match this model's actual architecture.`
+        : `Estimate based on closest-matching reference architecture bucket (${bucket.label}).`,
+    },
   },
   {
     '@context': 'https://schema.org',
@@ -79,6 +100,14 @@ const jsonLd = [
       overhead — see the breakdown per quantization, and the calculator
       below to adjust context length.
     </p>
+    {lowBucketConfidence && (
+      <p class="text-body-md text-secondary mt-sm border border-border rounded-md bg-surface p-sm">
+        This model's size doesn't closely match any reference architecture
+        used for the KV cache estimate below. The weight sizes are still
+        exact; the total VRAM figure may be less accurate than for models
+        closer to a reference size.
+      </p>
+    )}
   </section>
 
   <section class="max-w-shell mx-auto px-lg pb-xl">
