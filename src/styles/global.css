@@ -108,15 +108,38 @@
       focus:px-md focus:py-sm focus:rounded-md focus:text-body-md;
   }
 
-  /*
-   * Bordered card shell for a full article body (hardware detail, docs,
-   * error detail pages). This wraps .docs-content so the whole piece of
-   * content reads as a contained block instead of text floating in the
-   * page with nothing to anchor it — the flat, borderless look flagged
-   * as "not well prepared" across article pages.
-   */
+  /* Breadcrumb trail above an article's H1 */
+  .breadcrumb {
+    @apply flex items-center gap-xs text-body-md text-secondary mb-sm flex-wrap;
+  }
+  .breadcrumb a {
+    @apply hover:text-primary hover:underline;
+  }
+  .breadcrumb-sep {
+    @apply text-border select-none;
+  }
+
+  /* Large stat card used to headline a hardware/benchmark article */
+  .hero-metric-card {
+    @apply border border-border rounded-lg bg-gradient-to-br from-accent-primary-container
+      to-surface p-lg flex items-baseline gap-sm flex-wrap;
+  }
+
+  /* Pill badge — status, severity, category tags */
+  .pill {
+    @apply text-body-md rounded-full px-sm py-[0.125rem] border whitespace-nowrap inline-flex items-center gap-xs;
+  }
+
+  /* Bordered card shell for a full article body (hardware detail, docs,
+     error detail pages). */
   .article-shell {
-    @apply border border-border rounded-md bg-surface p-lg;
+    @apply border border-border rounded-lg bg-surface p-lg;
+  }
+
+  .article-action-btn {
+    @apply min-h-touch-min flex items-center gap-xs rounded-full border
+      border-border bg-surface px-md text-body-md text-secondary
+      hover:text-primary hover:bg-surface-elevated transition-colors;
   }
 
   .docs-content h2 {
@@ -180,18 +203,8 @@
       border-border bg-surface px-xs py-[0.125rem] text-secondary
       hover:text-primary min-h-touch-min flex items-center;
   }
-
-  .article-action-btn {
-    @apply min-h-touch-min flex items-center gap-xs rounded-full border
-      border-border bg-surface px-md text-body-md text-secondary
-      hover:text-primary hover:bg-surface-elevated transition-colors;
-  }
 }
 
-/*
- * Shiki dual-theme wiring — unchanged, this logic doesn't depend on
- * the color palette itself.
- */
 .astro-code,
 .astro-code span {
   color: var(--shiki-light);

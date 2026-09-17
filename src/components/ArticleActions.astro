@@ -6,24 +6,12 @@ interface Props {
 const { title } = Astro.props;
 ---
 
-<div class="flex items-center gap-sm mb-md" id="article-actions">
-  <button
-    id="copy-link-btn"
-    type="button"
-    class="article-action-btn"
-    data-umami-event="article-copy-link"
-  >
+<div class="flex items-center gap-sm flex-wrap" id="article-actions">
+  <button id="copy-link-btn" type="button" class="article-action-btn" data-umami-event="article-copy-link">
     <span aria-hidden="true">🔗</span>
     <span id="copy-link-label">Copy link</span>
   </button>
-
-  <button
-    id="share-btn"
-    type="button"
-    class="article-action-btn"
-    data-umami-event="article-share"
-    data-title={title}
-  >
+  <button id="share-btn" type="button" class="article-action-btn" data-umami-event="article-share" data-title={title}>
     <span aria-hidden="true">↗</span>
     <span>Share</span>
   </button>
@@ -40,9 +28,7 @@ const { title } = Astro.props;
         navigator.clipboard.writeText(window.location.href).then(function () {
           const original = copyLabel.textContent;
           copyLabel.textContent = 'Copied!';
-          setTimeout(function () {
-            copyLabel.textContent = original;
-          }, 2000);
+          setTimeout(function () { copyLabel.textContent = original; }, 2000);
         });
       });
     }

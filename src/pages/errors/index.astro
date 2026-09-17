@@ -55,20 +55,20 @@ const jsonLd = [
 
   <section class="max-w-shell mx-auto px-lg pb-2xl">
     {grouped.map((group) => (
-      <div class="mb-xl">
+      <div class="mb-xl" id={group.module}>
         <h2 class="text-headline-lg text-primary mb-md">{group.module}</h2>
         <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-md">
           {group.entries.map((entry) => (
-            <article class="border border-border rounded-md bg-surface p-md flex flex-col gap-sm">
-              <div class="flex items-center justify-between gap-sm">
-                <code class="text-code-mono text-secondary font-mono">{entry.data.errorCode}</code>
-                <span class:list={['text-body-md rounded-full px-xs py-[0.125rem] border', severityStyle[entry.data.severity]]}>
-                  {entry.data.severity}
-                </span>
-              </div>
-              <h3 class="text-headline-md text-primary m-0">{entry.data.title}</h3>
-              <p class="text-body-md text-secondary m-0 flex-1">{entry.data.summary}</p>
-            </article>
+            <a href={`/errors/${entry.slug}`} class="no-underline">
+              <article class="border border-border rounded-lg bg-surface p-md flex flex-col gap-sm h-full transition-colors hover:border-accent-primary">
+                <div class="flex items-center justify-between gap-sm">
+                  <code class="text-code-mono text-secondary font-mono">{entry.data.errorCode}</code>
+                  <span class:list={['pill', severityStyle[entry.data.severity]]}>{entry.data.severity}</span>
+                </div>
+                <h3 class="text-headline-md text-primary m-0">{entry.data.title}</h3>
+                <p class="text-body-md text-secondary m-0 flex-1">{entry.data.summary}</p>
+              </article>
+            </a>
           ))}
         </div>
       </div>

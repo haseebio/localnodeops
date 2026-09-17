@@ -1,0 +1,62 @@
+---
+import { getCollection } from 'astro:content';
+import BaseLayout from '../../layouts/BaseLayout.astro';
+import ArticleActions from '../../components/ArticleActions.astro';
+
+export async function getStaticPaths() {
+  const entries = await getCollection('errors');
+  return entries.map((entry) => ({
+    params: { slug: entry.slug },
+    props: { entry },
+  }));
+}
+
+const { entry } = Astro.props;
+const { Content } = await entry.render();
+const { module, errorCode, title, summary, severity } = entry.data;
+
+const SEVERITY_STYLES: Record<string, string> = {
+  critical: 'border-accent-error text-accent-error',
+  warning: 'border-accent-secondary text-accent-secondary',
+  info: 'border-border text-secondary',
+};
+
+const jsonLd = [
+  {
+    '@context': 'https://schema.org',
+    '@type': 'TechArticle',
+    headline: title,
+    description: summary,
+  },
+];
+---
+
+<BaseLayout title={`${errorCode}: ${title}`} description={summary} jsonLd={jsonLd}>
+  <div class="max-w-reading mx-auto px-lg py-xl">
+    <nav class="breadcrumb" aria-label="Breadcrumb">
+      <a href="/errors">Errors</a>
+      <span class="breadcrumb-sep" aria-hidden="true">/</span>
+      <a href={`/errors#${module}`}>{module}</a>
+      <span class="breadcrumb-sep" aria-hidden="true">/</span>
+      <span class="text-primary">{errorCode}</span>
+    </nav>
+
+    <div class="flex items-center gap-sm flex-wrap">
+      <code class="text-code-mono text-secondary font-mono">{errorCode}</code>
+      <span class:list={['pill', SEVERITY_STYLES[severity]]}>{severity}</span>
+    </div>
+
+    <h1 class="text-display-hero text-primary mt-xs">{title}</h1>
+    <p class="text-body-lg text-secondary mt-sm">{summary}</p>
+
+    <div class="flex items-center justify-between flex-wrap gap-sm mt-lg mb-md">
+      <ArticleActions title={title} />
+    </div>
+
+    <div class="article-shell">
+      <div class="docs-content">
+        <Content />
+      </div>
+    </div>
+  </div>
+</BaseLayout>
