@@ -1,6 +1,7 @@
 ---
 import { getCollection } from 'astro:content';
 import BaseLayout from '../../layouts/BaseLayout.astro';
+import ArticleActions from '../../components/ArticleActions.astro';
 
 export async function getStaticPaths() {
   const entries = await getCollection('hardware');
@@ -71,8 +72,14 @@ const jsonLd = [
       </span>
     </div>
 
-    <div class="docs-content mt-lg">
-      <Content />
+    <div class="mt-lg">
+      <ArticleActions title={title} />
+    </div>
+
+    <div class="article-shell mt-md">
+      <div class="docs-content">
+        <Content />
+      </div>
     </div>
   </article>
 </BaseLayout>

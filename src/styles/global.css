@@ -3,22 +3,6 @@
 @tailwind utilities;
 
 @layer base {
-  /*
-   * Coral/cream/yellow rebrand. Two contrast issues found and fixed
-   * while building this, not assumed away:
-   * 1. Raw brand coral #FF6B4A fails WCAG AA as text on white/cream
-   *    (2.82:1 / 2.70:1 — computed). Used only for solid button fills
-   *    and container backgrounds. A darker coral (#C1401F, 5.0-5.2:1)
-   *    is used anywhere coral appears as text, a link, or a border
-   *    that needs to read against a light surface.
-   * 2. Solid coral buttons need charcoal (#1F2937) text, not white —
-   *    white-on-coral is 2.82:1 (fail), charcoal-on-coral is 5.21:1
-   *    (pass). Same reasoning as the earlier accent-primary-solid fix.
-   * 3. The pre-existing tertiary green (#059669) was actually already
-   *    failing AA against a near-white background (3.61-3.77:1) before
-   *    this rebrand — darkened to #047857 (5.25-5.48:1) as part of this
-   *    pass, not introduced by it.
-   */
   :root {
     --bg-base: #FFFFFF;
     --bg-surface: #FFF9F3;
@@ -124,23 +108,63 @@
       focus:px-md focus:py-sm focus:rounded-md focus:text-body-md;
   }
 
+  /*
+   * Bordered card shell for a full article body (hardware detail, docs,
+   * error detail pages). This wraps .docs-content so the whole piece of
+   * content reads as a contained block instead of text floating in the
+   * page with nothing to anchor it — the flat, borderless look flagged
+   * as "not well prepared" across article pages.
+   */
+  .article-shell {
+    @apply border border-border rounded-md bg-surface p-lg;
+  }
+
   .docs-content h2 {
     @apply text-headline-lg text-primary mt-xl mb-sm;
     scroll-margin-top: 1.5rem;
+  }
+  .docs-content h2:first-child {
+    @apply mt-0;
   }
   .docs-content h3 {
     @apply text-headline-md text-primary mt-lg mb-xs;
     scroll-margin-top: 1.5rem;
   }
   .docs-content p {
-    @apply text-body-lg text-secondary mb-md;
+    @apply text-body-lg text-secondary mb-md leading-relaxed;
   }
   .docs-content ul,
   .docs-content ol {
-    @apply text-body-lg text-secondary mb-md pl-lg;
+    @apply text-body-lg text-secondary mb-md pl-lg flex flex-col gap-xs;
+  }
+  .docs-content li {
+    @apply leading-relaxed;
   }
   .docs-content a {
     @apply text-accent-primary hover:underline;
+  }
+  .docs-content strong {
+    @apply text-primary font-bold;
+  }
+  .docs-content blockquote {
+    @apply border-l-4 border-accent-primary-solid bg-surface-elevated
+      rounded-r-md pl-md py-sm pr-sm my-md text-body-lg text-secondary italic;
+  }
+  .docs-content table {
+    @apply w-full border-collapse mb-md text-body-md;
+  }
+  .docs-content th {
+    @apply border border-border bg-surface-elevated text-primary font-bold
+      text-left px-sm py-xs;
+  }
+  .docs-content td {
+    @apply border border-border text-secondary px-sm py-xs;
+  }
+  .docs-content img {
+    @apply rounded-md border border-border my-md max-w-full h-auto;
+  }
+  .docs-content hr {
+    @apply border-border my-lg;
   }
   .docs-content pre {
     @apply relative bg-surface-lowest border border-border rounded-md
@@ -156,11 +180,17 @@
       border-border bg-surface px-xs py-[0.125rem] text-secondary
       hover:text-primary min-h-touch-min flex items-center;
   }
+
+  .article-action-btn {
+    @apply min-h-touch-min flex items-center gap-xs rounded-full border
+      border-border bg-surface px-md text-body-md text-secondary
+      hover:text-primary hover:bg-surface-elevated transition-colors;
+  }
 }
 
 /*
- * Shiki dual-theme wiring — unchanged from before, this logic doesn't
- * depend on the color palette itself.
+ * Shiki dual-theme wiring — unchanged, this logic doesn't depend on
+ * the color palette itself.
  */
 .astro-code,
 .astro-code span {

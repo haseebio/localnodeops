@@ -1,0 +1,61 @@
+---
+interface Props {
+  title: string;
+}
+
+const { title } = Astro.props;
+---
+
+<div class="flex items-center gap-sm mb-md" id="article-actions">
+  <button
+    id="copy-link-btn"
+    type="button"
+    class="article-action-btn"
+    data-umami-event="article-copy-link"
+  >
+    <span aria-hidden="true">🔗</span>
+    <span id="copy-link-label">Copy link</span>
+  </button>
+
+  <button
+    id="share-btn"
+    type="button"
+    class="article-action-btn"
+    data-umami-event="article-share"
+    data-title={title}
+  >
+    <span aria-hidden="true">↗</span>
+    <span>Share</span>
+  </button>
+</div>
+
+<script is:inline>
+  (function () {
+    const copyBtn = document.getElementById('copy-link-btn');
+    const copyLabel = document.getElementById('copy-link-label');
+    const shareBtn = document.getElementById('share-btn');
+
+    if (copyBtn && copyLabel) {
+      copyBtn.addEventListener('click', function () {
+        navigator.clipboard.writeText(window.location.href).then(function () {
+          const original = copyLabel.textContent;
+          copyLabel.textContent = 'Copied!';
+          setTimeout(function () {
+            copyLabel.textContent = original;
+          }, 2000);
+        });
+      });
+    }
+
+    if (shareBtn) {
+      shareBtn.addEventListener('click', function () {
+        const title = shareBtn.getAttribute('data-title') || document.title;
+        if (navigator.share) {
+          navigator.share({ title, url: window.location.href }).catch(function () {});
+        } else {
+          navigator.clipboard.writeText(window.location.href);
+        }
+      });
+    }
+  })();
+</script>
