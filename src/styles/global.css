@@ -132,16 +132,17 @@
   }
 
   /*
-   * Highlighted, not blended-into-background — uses the accent
-   * container color (peach in light, warm dark-coral in dark) so these
-   * stand out against the surrounding surface instead of reading as
-   * plain bordered boxes.
+   * Highlighted, not blended-into-background. Fixed build error:
+   * text-on-primary-container was never mapped to a Tailwind utility
+   * in tailwind.config.mjs (only -on-primary/-on-secondary/etc exist,
+   * not the -container suffixed variants) — using the valid
+   * accent-on-primary utility instead, same charcoal color either way.
    */
   .article-action-btn {
     @apply min-h-touch-min flex items-center gap-xs rounded-full border
       border-accent-primary bg-accent-primary-container px-md text-body-md
-      font-bold text-on-primary-container hover:bg-accent-primary-solid
-      hover:text-on-primary transition-colors;
+      font-bold text-accent-on-primary hover:bg-accent-primary-solid
+      transition-colors;
   }
 
   .docs-content h2 {
