@@ -3,36 +3,47 @@
 @tailwind utilities;
 
 @layer base {
+  /*
+   * Coral/cream/yellow rebrand. Two contrast issues found and fixed
+   * while building this, not assumed away:
+   * 1. Raw brand coral #FF6B4A fails WCAG AA as text on white/cream
+   *    (2.82:1 / 2.70:1 — computed). Used only for solid button fills
+   *    and container backgrounds. A darker coral (#C1401F, 5.0-5.2:1)
+   *    is used anywhere coral appears as text, a link, or a border
+   *    that needs to read against a light surface.
+   * 2. Solid coral buttons need charcoal (#1F2937) text, not white —
+   *    white-on-coral is 2.82:1 (fail), charcoal-on-coral is 5.21:1
+   *    (pass). Same reasoning as the earlier accent-primary-solid fix.
+   * 3. The pre-existing tertiary green (#059669) was actually already
+   *    failing AA against a near-white background (3.61-3.77:1) before
+   *    this rebrand — darkened to #047857 (5.25-5.48:1) as part of this
+   *    pass, not introduced by it.
+   */
   :root {
-    --bg-base: #FAFAFA;
-    --bg-surface: #FFFFFF;
-    --bg-surface-elevated: #F4F4F5;
+    --bg-base: #FFFFFF;
+    --bg-surface: #FFF9F3;
+    --bg-surface-elevated: #F8F5F2;
     --bg-surface-lowest: #FFFFFF;
 
-    --text-primary: #09090B;
-    --text-secondary: #52525B;
+    --text-primary: #1F2937;
+    --text-secondary: #6B7280;
 
-    --border-color: #E4E4E7;
-    --border-subtle: #F0F0F1;
+    --border-color: #E5E7EB;
+    --border-subtle: #F0EDE8;
 
-    --accent-primary: #2563EB;
-    --accent-primary-container: #DBEAFE;
-    --on-primary: #FFFFFF;
-    --on-primary-container: #1E3A8A;
+    --accent-primary: #C1401F;
+    --accent-primary-container: #FFE7D6;
+    --on-primary: #1F2937;
+    --on-primary-container: #7A2E12;
 
-    --accent-secondary: #7C3AED;
-    --accent-secondary-container: #EDE9FE;
-    --on-secondary: #FFFFFF;
-    --on-secondary-container: #4C1D95;
+    --accent-primary-solid: #FF6B4A;
 
-    /* Dedicated solid-fill button background. accent-primary itself
-       (#2563EB light / #3B82F6 dark) is used for text, links, and
-       borders. In dark mode it fails WCAG AA (3.68:1) when paired with
-       white button text — measured, not assumed. This reuses the
-       already-defined container blue, which passes at 6.70:1. */
-    --accent-primary-solid: #2563EB;
+    --accent-secondary: #6B5000;
+    --accent-secondary-container: #FFC93C;
+    --on-secondary: #1F2937;
+    --on-secondary-container: #4A3800;
 
-    --accent-tertiary: #059669;
+    --accent-tertiary: #047857;
     --accent-tertiary-container: #D1FAE5;
     --on-tertiary: #FFFFFF;
     --on-tertiary-container: #064E3B;
@@ -44,38 +55,38 @@
   }
 
   .dark {
-    --bg-base: #09090B;
-    --bg-surface: #121214;
-    --bg-surface-elevated: #18181B;
-    --bg-surface-lowest: #050507;
+    --bg-base: #1A1512;
+    --bg-surface: #221B16;
+    --bg-surface-elevated: #2C2119;
+    --bg-surface-lowest: #120E0B;
 
-    --text-primary: #F4F4F5;
-    --text-secondary: #A1A1AA;
+    --text-primary: #F5EFE8;
+    --text-secondary: #B8A99A;
 
-    --border-color: #27272A;
-    --border-subtle: #1C1C1F;
+    --border-color: #7A695A;
+    --border-subtle: #3A322B;
 
-    --accent-primary: #3B82F6;
-    --accent-primary-container: #1D4ED8;
-    --on-primary: #FFFFFF;
-    --on-primary-container: #EFF6FF;
+    --accent-primary: #FF6B4A;
+    --accent-primary-container: #8C3A22;
+    --on-primary: #1F2937;
+    --on-primary-container: #FFE0D2;
 
-    --accent-secondary: #8B5CF6;
-    --accent-secondary-container: #6D28D9;
-    --on-secondary: #FFFFFF;
-    --on-secondary-container: #F5F3FF;
+    --accent-primary-solid: #FF6B4A;
 
-    --accent-primary-solid: #1D4ED8;
+    --accent-secondary: #FFC93C;
+    --accent-secondary-container: #6B5000;
+    --on-secondary: #1F2937;
+    --on-secondary-container: #FFE9A8;
 
-    --accent-tertiary: #10B981;
-    --accent-tertiary-container: #047857;
-    --on-tertiary: #FFFFFF;
-    --on-tertiary-container: #ECFDF5;
+    --accent-tertiary: #34D399;
+    --accent-tertiary-container: #0F5132;
+    --on-tertiary: #1F2937;
+    --on-tertiary-container: #D1FAE5;
 
-    --accent-error: #EF4444;
+    --accent-error: #F87171;
     --accent-error-container: #7F1D1D;
-    --on-error: #FFFFFF;
-    --on-error-container: #FEF2F2;
+    --on-error: #1F2937;
+    --on-error-container: #FEE2E2;
   }
 
   html {
@@ -109,7 +120,7 @@
 @layer components {
   .skip-link {
     @apply sr-only focus:not-sr-only focus:fixed focus:top-md focus:left-md
-      focus:z-50 focus:bg-accent-primary focus:text-accent-on-primary
+      focus:z-50 focus:bg-accent-primary-solid focus:text-accent-on-primary
       focus:px-md focus:py-sm focus:rounded-md focus:text-body-md;
   }
 
@@ -148,14 +159,8 @@
 }
 
 /*
- * Shiki dual-theme wiring.
- * astro.config.mjs sets markdown.shikiConfig.themes = { light, dark }.
- * In that mode Astro emits inline CSS custom properties per token
- * (--shiki-light / --shiki-light-bg and --shiki-dark / --shiki-dark-bg)
- * instead of picking one theme at build time — but nothing switches
- * between them automatically. This block is what makes the toggle
- * actually recolor code blocks; without it every code block silently
- * stays on the light theme regardless of the .dark class.
+ * Shiki dual-theme wiring — unchanged from before, this logic doesn't
+ * depend on the color palette itself.
  */
 .astro-code,
 .astro-code span {
