@@ -1,0 +1,70 @@
+---
+const navItems = [
+  { href: '/', label: 'Home' },
+  { href: '/docs', label: 'Docs' },
+  { href: '/hardware', label: 'Hardware' },
+  { href: '/methodology', label: 'Methodology' },
+  { href: '/errors', label: 'Errors' },
+  { href: '/about', label: 'About' },
+  { href: '/contact', label: 'Contact' },
+];
+
+// Active-page detection — startsWith (not exact match) so
+// /docs/getting-started still highlights "Docs", etc. Home is an
+// exact match only, since every path starts with "/".
+const currentPath = Astro.url.pathname;
+function isActivePath(href: string) {
+  if (href === '/') return currentPath === '/';
+  return currentPath === href || currentPath.startsWith(href + '/');
+}
+---
+
+<header class="sticky top-0 z-50 border-b border-border bg-base/90 backdrop-blur-xl">
+  <div class="max-w-shell mx-auto flex items-center justify-between px-lg py-sm gap-md">
+    <a href="/" class="flex items-center gap-xs font-bold text-headline-md text-primary no-underline shrink-0">
+      <span class="inline-flex h-8 w-8 items-center justify-center rounded-md bg-gradient-to-br from-accent-primary-solid to-accent-secondary-container text-on-primary font-mono text-body-md">
+        L
+      </span>
+      LocalNodeOps
+    </a>
+
+    <nav aria-label="Main navigation" class="overflow-x-auto">
+      <ul class="flex items-center gap-xs list-none m-0 p-xs rounded-full bg-surface-elevated w-max">
+        {navItems.map((item) => {
+          const active = isActivePath(item.href);
+          return (
+            <li>
+              <a href={item.href}
+                aria-current={active ? 'page' : undefined}
+                class:list={[
+                  'text-body-md min-h-touch-min flex items-center whitespace-nowrap px-md rounded-full transition-colors',
+                  active
+                    ? 'text-on-primary font-bold bg-accent-primary-solid shadow-sm'
+                    : 'text-secondary hover:text-primary hover:bg-surface',
+                ]}
+              >
+                {item.label}
+              </a>
+            </li>
+          );
+        })}
+      </ul>
+    </nav>
+
+    <button
+      id="theme-toggle"
+      type="button"
+      aria-pressed="false"
+      aria-label="Switch to dark theme"
+      class="min-h-touch-min min-w-touch-min flex items-center justify-center rounded-full border border-border text-primary hover:bg-surface-elevated shrink-0"
+    >
+      <svg id="icon-sun" xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+        <circle cx="12" cy="12" r="4"></circle>
+        <path d="M12 2v2M12 20v2M4.93 4.93l1.41 1.41M17.66 17.66l1.41 1.41M2 12h2M20 12h2M6.34 17.66l-1.41 1.41M19.07 4.93l-1.41 1.41"></path>
+      </svg>
+      <svg id="icon-moon" xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" class="hidden">
+        <path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"></path>
+      </svg>
+    </button>
+  </div>
+</header>
