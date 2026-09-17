@@ -108,7 +108,6 @@
       focus:px-md focus:py-sm focus:rounded-md focus:text-body-md;
   }
 
-  /* Breadcrumb trail above an article's H1 */
   .breadcrumb {
     @apply flex items-center gap-xs text-body-md text-secondary mb-sm flex-wrap;
   }
@@ -119,27 +118,30 @@
     @apply text-border select-none;
   }
 
-  /* Large stat card used to headline a hardware/benchmark article */
   .hero-metric-card {
     @apply border border-border rounded-lg bg-gradient-to-br from-accent-primary-container
       to-surface p-lg flex items-baseline gap-sm flex-wrap;
   }
 
-  /* Pill badge — status, severity, category tags */
   .pill {
     @apply text-body-md rounded-full px-sm py-[0.125rem] border whitespace-nowrap inline-flex items-center gap-xs;
   }
 
-  /* Bordered card shell for a full article body (hardware detail, docs,
-     error detail pages). */
   .article-shell {
     @apply border border-border rounded-lg bg-surface p-lg;
   }
 
+  /*
+   * Highlighted, not blended-into-background — uses the accent
+   * container color (peach in light, warm dark-coral in dark) so these
+   * stand out against the surrounding surface instead of reading as
+   * plain bordered boxes.
+   */
   .article-action-btn {
     @apply min-h-touch-min flex items-center gap-xs rounded-full border
-      border-border bg-surface px-md text-body-md text-secondary
-      hover:text-primary hover:bg-surface-elevated transition-colors;
+      border-accent-primary bg-accent-primary-container px-md text-body-md
+      font-bold text-on-primary-container hover:bg-accent-primary-solid
+      hover:text-on-primary transition-colors;
   }
 
   .docs-content h2 {

@@ -63,17 +63,17 @@ const jsonLd = [
     <h1 class="text-display-hero text-primary mt-xs">{title}</h1>
     <p class="text-body-lg text-secondary mt-sm">{summary}</p>
 
+    <div class="mt-md">
+      <ArticleActions title={title} />
+    </div>
+
     <div class="hero-metric-card mt-lg">
       <span class="text-display-hero text-accent-primary font-mono">{metricValue}</span>
       <span class="text-body-lg text-secondary">{metricLabel}</span>
       <span class:list={['pill ml-auto', STATUS_STYLES[status]]}>{STATUS_LABELS[status]}</span>
     </div>
 
-    <div class="flex items-center justify-between flex-wrap gap-sm mt-lg mb-md">
-      <ArticleActions title={title} />
-    </div>
-
-    <div class="article-shell">
+    <div class="article-shell mt-lg">
       <div class="docs-content">
         <Content />
       </div>

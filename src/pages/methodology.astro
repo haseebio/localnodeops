@@ -1,5 +1,6 @@
 ---
 import BaseLayout from '../layouts/BaseLayout.astro';
+import ArticleActions from '../components/ArticleActions.astro';
 import { MODEL_SIZES } from '../lib/vram-math';
 
 const jsonLd = [
@@ -17,48 +18,49 @@ const jsonLd = [
   description="The exact KV cache formula, reference architectures, and known limitations behind the VRAM calculator on this site."
   jsonLd={jsonLd}
 >
-  <section class="max-w-shell mx-auto px-lg pt-2xl pb-lg">
-    <h1 class="text-display-hero text-primary max-w-reading">Methodology</h1>
-    <p class="text-body-lg text-secondary max-w-reading mt-md">
+  <div class="max-w-reading mx-auto px-lg py-xl">
+    <nav class="breadcrumb" aria-label="Breadcrumb">
+      <a href="/">Home</a>
+      <span class="breadcrumb-sep" aria-hidden="true">/</span>
+      <span class="text-primary">Methodology</span>
+    </nav>
+
+    <h1 class="text-display-hero text-primary">Methodology</h1>
+    <p class="text-body-lg text-secondary mt-md">
       This page states exactly what the VRAM calculator computes, what data
       is exact versus estimated, and where the estimate can be wrong. If a
       number on this site doesn't match your real-world results, this page
       is where to check why before assuming either number is broken.
     </p>
-  </section>
 
-  <section class="max-w-shell mx-auto px-lg pb-xl">
-    <h2 class="text-headline-lg text-primary mb-md">The three VRAM components</h2>
-    <div class="max-w-reading">
-      <p class="text-body-lg text-secondary">
-        Every estimate on this site is the sum of three terms:
-      </p>
-      <ol class="text-body-lg text-secondary pl-lg flex flex-col gap-sm mt-sm">
+    <div class="mt-md">
+      <ArticleActions title="VRAM Calculation Methodology" />
+    </div>
+
+    <div class="article-shell mt-lg docs-content">
+      <h2>The three VRAM components</h2>
+      <p>Every estimate on this site is the sum of three terms:</p>
+      <ol>
         <li>
-          <strong class="text-primary">Model weights</strong> — either exact
-          (a real synced <code>.gguf</code> file size from Hugging Face) or
-          estimated as <code>parameter_count × (bits_per_weight / 8)</code>
-          in generic mode.
+          <strong>Model weights</strong> — either exact (a real synced
+          <code>.gguf</code> file size from Hugging Face) or estimated as
+          <code>parameter_count × (bits_per_weight / 8)</code> in generic mode.
         </li>
         <li>
-          <strong class="text-primary">KV cache</strong> — always estimated,
-          using the formula below. This is the term most people underweight
-          when sizing hardware.
+          <strong>KV cache</strong> — always estimated, using the formula
+          below. This is the term most people underweight when sizing
+          hardware.
         </li>
         <li>
-          <strong class="text-primary">Runtime overhead</strong> — a flat
-          10% of (weights + KV cache), a rule-of-thumb margin for CUDA
-          context and activation buffers, not a measured figure.
+          <strong>Runtime overhead</strong> — a flat 10% of (weights + KV
+          cache), a rule-of-thumb margin for CUDA context and activation
+          buffers, not a measured figure.
         </li>
       </ol>
-    </div>
-  </section>
 
-  <section class="max-w-shell mx-auto px-lg pb-xl">
-    <h2 class="text-headline-lg text-primary mb-md">The exact KV cache formula</h2>
-    <div class="max-w-reading border border-border rounded-md bg-surface p-md">
-      <pre class="font-mono text-code-mono text-primary bg-surface-lowest border border-border rounded-md p-md overflow-x-auto m-0">kv_bytes = 2 × layers × kv_heads × head_dim × context_tokens × 2</pre>
-      <p class="text-body-md text-secondary mt-sm mb-0">
+      <h2>The exact KV cache formula</h2>
+      <pre><code>kv_bytes = 2 × layers × kv_heads × head_dim × context_tokens × 2</code></pre>
+      <p>
         The first <code>2</code> accounts for storing both keys and values.
         The final <code>2</code> is bytes per value at fp16 — the calculator
         does not model quantized KV cache, which some inference engines
@@ -67,32 +69,31 @@ const jsonLd = [
         matched reference architecture below, not from the specific model
         you selected.
       </p>
-    </div>
-  </section>
 
-  <section class="max-w-shell mx-auto px-lg pb-xl">
-    <h2 class="text-headline-lg text-primary mb-md">The reference architectures</h2>
-    <p class="text-body-lg text-secondary max-w-reading mb-md">
-      Four fixed architecture buckets back every KV cache estimate on this
-      site. 7B, 13B, and 70B are real, published model specs. 120B has no
-      real published reference model at that exact size and is extrapolated
-      from the 70B architecture — not a measured spec.
-    </p>
-    <div class="grid grid-cols-1 sm:grid-cols-2 gap-md max-w-reading">
-      {MODEL_SIZES.map((bucket) => (
-        <div class="border border-border rounded-md bg-surface p-md">
-          <p class="text-headline-md text-primary m-0">{bucket.label}</p>
-          <p class="text-body-md text-secondary mt-xs mb-0 font-mono">
-            {bucket.layers} layers · {bucket.kvHeads} KV heads · {bucket.headDim} head dim
-          </p>
-        </div>
-      ))}
-    </div>
-  </section>
+      <h2>The reference architectures</h2>
+      <p>
+        Four fixed architecture buckets back every KV cache estimate on this
+        site. 7B, 13B, and 70B are real, published model specs. 120B has no
+        real published reference model at that exact size and is
+        extrapolated from the 70B architecture — not a measured spec.
+      </p>
+      <table>
+        <thead>
+          <tr><th>Bucket</th><th>Layers</th><th>KV heads</th><th>Head dim</th></tr>
+        </thead>
+        <tbody>
+          {MODEL_SIZES.map((bucket) => (
+            <tr>
+              <td>{bucket.label}</td>
+              <td>{bucket.layers}</td>
+              <td>{bucket.kvHeads}</td>
+              <td>{bucket.headDim}</td>
+            </tr>
+          ))}
+        </tbody>
+      </table>
 
-  <section class="max-w-shell mx-auto px-lg pb-xl">
-    <h2 class="text-headline-lg text-primary mb-md">GQA vs. MHA, and what this site actually does with it</h2>
-    <div class="max-w-reading text-body-lg text-secondary flex flex-col gap-sm">
+      <h2>GQA vs. MHA, and what this site actually does with it</h2>
       <p>
         Grouped-Query Attention (GQA) shares key/value projections across
         groups of query heads, which shrinks KV cache substantially versus
@@ -103,15 +104,12 @@ const jsonLd = [
         represent an older architecture still in common use.
       </p>
       <p>
-        <strong class="text-primary">
-          This site does not detect whether your specific model is actually
-          GQA or MHA.
-        </strong>
-        For a model synced from Hugging Face, the calculator parses an
-        approximate parameter count out of the model's name (for example,
-        "8B" from "Meta-Llama-3-8B-Instruct") and matches it to the nearest
-        bucket by size alone — not by reading the model's real config for
-        <code>num_attention_heads</code> versus
+        <strong>This site does not detect whether your specific model is
+        actually GQA or MHA.</strong> For a model synced from Hugging Face,
+        the calculator parses an approximate parameter count out of the
+        model's name (for example, "8B" from "Meta-Llama-3-8B-Instruct")
+        and matches it to the nearest bucket by size alone — not by reading
+        the model's real config for <code>num_attention_heads</code> versus
         <code>num_key_value_heads</code>. If a specific model at, say, 8B
         parameters happens to use MHA instead of GQA, this calculator will
         still estimate its KV cache using the 7B bucket's GQA numbers, and
@@ -119,66 +117,56 @@ const jsonLd = [
         current limitation — the heuristic is "close for most current
         models at common sizes," not "verified per model."
       </p>
-    </div>
-  </section>
 
-  <section class="max-w-shell mx-auto px-lg pb-xl">
-    <h2 class="text-headline-lg text-primary mb-md">When no estimate is shown</h2>
-    <div class="max-w-reading text-body-lg text-secondary flex flex-col gap-sm">
+      <h2>When no estimate is shown</h2>
       <p>
         For some models, this site shows no total VRAM estimate at all —
         only the exact on-disk weight size per quantization. This happens
         when either of two conditions is true:
       </p>
-      <ul class="pl-lg flex flex-col gap-xs">
+      <ul>
         <li>
-          <strong class="text-primary">Distance cap.</strong> If a model's
-          parsed parameter count is more than 5B away from the nearest
-          reference bucket, we don't force a match. A 32B model estimated
-          with the 13B bucket's KV cache shape, for example, would produce
-          a number that looks precise but likely understates real usage
-          substantially — we'd rather show nothing.
+          <strong>Distance cap.</strong> If a model's parsed parameter
+          count is more than 5B away from the nearest reference bucket, we
+          don't force a match. A 32B model estimated with the 13B bucket's
+          KV cache shape, for example, would produce a number that looks
+          precise but likely understates real usage substantially — we'd
+          rather show nothing.
         </li>
         <li>
-          <strong class="text-primary">Mixture-of-experts (MoE) models.</strong>
-          Models like Mixtral are excluded outright, regardless of parsed
-          parameter count. MoE architectures don't scale the way the dense
-          reference buckets assume — a name like "8x7B" parses as "7B" by
-          our naming heuristic, but a dense 7B model's KV cache shape does
-          not describe a MoE model's actual memory behavior.
+          <strong>Mixture-of-experts (MoE) models.</strong> Models like
+          Mixtral are excluded outright, regardless of parsed parameter
+          count. MoE architectures don't scale the way the dense reference
+          buckets assume — a name like "8x7B" parses as "7B" by our naming
+          heuristic, but a dense 7B model's KV cache shape does not
+          describe a MoE model's actual memory behavior.
         </li>
       </ul>
       <p>
         In both cases, the exact synced weight size is still shown — only
         the KV cache estimate (and therefore the total) is withheld.
       </p>
-    </div>
-  </section>
 
-  <section class="max-w-shell mx-auto px-lg pb-2xl">
-    <h2 class="text-headline-lg text-primary mb-md">What's exact vs. estimated, summarized</h2>
-    <div class="max-w-reading grid grid-cols-1 sm:grid-cols-3 gap-md">
-      <div class="border border-accent-tertiary rounded-md bg-surface p-md">
-        <p class="text-headline-md text-accent-tertiary m-0">Exact</p>
-        <ul class="text-body-md text-secondary mt-xs pl-lg">
-          <li>Synced model weight file size (model-specific mode only)</li>
-        </ul>
-      </div>
-      <div class="border border-border rounded-md bg-surface p-md">
-        <p class="text-headline-md text-primary m-0">Estimated</p>
-        <ul class="text-body-md text-secondary mt-xs pl-lg">
-          <li>Generic mode weight size</li>
-          <li>KV cache, in both modes, always</li>
-          <li>Runtime overhead (flat 10% rule of thumb)</li>
-          <li>Which reference architecture applies to a given synced model</li>
-        </ul>
-      </div>
-      <div class="border border-border rounded-md bg-surface p-md">
-        <p class="text-headline-md text-primary m-0">Not shown</p>
-        <ul class="text-body-md text-secondary mt-xs pl-lg">
-          <li>Total VRAM estimate for MoE models or models &gt;5B from any reference bucket</li>
-        </ul>
-      </div>
+      <h2>What's exact vs. estimated, summarized</h2>
+      <table>
+        <thead>
+          <tr><th>Category</th><th>Includes</th></tr>
+        </thead>
+        <tbody>
+          <tr>
+            <td>Exact</td>
+            <td>Synced model weight file size (model-specific mode only)</td>
+          </tr>
+          <tr>
+            <td>Estimated</td>
+            <td>Generic mode weight size; KV cache in both modes, always; runtime overhead (flat 10%); which reference architecture applies to a given synced model</td>
+          </tr>
+          <tr>
+            <td>Not shown</td>
+            <td>Total VRAM estimate for MoE models or models &gt;5B from any reference bucket</td>
+          </tr>
+        </tbody>
+      </table>
     </div>
-  </section>
+  </div>
 </BaseLayout>
