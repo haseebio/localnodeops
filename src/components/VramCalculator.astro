@@ -337,12 +337,14 @@ const preselectedIndex = preselectedModel
       });
 
       // Vendor-blind: this only reads the totalGb this same function
-      // already computed above from vram-math's formula. The CTA
-      // component itself has zero knowledge of VRAM figures — it's
-      // shown or hidden purely based on this one boolean.
+      // already computed above from vram-math's formula. Both CTA cards
+      // have zero knowledge of VRAM figures — exactly one is shown,
+      // toggled purely by this one boolean.
       const noneFit = PROFILES.every((profile) => totalGb > profile.vramGb);
       const cloudCta = document.getElementById('cloud-fallback-cta');
+      const localCta = document.getElementById('local-hardware-cta');
       if (cloudCta) cloudCta.classList.toggle('hidden', !noneFit);
+      if (localCta) localCta.classList.toggle('hidden', noneFit);
     }
 
     // Appends one line to the live change log with the total VRAM at

@@ -1,32 +1,42 @@
 ---
 // Presentation layer only. This component has no knowledge of VRAM
 // math and never influences it — src/lib/vram-math.ts and the client
-// script in VramCalculator.astro remain 100% vendor-blind. Visibility
-// is toggled purely by client-side JS in VramCalculator.astro, based
-// on whether none of the listed local GPU profiles fit — this file
-// just renders the card and starts hidden.
+// script in VramCalculator.astro remain 100% vendor-blind. Both cards
+// below start hidden; VramCalculator.astro's compute() toggles exactly
+// one of them visible based on whether the current estimate fits any
+// local GPU profile — this file only renders markup.
 
 interface Provider {
   name: string;
   url: string;
   blurb: string;
+  umamiEvent: string;
 }
 
 // Fallback URLs are generic, non-affiliate homepages — used whenever
 // the corresponding env var isn't set, so a missing affiliate ID never
 // breaks the build or renders a broken/empty link.
-const providers: Provider[] = [
+const cloudProviders: Provider[] = [
   {
     name: 'RunPod',
     url: import.meta.env.PUBLIC_RUNPOD_AFFILIATE_URL || 'https://www.runpod.io/',
     blurb: 'On-demand GPU pods, billed by the minute.',
+    umamiEvent: 'outbound-runpod',
   },
   {
     name: 'Lambda Labs',
     url: import.meta.env.PUBLIC_LAMBDA_AFFILIATE_URL || 'https://lambdalabs.com/',
     blurb: 'Reserved and on-demand cloud GPU instances.',
+    umamiEvent: 'outbound-lambda',
   },
 ];
+
+const amazonProvider: Provider = {
+  name: 'Amazon',
+  url: import.meta.env.PUBLIC_AMAZON_AFFILIATE_URL || 'https://www.amazon.com/',
+  blurb: 'Browse consumer GPUs and local hardware that fit this configuration.',
+  umamiEvent: 'outbound-amazon',
+};
 ---
 
 <div id="cloud-fallback-cta"
@@ -40,8 +50,10 @@ const providers: Provider[] = [
   </p>
 
   <div class="grid grid-cols-1 sm:grid-cols-2 gap-md">
-    {providers.map((provider) => (
+    {cloudProviders.map((provider) => (
       <a href={provider.url}
+        id={provider.umamiEvent}
+        data-umami-event={provider.umamiEvent}
         target="_blank"
         rel="noopener noreferrer sponsored"
         class="border border-border rounded-md bg-surface-elevated p-md no-underline cursor-pointer
@@ -57,6 +69,35 @@ const providers: Provider[] = [
     Disclosure: We may earn a commission from cloud providers if you spin
     up an instance through these links, at no extra cost to you. This
     never affects the VRAM math above — see
+    <a href="/methodology" class="text-accent-primary hover:underline">/methodology</a>.
+  </p>
+</div>
+
+<div id="local-hardware-cta"
+  class="hidden border border-border rounded-md bg-surface-elevated p-md mt-md"
+>
+  <p class="text-body-md text-primary font-bold m-0">Fits on local hardware</p>
+  <p class="text-body-md text-secondary mt-xs mb-md">
+    This configuration fits within the local GPU profiles above. If you're
+    shopping for hardware, here's a starting point.
+  </p>
+
+  <a href={amazonProvider.url}
+    id={amazonProvider.umamiEvent}
+    data-umami-event={amazonProvider.umamiEvent}
+    target="_blank"
+    rel="noopener noreferrer sponsored"
+    class="block border border-border rounded-md bg-surface p-md no-underline cursor-pointer
+      transition-colors hover:border-accent-primary"
+  >
+    <p class="text-headline-md text-primary m-0">{amazonProvider.name}</p>
+    <p class="text-body-md text-secondary mt-xs mb-0">{amazonProvider.blurb}</p>
+  </a>
+
+  <p class="text-body-md text-secondary mt-md border-t border-border pt-sm m-0">
+    Disclosure: As an Amazon Associate, LocalNodeOps earns from qualifying
+    purchases at no extra cost to you. This never affects the VRAM math
+    above — see
     <a href="/methodology" class="text-accent-primary hover:underline">/methodology</a>.
   </p>
 </div>
