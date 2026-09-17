@@ -9,12 +9,12 @@ const jsonLd = [
   },
 ];
 
-const lastUpdated = '2026-09-10';
+const lastUpdated = '2026-09-17';
 ---
 
 <BaseLayout
   title="Cookie Policy"
-  description="LocalNodeOps does not use cookies. Theme preference is stored in browser localStorage only, which is a different mechanism."
+  description="LocalNodeOps does not use cookies. Analytics via Umami is cookieless. Theme preference is stored in browser localStorage only."
   jsonLd={jsonLd}
 >
   <article class="max-w-reading mx-auto px-lg py-2xl">
@@ -25,8 +25,11 @@ const lastUpdated = '2026-09-10';
       <h2 class="text-headline-lg text-primary">Short answer: we don't use cookies</h2>
       <p class="text-body-lg text-secondary mt-sm">
         This site sets no cookies — no analytics cookies, no advertising
-        cookies, no session cookies. There is nothing to opt out of, and no
-        cookie consent banner, because there is nothing being consented to.
+        cookies, no session cookies. Our analytics provider, Umami, is
+        cookieless by design: it identifies aggregate traffic patterns
+        without setting any cookie or persistent identifier in your
+        browser. There is nothing to opt out of, and no cookie consent
+        banner, because there is nothing being consented to.
       </p>
     </section>
 
@@ -46,11 +49,13 @@ const lastUpdated = '2026-09-10';
     <section class="mt-lg">
       <h2 class="text-headline-lg text-primary">Third-party embeds</h2>
       <p class="text-body-lg text-secondary mt-sm">
-        This site does not embed third-party trackers, ad networks, or
-        analytics scripts that would set their own cookies. If that changes
-        in the future, this page will be updated before any such script
-        ships, and a consent mechanism will be added if required by
-        applicable law.
+        This site uses Umami Cloud, a cookieless analytics service, to
+        measure aggregate traffic — see "What we collect" on the
+        <a href="/privacy">Privacy page</a> for detail. We do not embed
+        advertising networks or session-recording scripts. If a
+        cookie-setting third-party script is ever added, this page will be
+        updated before it ships, and a consent mechanism will be added if
+        required by applicable law.
       </p>
     </section>
   </article>

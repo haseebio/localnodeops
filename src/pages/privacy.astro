@@ -9,12 +9,12 @@ const jsonLd = [
   },
 ];
 
-const lastUpdated = '2026-09-10';
+const lastUpdated = '2026-09-17';
 ---
 
 <BaseLayout
   title="Privacy Policy"
-  description="LocalNodeOps privacy policy: no third-party analytics, no ad trackers, no server-side accounts. Theme preference only, stored locally."
+  description="LocalNodeOps privacy policy: cookieless aggregate analytics via Umami, no ad trackers, no server-side accounts."
   jsonLd={jsonLd}
 >
   <article class="max-w-reading mx-auto px-lg py-2xl">
@@ -24,18 +24,23 @@ const lastUpdated = '2026-09-10';
     <section class="mt-lg">
       <h2 class="text-headline-lg text-primary">What we collect</h2>
       <p class="text-body-lg text-secondary mt-sm">
-        LocalNodeOps does not run third-party analytics, advertising
-        trackers, or session-recording scripts. There is no user account
-        system and no server-side database of visitor activity — the site is
-        statically generated and served with no backend collecting personal
-        data.
+        LocalNodeOps uses Umami Cloud for privacy-first analytics — aggregate
+        page views, referral sources, and general device/browser category,
+        with no personally identifiable information collected and no
+        individual visitor profile built or stored. Umami does not use
+        cookies, does not track visitors across other websites, and does
+        not sell or share data with advertisers. We do not run
+        session-recording tools, advertising trackers, or any script that
+        identifies an individual visitor. There is no user account system
+        and no server-side database of visitor activity beyond the
+        aggregate analytics described here.
       </p>
     </section>
 
     <section class="mt-lg">
       <h2 class="text-headline-lg text-primary">Local storage</h2>
       <p class="text-body-lg text-secondary mt-sm">
-        The only data this site stores about you is a single
+        The only data this site stores directly on your device is a single
         <code>theme</code> value (light or dark) saved in your browser's
         <code>localStorage</code>. It stays on your device, is never
         transmitted to any server, and exists only to remember your display
@@ -58,8 +63,9 @@ const lastUpdated = '2026-09-10';
       <h2 class="text-headline-lg text-primary">Third-party links</h2>
       <p class="text-body-lg text-secondary mt-sm">
         Pages may link to external sites (documentation, hardware vendor
-        pages, GitHub repositories). Those sites have their own privacy
-        practices, which this policy does not cover.
+        pages, cloud GPU providers, affiliate partners, GitHub
+        repositories). Those sites have their own privacy practices, which
+        this policy does not cover.
       </p>
     </section>
 

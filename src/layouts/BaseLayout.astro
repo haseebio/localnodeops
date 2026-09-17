@@ -78,6 +78,18 @@ const allSchema = [baseSchema, ...jsonLd];
     ))}
 
     <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
+
+    <!--
+      PLACEHOLDER — data-website-id is not real yet. Umami will silently
+      fail to record anything until this is swapped for a real ID from a
+      generated Umami Cloud workspace. privacy.astro and cookies.astro
+      already state Umami analytics is active — if this placeholder ships
+      to production and is never swapped, those pages become inaccurate
+      in the opposite direction (claiming tracking that isn't happening).
+      Swap YOUR_UMAMI_WEBSITE_ID_HERE before or immediately after the
+      Umami workspace is created — don't leave this unresolved.
+    -->
+    <script defer src="https://cloud.umami.is/script.js" data-website-id="4885f6cd-aab8-4d5f-b136-ab25f5967f64"></script>
   </head>
 
   <body class="min-h-screen flex flex-col">
