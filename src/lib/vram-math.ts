@@ -35,6 +35,16 @@ export function parseParamsB(title: string): number | null {
   return match ? parseFloat(match[1]) : null;
 }
 
+// Parses a VRAM capacity in GB out of a hardware entry's title like
+// "RTX 4090 24GB" -> 24. Heuristic, same pattern as parseParamsB above:
+// this site's hardware schema has no dedicated numeric VRAM field, so
+// this is inferred from the title text. Returns null if no "NNGB"
+// pattern is found — callers must handle that, not assume a number.
+export function parseVramGbFromTitle(title: string): number | null {
+  const match = title.match(/(\d+(?:\.\d+)?)\s?GB/i);
+  return match ? parseFloat(match[1]) : null;
+}
+
 // Max allowed distance (in billions of params) between a model's actual
 // size and a reference bucket's size before we consider the bucket's
 // architecture assumptions (layer count, KV head count) too unreliable

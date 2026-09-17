@@ -39,6 +39,7 @@ const jsonLd = [
       <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-md">
         {models.map((model) => (
           <a href={`/calculator/${model.slug}`}
+            data-astro-prefetch
             class="border border-border rounded-md bg-surface p-md no-underline cursor-pointer
               transition-colors hover:border-accent-primary hover:bg-surface-elevated"
           >

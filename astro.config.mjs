@@ -4,6 +4,7 @@ import sitemap from '@astrojs/sitemap';
 
 export default defineConfig({
   site: 'https://localnodeops.com',
+  prefetch: true,
   integrations: [
     tailwind({
       applyBaseStyles: false,

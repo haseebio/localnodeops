@@ -2,6 +2,7 @@
 import { getCollection } from 'astro:content';
 import BaseLayout from '../../layouts/BaseLayout.astro';
 import ArticleActions from '../../components/ArticleActions.astro';
+import { parseParamsB, nearestBucket, estimateVram, parseVramGbFromTitle } from '../../lib/vram-math';
 
 export async function getStaticPaths() {
   const entries = await getCollection('hardware');
@@ -32,6 +33,34 @@ const STATUS_SCHEMA_DESCRIPTIONS: Record<string, string> = {
   community: `Community-reported value, not independently verified: ${metricValue} ${metricLabel}`,
   estimated: `Estimated value, not yet independently benchmarked: ${metricValue} ${metricLabel}`,
 };
+
+// "Models that fit this GPU" — only computed for GPU-category entries
+// where a VRAM figure can be parsed from the title (heuristic, see
+// parseVramGbFromTitle's own comment). For each synced model, finds its
+// cheapest-fitting quantization at the default 4096-token context and
+// includes it if that total is within this GPU's parsed VRAM capacity.
+// Models with no confident bucket match (see nearestBucket) are skipped
+// entirely rather than guessed at.
+const DEFAULT_CONTEXT = 4096;
+const gpuVramGb = category === 'GPU' ? parseVramGbFromTitle(title) : null;
+
+let fittingModels: { slug: string; title: string; bestTotalGb: number }[] = [];
+if (gpuVramGb != null) {
+  const allModels = await getCollection('models');
+  fittingModels = allModels
+    .map((m) => {
+      const paramsB = parseParamsB(m.data.title);
+      const bucket = nearestBucket(paramsB, m.data.title);
+      if (!bucket) return null;
+      const totals = m.data.quantizations.map((q) => estimateVram(q.size_gb, bucket, DEFAULT_CONTEXT).totalGb);
+      const bestTotalGb = Math.min(...totals);
+      if (bestTotalGb > gpuVramGb) return null;
+      return { slug: m.slug, title: m.data.title, bestTotalGb };
+    })
+    .filter((m): m is { slug: string; title: string; bestTotalGb: number } => m !== null)
+    .sort((a, b) => b.bestTotalGb - a.bestTotalGb)
+    .slice(0, 6);
+}
 
 const jsonLd = [
   {
@@ -78,5 +107,25 @@ const jsonLd = [
         <Content />
       </div>
     </div>
+
+    {fittingModels.length > 0 && (
+      <div class="mt-lg">
+        <h2 class="text-headline-lg text-primary mb-md">Models that fit this GPU</h2>
+        <div class="grid grid-cols-1 sm:grid-cols-2 gap-md">
+          {fittingModels.map((m) => (
+            <a href={`/calculator/${m.slug}`}
+              data-astro-prefetch
+              class="border border-border rounded-md bg-surface p-md no-underline cursor-pointer
+                transition-colors hover:border-accent-primary hover:bg-surface-elevated"
+            >
+              <p class="text-headline-md text-primary m-0">{m.title}</p>
+              <p class="text-body-md text-secondary mt-xs mb-0">
+                ~{m.bestTotalGb.toFixed(1)} GB at best-fitting quantization
+              </p>
+            </a>
+          ))}
+        </div>
+      </div>
+    )}
   </div>
 </BaseLayout>

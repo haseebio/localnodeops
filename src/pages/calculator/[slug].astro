@@ -3,7 +3,7 @@ import { getCollection } from 'astro:content';
 import BaseLayout from '../../layouts/BaseLayout.astro';
 import VramCalculator from '../../components/VramCalculator.astro';
 import DockerStackCTA from '../../components/DockerStackCTA.astro';
-import { parseParamsB, nearestBucket, estimateVram } from '../../lib/vram-math';
+import { parseParamsB, nearestBucket, estimateVram, parseVramGbFromTitle } from '../../lib/vram-math';
 
 export async function getStaticPaths() {
   const models = await getCollection('models');
@@ -21,11 +21,6 @@ const bucket = nearestBucket(paramsB, title);
 const syncedDate = last_synced.slice(0, 10);
 const hasEstimate = bucket !== null;
 
-// Real, per-model numbers computed at build time — this is what makes
-// each of these pages distinct content instead of a duplicate shell.
-// 4096 tokens matches the calculator's own default context length, so
-// the number quoted here matches what a visitor sees if they don't
-// touch the slider.
 const DEFAULT_CONTEXT = 4096;
 const quantEstimates = hasEstimate
   ? quantizations.map((q) => ({
@@ -33,6 +28,25 @@ const quantEstimates = hasEstimate
       estimate: estimateVram(q.size_gb, bucket, DEFAULT_CONTEXT),
     }))
   : [];
+
+// "Hardware this fits" — the inverse of hardware/[slug].astro's "Models
+// that fit this GPU". Uses this model's cheapest-fitting quantization
+// total against every GPU-category hardware entry whose title has a
+// parseable VRAM figure (same heuristic, same known limitation).
+let fittingHardware: { slug: string; title: string; vramGb: number }[] = [];
+if (hasEstimate) {
+  const cheapestTotalGb = Math.min(...quantEstimates.map((q) => q.estimate.totalGb));
+  const hardwareEntries = await getCollection('hardware');
+  fittingHardware = hardwareEntries
+    .filter((h) => h.data.category === 'GPU')
+    .map((h) => {
+      const vramGb = parseVramGbFromTitle(h.data.title);
+      if (vramGb == null || cheapestTotalGb > vramGb) return null;
+      return { slug: h.slug, title: h.data.title, vramGb };
+    })
+    .filter((h): h is { slug: string; title: string; vramGb: number } => h !== null)
+    .sort((a, b) => a.vramGb - b.vramGb);
+}
 
 const faq = hasEstimate
   ? quantEstimates.map((q) => ({
@@ -62,6 +76,29 @@ const jsonLd = [
       : `Exact GGUF file sizes for ${title}. Total VRAM estimate not available — no reference architecture closely matches this model.`,
     dateModified: last_synced,
   },
+  {
+    '@context': 'https://schema.org',
+    '@type': 'SoftwareApplication',
+    name: `LocalNodeOps VRAM Calculator — ${title}`,
+    applicationCategory: 'DeveloperApplication',
+    operatingSystem: 'Web',
+    offers: {
+      '@type': 'Offer',
+      price: '0',
+      priceCurrency: 'USD',
+    },
+  },
+  ...(hasEstimate
+    ? [
+        {
+          '@context': 'https://schema.org',
+          '@type': 'Dataset',
+          name: `${title} — VRAM requirements by quantization`,
+          description: `Estimated total VRAM per quantization for ${title}, computed using the ${bucket.label} reference architecture.`,
+          variableMeasured: 'VRAM (GB)',
+        },
+      ]
+    : []),
   {
     '@context': 'https://schema.org',
     '@type': 'FAQPage',
@@ -137,6 +174,24 @@ const jsonLd = [
       </div>
     )}
   </section>
+
+  {fittingHardware.length > 0 && (
+    <section class="max-w-shell mx-auto px-lg pb-xl">
+      <h2 class="text-headline-lg text-primary mb-md">Hardware this fits</h2>
+      <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-md">
+        {fittingHardware.map((h) => (
+          <a href={`/hardware/${h.slug}`}
+            data-astro-prefetch
+            class="border border-border rounded-md bg-surface p-md no-underline cursor-pointer
+              transition-colors hover:border-accent-primary hover:bg-surface-elevated"
+          >
+            <p class="text-headline-md text-primary m-0">{h.title}</p>
+            <p class="text-body-md text-secondary mt-xs mb-0">{h.vramGb} GB VRAM</p>
+          </a>
+        ))}
+      </div>
+    </section>
+  )}
 
   {hasEstimate && (
     <section class="max-w-shell mx-auto px-lg pb-xl">
