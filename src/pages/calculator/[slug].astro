@@ -2,6 +2,7 @@
 import { getCollection } from 'astro:content';
 import BaseLayout from '../../layouts/BaseLayout.astro';
 import VramCalculator from '../../components/VramCalculator.astro';
+import DockerStackCTA from '../../components/DockerStackCTA.astro';
 import { parseParamsB, nearestBucket, estimateVram } from '../../lib/vram-math';
 
 export async function getStaticPaths() {
@@ -142,6 +143,10 @@ const jsonLd = [
       <VramCalculator preselectedModel={entry.slug} />
     </section>
   )}
+
+  <section class="max-w-shell mx-auto px-lg pb-xl">
+    <DockerStackCTA />
+  </section>
 
   <section class="max-w-shell mx-auto px-lg pb-2xl">
     <h2 class="text-headline-lg text-primary mb-md">FAQ</h2>

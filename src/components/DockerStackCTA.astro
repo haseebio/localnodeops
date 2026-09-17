@@ -1,0 +1,121 @@
+---
+const checkoutUrl = import.meta.env.PUBLIC_LEMONSQUEEZY_PRODUCT_URL || 'https://www.lemonsqueezy.com/';
+
+// Free-tier snippet uses the official Ollama and Open WebUI images,
+// standard ports (11434 Ollama, 8080 Open WebUI internal → 3000
+// external, matching Open WebUI's documented default), and the
+// documented OLLAMA_BASE_URL wiring between the two containers.
+// Verified against current upstream docs, not written from memory.
+const composeSnippet = `services:
+  ollama:
+    image: ollama/ollama:latest
+    container_name: ollama
+    restart: unless-stopped
+    ports:
+      - "11434:11434"
+    volumes:
+      - ollama-data:/root/.ollama
+
+  open-webui:
+    image: ghcr.io/open-webui/open-webui:main
+    container_name: open-webui
+    restart: unless-stopped
+    depends_on:
+      - ollama
+    ports:
+      - "3000:8080"
+    environment:
+      - OLLAMA_BASE_URL=http://ollama:11434
+    volumes:
+      - open-webui-data:/app/backend/data
+
+volumes:
+  ollama-data:
+  open-webui-data:
+`;
+
+const premiumFeatures = [
+  'Hardened multi-model compose (run several models side by side)',
+  'Automated container health checks and restart policies',
+  'Reverse proxy pre-configured for all services',
+  'Caddy with automatic SSL — no manual cert management',
+  'Vector storage wired in for RAG workloads',
+  'Automated logging and log rotation',
+];
+---
+
+<div class="border border-border rounded-md bg-surface p-md" id="docker-stack-cta">
+  <h2 class="text-headline-lg text-primary m-0">Deploy this locally</h2>
+  <p class="text-body-md text-secondary mt-xs mb-md">
+    A minimal Docker Compose stack to get Ollama and Open WebUI running.
+    Free to copy and run as-is.
+  </p>
+
+  <div class="relative bg-surface-lowest border border-border rounded-md p-md overflow-x-auto font-mono text-code-mono">
+    <button
+      id="copy-compose-btn"
+      type="button"
+      class="absolute top-xs right-xs text-body-md rounded-md border border-border bg-surface px-xs py-[0.125rem] text-secondary hover:text-primary min-h-touch-min flex items-center"
+    >
+      Copy
+    </button>
+    <pre class="m-0" id="compose-snippet-text">{composeSnippet}</pre>
+  </div>
+
+  <div class="mt-lg rounded-md p-lg" style="background-color: #1F2937; color: #FFF9F3;">
+    <p class="text-body-md font-bold uppercase tracking-wide m-0" style="color: #FF6B4A;">
+      Production-ready
+    </p>
+    <h3 class="text-headline-md font-bold mt-xs mb-sm" style="color: #FFF9F3;">
+      Local Production Node Docker Stack — $35
+    </h3>
+    <p class="text-body-md mt-0 mb-md" style="color: #FFF9F3; opacity: 0.85;">
+      The free snippet above gets you running. This is what you'd actually
+      want in production.
+    </p>
+
+    <ul class="flex flex-col gap-xs mb-lg">
+      {premiumFeatures.map((feature) => (
+        <li class="flex items-start gap-xs text-body-md" style="color: #FFF9F3;">
+          <span aria-hidden="true" style="color: #FF6B4A;">✓</span>
+          <span>{feature}</span>
+        </li>
+      ))}
+    </ul>
+
+    
+      href={checkoutUrl}
+      id="outbound-lemonsqueezy"
+      data-umami-event="outbound-lemonsqueezy"
+      target="_blank"
+      rel="noopener noreferrer sponsored"
+      class="inline-flex items-center justify-center min-h-touch-min rounded-full px-lg font-bold text-body-lg no-underline transition-transform hover:-translate-y-[1px]"
+      style="background-color: #FF6B4A; color: #1F2937;"
+    >
+      Get the production stack — $35
+    </a>
+
+    <p class="text-body-md mt-md mb-0" style="color: #FFF9F3; opacity: 0.7;">
+      One-time purchase via Lemon Squeezy. Single-user license. 7-day
+      refund window — see <a href="/terms" style="color: #FFF9F3; text-decoration: underline;">Terms</a>.
+    </p>
+  </div>
+</div>
+
+<script is:inline>
+  (function () {
+    const btn = document.getElementById('copy-compose-btn');
+    const snippet = document.getElementById('compose-snippet-text');
+    if (!btn || !snippet) return;
+
+    btn.addEventListener('click', function () {
+      navigator.clipboard.writeText(snippet.textContent).then(function () {
+        const original = btn.textContent;
+        btn.textContent = 'Copied!';
+        setTimeout(function () {
+          btn.textContent = original;
+        }, 2000);
+      });
+    });
+  })();
+</script>

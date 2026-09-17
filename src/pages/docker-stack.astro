@@ -1,0 +1,42 @@
+---
+import BaseLayout from '../layouts/BaseLayout.astro';
+import DockerStackCTA from '../components/DockerStackCTA.astro';
+
+const jsonLd = [
+  {
+    '@context': 'https://schema.org',
+    '@type': 'SoftwareApplication',
+    name: 'Local Production Node Docker Stack',
+    applicationCategory: 'DeveloperApplication',
+    operatingSystem: 'Linux, macOS, Windows (Docker)',
+    offers: {
+      '@type': 'Offer',
+      price: '35',
+      priceCurrency: 'USD',
+    },
+    description:
+      'A hardened, production-ready Docker Compose stack for local LLM deployment: multi-model support, automated health checks, reverse proxy, Caddy SSL, vector storage, and automated logging.',
+  },
+];
+---
+
+<BaseLayout
+  title="Local Production Node Docker Stack"
+  description="A free Ollama + Open WebUI Docker Compose starter, plus a hardened $35 production stack with reverse proxy, SSL, and vector storage."
+  jsonLd={jsonLd}
+>
+  <section class="max-w-shell mx-auto px-lg pt-2xl pb-lg">
+    <h1 class="text-display-hero text-primary max-w-reading">
+      Local Production Node Docker Stack
+    </h1>
+    <p class="text-body-lg text-secondary max-w-reading mt-md">
+      Copy a free, minimal Docker Compose setup to get Ollama and Open WebUI
+      running locally — or skip straight to the hardened, production-ready
+      stack below.
+    </p>
+  </section>
+
+  <section class="max-w-shell mx-auto px-lg pb-2xl">
+    <DockerStackCTA />
+  </section>
+</BaseLayout>
