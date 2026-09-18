@@ -1,7 +1,7 @@
 ---
 title: "gemma-2-9b-it-GGUF"
-last_synced: "2026-09-16T05:31:24.698Z"
-architecture: "gemma-2"
+last_synced: "2026-09-18T04:54:37.151Z"
+architecture: "unknown"
 quantizations:
   - type: "IQ2_M"
     size_gb: 3.2

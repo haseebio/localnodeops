@@ -1,7 +1,7 @@
 ---
 title: "Meta-Llama-3.1-70B-Instruct-GGUF"
-last_synced: "2026-09-16T05:31:24.392Z"
-architecture: "llama-3"
+last_synced: "2026-09-18T04:54:36.559Z"
+architecture: "unknown"
 quantizations:
   - type: "IQ1_M"
     size_gb: 15.6
@@ -37,28 +37,18 @@ quantizations:
     size_gb: 39.6
   - type: "Q4_K_S"
     size_gb: 37.58
-  - type: "Q5_K_L-00001-OF-00002"
-    size_gb: 37.26
-  - type: "Q5_K_L-00002-OF-00002"
-    size_gb: 9.87
-  - type: "Q5_K_M-00001-OF-00002"
-    size_gb: 37.14
-  - type: "Q5_K_M-00002-OF-00002"
-    size_gb: 9.38
+  - type: "Q5_K_L"
+    size_gb: 47.13
+  - type: "Q5_K_M"
+    size_gb: 46.52
   - type: "Q5_K_S"
     size_gb: 45.32
-  - type: "Q6_K-00001-OF-00002"
-    size_gb: 37.13
-  - type: "Q6_K-00002-OF-00002"
-    size_gb: 16.79
-  - type: "Q6_K_L-00001-OF-00002"
-    size_gb: 37.18
-  - type: "Q6_K_L-00002-OF-00002"
-    size_gb: 17.2
-  - type: "Q8_0-00001-OF-00002"
-    size_gb: 37.07
-  - type: "Q8_0-00002-OF-00002"
-    size_gb: 32.75
+  - type: "Q6_K"
+    size_gb: 53.92
+  - type: "Q6_K_L"
+    size_gb: 54.38
+  - type: "Q8_0"
+    size_gb: 69.82
 ---
 
 Synced from Hugging Face. Do not edit quantizations by hand — re-run

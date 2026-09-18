@@ -1,7 +1,7 @@
 ---
 title: "Meta-Llama-3-8B-Instruct-GGUF"
-last_synced: "2026-09-16T05:31:26.646Z"
-architecture: "llama-3"
+last_synced: "2026-09-18T04:54:38.800Z"
+architecture: "unknown"
 quantizations:
   - type: "Q2_K"
     size_gb: 2.96

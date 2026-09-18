@@ -1,7 +1,7 @@
 ---
 title: "Mistral-7B-Instruct-v0.3-GGUF"
-last_synced: "2026-09-16T05:31:26.954Z"
-architecture: "mistral"
+last_synced: "2026-09-18T04:54:39.061Z"
+architecture: "unknown"
 quantizations:
   - type: "IQ1_M"
     size_gb: 1.64

@@ -1,7 +1,7 @@
 ---
 title: "gemma-2-27b-it-GGUF"
-last_synced: "2026-09-16T05:31:25.010Z"
-architecture: "gemma-2"
+last_synced: "2026-09-18T04:54:37.429Z"
+architecture: "unknown"
 quantizations:
   - type: "IQ2_M"
     size_gb: 8.75
@@ -49,18 +49,10 @@ quantizations:
     size_gb: 26.95
   - type: "Q8_0_L"
     size_gb: 27.98
-  - type: "gemma-2-27b-it-f32.gguf/gemma-2-27b-it-f32-00001-of-00003"
-    size_gb: 36.89
-  - type: "gemma-2-27b-it-f32.gguf/gemma-2-27b-it-f32-00002-of-00003"
-    size_gb: 37.13
-  - type: "gemma-2-27b-it-f32.gguf/gemma-2-27b-it-f32-00003-of-00003"
-    size_gb: 27.42
-  - type: "gemma-2-27b-it-f32/gemma-2-27b-it-f32-00001-of-00003"
-    size_gb: 36.89
-  - type: "gemma-2-27b-it-f32/gemma-2-27b-it-f32-00002-of-00003"
-    size_gb: 37.13
-  - type: "gemma-2-27b-it-f32/gemma-2-27b-it-f32-00003-of-00003"
-    size_gb: 27.42
+  - type: "gemma-2-27b-it-f32.gguf/gemma-2-27b-it-f32"
+    size_gb: 101.44
+  - type: "gemma-2-27b-it-f32/gemma-2-27b-it-f32"
+    size_gb: 101.44
 ---
 
 Synced from Hugging Face. Do not edit quantizations by hand — re-run
