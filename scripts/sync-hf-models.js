@@ -11,16 +11,17 @@ const REPOS = [
   'TheBloke/Mixtral-8x7B-Instruct-v0.1-GGUF',
   'QuantFactory/Meta-Llama-3-8B-Instruct-GGUF',
   'bartowski/Mistral-7B-Instruct-v0.3-GGUF',
-  // DeepSeek R1 distills — dense architectures (not MoE), unlike full
-  // DeepSeek-V3/V3.1 which is a 671B-param MoE model requiring 180GB+
-  // combined VRAM+RAM and was deliberately excluded: it would sync fine
-  // but every page would hit the null-bucket MoE fallback with no real
-  // VRAM estimate ever shown, adding sync time and repo noise for no
-  // calculator value. These distills are dense, real consumer-hardware
-  // sizes, and bucket-match correctly.
   'bartowski/DeepSeek-R1-Distill-Llama-8B-GGUF',
   'bartowski/DeepSeek-R1-Distill-Qwen-14B-GGUF',
   'bartowski/DeepSeek-R1-Distill-Qwen-32B-GGUF',
+  // Dense-only additions. Gemma 4's other public variants (E2B/E4B edge
+  // models, 26B-A4B) and most Qwen 3.5 variants (397B-A17B, 122B-A10B,
+  // 35B-A3B) are MoE — deliberately excluded, since their "A4B"/"A17B"-
+  // style active-parameter naming doesn't match this script's MoE name
+  // filter (mixtral/\d+x\d+b) and would risk silently force-matching to
+  // a dense reference bucket. Only confirmed-dense repos are added here.
+  'bartowski/google_gemma-4-31B-it-GGUF',
+  'bartowski/Qwen3.8-27B-GGUF',
 ];
 
 const OUTPUT_DIR = new URL('../src/content/models/', import.meta.url);
