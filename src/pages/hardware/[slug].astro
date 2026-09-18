@@ -34,10 +34,23 @@ const STATUS_SCHEMA_DESCRIPTIONS: Record<string, string> = {
   estimated: `Estimated value, not yet independently benchmarked: ${metricValue} ${metricLabel}`,
 };
 
-// "Models that fit this GPU" — driven directly by the schema's vramGB
-// field now, not a title regex. Only runs when vramGB is set (i.e. a
-// real GPU entry that opted in), never inferred.
+// "Models that fit this GPU" — driven by the schema's vramGB field.
+// Excludes sub-3-bit quantizations (IQ1/IQ2/Q2) from the "best-fitting"
+// pick: these numerically minimize file size but are widely considered
+// too lossy to be a real recommendation, especially at large parameter
+// counts. Without this filter a 70B model could show a ~12GB "fits"
+// figure using an IQ2 quant, directly contradicting this page's own
+// prose about what a 70B model actually requires. If a model has no
+// quantization above that floor, it's excluded from the list entirely
+// rather than shown with a misleading number.
 const DEFAULT_CONTEXT = 4096;
+const MIN_USABLE_BITS_PER_WEIGHT = 3;
+
+function isUsableQuantType(type: string): boolean {
+  const match = type.match(/I?Q(\d)/i);
+  if (!match) return true; // unknown naming (e.g. F16/F32) — don't exclude
+  return parseInt(match[1], 10) >= MIN_USABLE_BITS_PER_WEIGHT;
+}
 
 let fittingModels: { slug: string; title: string; bestTotalGb: number }[] = [];
 if (vramGB != null) {
@@ -47,7 +60,11 @@ if (vramGB != null) {
       const paramsB = parseParamsB(m.data.title);
       const bucket = nearestBucket(paramsB, m.data.title);
       if (!bucket) return null;
-      const totals = m.data.quantizations.map((q) => estimateVram(q.size_gb, bucket, DEFAULT_CONTEXT).totalGb);
+
+      const usableQuants = m.data.quantizations.filter((q) => isUsableQuantType(q.type));
+      if (usableQuants.length === 0) return null;
+
+      const totals = usableQuants.map((q) => estimateVram(q.size_gb, bucket, DEFAULT_CONTEXT).totalGb);
       const bestTotalGb = Math.min(...totals);
       if (bestTotalGb > vramGB) return null;
       return { slug: m.slug as string, title: m.data.title, bestTotalGb };
