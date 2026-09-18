@@ -20,6 +20,7 @@ const REPOS = [
   // sizes, and bucket-match correctly.
   'bartowski/DeepSeek-R1-Distill-Llama-8B-GGUF',
   'bartowski/DeepSeek-R1-Distill-Qwen-14B-GGUF',
+  'bartowski/DeepSeek-R1-Distill-Qwen-32B-GGUF',
 ];
 
 const OUTPUT_DIR = new URL('../src/content/models/', import.meta.url);
