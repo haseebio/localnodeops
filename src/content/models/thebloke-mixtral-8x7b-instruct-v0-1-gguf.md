@@ -1,6 +1,6 @@
 ---
 title: "Mixtral-8x7B-Instruct-v0.1-GGUF"
-last_synced: "2026-09-18T05:11:17.965Z"
+last_synced: "2026-09-18T10:40:12.393Z"
 architecture: "mixtral"
 quantizations:
   - type: "Q2_K"
