@@ -1,0 +1,65 @@
+---
+import { getCollection } from 'astro:content';
+import BaseLayout from '../../layouts/BaseLayout.astro';
+
+const posts = (await getCollection('posts')).sort(
+  (a, b) => b.data.pubDate.valueOf() - a.data.pubDate.valueOf()
+);
+
+const jsonLd = [
+  {
+    '@context': 'https://schema.org',
+    '@type': 'CollectionPage',
+    name: 'LocalNodeOps Blog',
+  },
+];
+---
+
+<BaseLayout
+  title="Blog"
+  description="Guides and write-ups on local LLM orchestration, hardware sizing, and inference troubleshooting."
+  jsonLd={jsonLd}
+>
+  <section class="max-w-shell mx-auto px-lg pt-2xl pb-lg">
+    <h1 class="text-display-hero text-primary max-w-reading">Blog</h1>
+    <p class="text-body-lg text-secondary max-w-reading mt-md">
+      Guides and write-ups on local LLM orchestration, hardware sizing, and
+      inference troubleshooting.
+    </p>
+  </section>
+
+  <section class="max-w-shell mx-auto px-lg pb-2xl">
+    {posts.length === 0 ? (
+      <p class="text-body-lg text-secondary max-w-reading">No posts published yet.</p>
+    ) : (
+      <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-md">
+        {posts.map((post) => (
+          <a href={`/posts/${post.slug}`}
+            data-astro-prefetch
+            class="group block border border-border rounded-md bg-surface p-md flex flex-col gap-sm
+              no-underline cursor-pointer transition-colors
+              hover:border-accent-primary hover:bg-surface-elevated"
+          >
+            <div class="flex items-center justify-between gap-sm">
+              <span class="text-body-md text-secondary">{post.data.category}</span>
+              <span class="text-body-md text-secondary">{post.data.readingTime} min read</span>
+            </div>
+
+            <h2 class="text-headline-md text-primary m-0 group-hover:underline">
+              {post.data.title}
+            </h2>
+
+            <p class="text-body-md text-secondary m-0 flex-1">{post.data.excerpt}</p>
+
+            <div class="flex items-center justify-between gap-sm text-body-md text-secondary mt-xs">
+              <span>{post.data.author}</span>
+              <time datetime={post.data.pubDate.toISOString()}>
+                {post.data.pubDate.toLocaleDateString('en-US', { year: 'numeric', month: 'short', day: 'numeric' })}
+              </time>
+            </div>
+          </a>
+        ))}
+      </div>
+    )}
+  </section>
+</BaseLayout>
