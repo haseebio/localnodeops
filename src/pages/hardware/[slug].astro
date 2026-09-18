@@ -2,7 +2,7 @@
 import { getCollection } from 'astro:content';
 import BaseLayout from '../../layouts/BaseLayout.astro';
 import ArticleActions from '../../components/ArticleActions.astro';
-import { parseParamsB, nearestBucket, estimateVram, parseVramGbFromTitle } from '../../lib/vram-math';
+import { parseParamsB, nearestBucket, estimateVram } from '../../lib/vram-math';
 
 export async function getStaticPaths() {
   const entries = await getCollection('hardware');
@@ -14,7 +14,7 @@ export async function getStaticPaths() {
 
 const { entry } = Astro.props;
 const { Content } = await entry.render();
-const { title, category, metricLabel, metricValue, status, summary, publishedAt } = entry.data;
+const { title, category, metricLabel, metricValue, status, summary, publishedAt, vramGB } = entry.data;
 
 const STATUS_LABELS: Record<string, string> = {
   verified: 'Verified',
@@ -34,18 +34,13 @@ const STATUS_SCHEMA_DESCRIPTIONS: Record<string, string> = {
   estimated: `Estimated value, not yet independently benchmarked: ${metricValue} ${metricLabel}`,
 };
 
-// "Models that fit this GPU" — only computed for GPU-category entries
-// where a VRAM figure can be parsed from the title (heuristic, see
-// parseVramGbFromTitle's own comment). For each synced model, finds its
-// cheapest-fitting quantization at the default 4096-token context and
-// includes it if that total is within this GPU's parsed VRAM capacity.
-// Models with no confident bucket match (see nearestBucket) are skipped
-// entirely rather than guessed at.
+// "Models that fit this GPU" — driven directly by the schema's vramGB
+// field now, not a title regex. Only runs when vramGB is set (i.e. a
+// real GPU entry that opted in), never inferred.
 const DEFAULT_CONTEXT = 4096;
-const gpuVramGb = category === 'GPU' ? parseVramGbFromTitle(title) : null;
 
 let fittingModels: { slug: string; title: string; bestTotalGb: number }[] = [];
-if (gpuVramGb != null) {
+if (vramGB != null) {
   const allModels = await getCollection('models');
   fittingModels = allModels
     .map((m) => {
@@ -54,7 +49,7 @@ if (gpuVramGb != null) {
       if (!bucket) return null;
       const totals = m.data.quantizations.map((q) => estimateVram(q.size_gb, bucket, DEFAULT_CONTEXT).totalGb);
       const bestTotalGb = Math.min(...totals);
-      if (bestTotalGb > gpuVramGb) return null;
+      if (bestTotalGb > vramGB) return null;
       return { slug: m.slug, title: m.data.title, bestTotalGb };
     })
     .filter((m): m is { slug: string; title: string; bestTotalGb: number } => m !== null)

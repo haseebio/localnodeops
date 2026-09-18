@@ -6,6 +6,7 @@ metricValue: "42.7"
 status: "estimated"
 summary: "Best price-to-VRAM ratio for 8B-13B models at full precision quantization."
 publishedAt: 2026-08-05
+vramGB: 16
 ---
 
 The 16GB variant's relevant trade-off: ~288 GB/s memory bandwidth,

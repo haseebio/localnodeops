@@ -6,6 +6,7 @@ metricValue: "18.2"
 status: "estimated"
 summary: "24GB VRAM handles 70B models at Q4 quantization with room for an 8K context window."
 publishedAt: 2026-08-12
+vramGB: 24
 ---
 
 24GB of GDDR6X at ~1008 GB/s memory bandwidth is the relevant spec for

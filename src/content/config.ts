@@ -10,6 +10,11 @@ const hardware = defineCollection({
     status: z.enum(['verified', 'community', 'estimated']),
     summary: z.string().max(160),
     publishedAt: z.date(),
+    // Only meaningful for category: 'GPU' — CPU/Memory/Quantization
+    // entries have no VRAM figure, so this is optional rather than
+    // required across the whole collection. Replaces the earlier
+    // regex-parsed-from-title heuristic in vram-math.ts.
+    vramGB: z.number().positive().optional(),
   }),
 });
 

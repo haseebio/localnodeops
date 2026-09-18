@@ -3,7 +3,7 @@ import { getCollection } from 'astro:content';
 import BaseLayout from '../../layouts/BaseLayout.astro';
 import VramCalculator from '../../components/VramCalculator.astro';
 import DockerStackCTA from '../../components/DockerStackCTA.astro';
-import { parseParamsB, nearestBucket, estimateVram, parseVramGbFromTitle } from '../../lib/vram-math';
+import { parseParamsB, nearestBucket, estimateVram } from '../../lib/vram-math';
 
 export async function getStaticPaths() {
   const models = await getCollection('models');
@@ -29,23 +29,16 @@ const quantEstimates = hasEstimate
     }))
   : [];
 
-// "Hardware this fits" — the inverse of hardware/[slug].astro's "Models
-// that fit this GPU". Uses this model's cheapest-fitting quantization
-// total against every GPU-category hardware entry whose title has a
-// parseable VRAM figure (same heuristic, same known limitation).
-let fittingHardware: { slug: string; title: string; vramGb: number }[] = [];
+// "Hardware this fits" — driven by the schema's vramGB field, not a
+// title regex. Only hardware entries with vramGB set are considered.
+let fittingHardware: { slug: string; title: string; vramGB: number }[] = [];
 if (hasEstimate) {
   const cheapestTotalGb = Math.min(...quantEstimates.map((q) => q.estimate.totalGb));
   const hardwareEntries = await getCollection('hardware');
   fittingHardware = hardwareEntries
-    .filter((h) => h.data.category === 'GPU')
-    .map((h) => {
-      const vramGb = parseVramGbFromTitle(h.data.title);
-      if (vramGb == null || cheapestTotalGb > vramGb) return null;
-      return { slug: h.slug, title: h.data.title, vramGb };
-    })
-    .filter((h): h is { slug: string; title: string; vramGb: number } => h !== null)
-    .sort((a, b) => a.vramGb - b.vramGb);
+    .filter((h) => h.data.vramGB != null && cheapestTotalGb <= h.data.vramGB)
+    .map((h) => ({ slug: h.slug, title: h.data.title, vramGB: h.data.vramGB as number }))
+    .sort((a, b) => a.vramGB - b.vramGB);
 }
 
 const faq = hasEstimate
@@ -186,7 +179,7 @@ const jsonLd = [
               transition-colors hover:border-accent-primary hover:bg-surface-elevated"
           >
             <p class="text-headline-md text-primary m-0">{h.title}</p>
-            <p class="text-body-md text-secondary mt-xs mb-0">{h.vramGb} GB VRAM</p>
+            <p class="text-body-md text-secondary mt-xs mb-0">{h.vramGB} GB VRAM</p>
           </a>
         ))}
       </div>
