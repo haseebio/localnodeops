@@ -50,9 +50,9 @@ if (vramGB != null) {
       const totals = m.data.quantizations.map((q) => estimateVram(q.size_gb, bucket, DEFAULT_CONTEXT).totalGb);
       const bestTotalGb = Math.min(...totals);
       if (bestTotalGb > vramGB) return null;
-      return { slug: m.slug, title: m.data.title, bestTotalGb };
+      return { slug: m.slug as string, title: m.data.title, bestTotalGb };
     })
-    .filter((m): m is { slug: string; title: string; bestTotalGb: number } => m !== null)
+    .filter((m) => m !== null)
     .sort((a, b) => b.bestTotalGb - a.bestTotalGb)
     .slice(0, 6);
 }
