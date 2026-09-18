@@ -1,6 +1,6 @@
 ---
 title: "Meta-Llama-3.1-8B-Instruct-GGUF"
-last_synced: "2026-09-18T04:54:36.275Z"
+last_synced: "2026-09-18T05:06:21.874Z"
 architecture: "unknown"
 quantizations:
   - type: "IQ2_M"
