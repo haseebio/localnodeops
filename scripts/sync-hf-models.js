@@ -22,12 +22,24 @@ function slugify(repoId) {
 
 // Matches both `model.Q4_K_M.gguf` (dot-separated, common on TheBloke/
 // QuantFactory repos) and `model-Q4_K_M.gguf` (hyphen-separated, common
-// on bartowski repos). Previously only matched the dot form, so every
-// hyphen-separated filename fell through to the raw-filename fallback
-// below and produced garbage "type" values.
+// on bartowski repos).
 function parseQuantType(filename) {
   const match = filename.match(/[.-](Q\d[\w-]*|F16|F32|IQ\d[\w-]*)\.gguf$/i);
   return match ? match[1].toUpperCase() : filename.replace(/\.gguf$/i, '');
+}
+
+// Some repos split a single quantization's weights across multiple
+// downloadable files, named like "...Q4_K_M-00001-of-00002.gguf" (case
+// of "of" varies by uploader). Left unhandled, each split part was
+// previously recorded as its own separate "quantization" — producing
+// entries like "Q4_K_M-00002-OF-00002" with a tiny size (just that
+// part's share of the total), which then got picked up downstream as
+// a spuriously small "best-fitting" quantization. This strips the
+// split-part suffix so all parts of the same quant group together.
+const SPLIT_PART_PATTERN = /-\d{5}-of-\d{5}$/i;
+
+function stripSplitPartSuffix(type) {
+  return type.replace(SPLIT_PART_PATTERN, '');
 }
 
 async function fetchRepoTree(repoId) {
@@ -39,27 +51,7 @@ async function fetchRepoTree(repoId) {
   return res.json();
 }
 
-// config.model_type is frequently missing or wrong for GGUF-only repos
-// (the config.json HF reads may belong to a tokenizer/quantizer tool
-// rather than the base model — this is how Phi-3 was previously
-// mislabeled "mistral"). We don't have a reliable API-only source of
-// truth for architecture across arbitrary repos, so we derive it from
-// known name patterns instead of trusting config.model_type blindly.
-function inferArchitectureFromRepoId(repoId) {
-  const name = repoId.toLowerCase();
-  if (name.includes('llama-3')) return 'llama-3';
-  if (name.includes('gemma-2')) return 'gemma-2';
-  if (name.includes('qwen2.5') || name.includes('qwen2-5')) return 'qwen2.5';
-  if (name.includes('phi-3')) return 'phi-3';
-  if (name.includes('mixtral')) return 'mixtral';
-  if (name.includes('mistral')) return 'mistral';
-  return 'unknown';
-}
-
 async function fetchArchitecture(repoId) {
-  const inferred = inferArchitectureFromRepoId(repoId);
-  if (inferred !== 'unknown') return inferred;
-
   try {
     const res = await fetch(`https://huggingface.co/api/models/${repoId}`);
     if (!res.ok) return 'unknown';
@@ -70,8 +62,13 @@ async function fetchArchitecture(repoId) {
   }
 }
 
+// Extracts one quantization entry per GGUF file, then merges any that
+// are split parts of the same quantization (same base type after
+// stripping the "-NNNNN-of-NNNNN" suffix) into a single entry whose
+// size_gb is the sum of all its parts — the true total file size for
+// that quantization, not just one fragment of it.
 function extractQuantizations(treeItems) {
-  return treeItems
+  const rawEntries = treeItems
     .filter((item) => item.type === 'file' && item.path.toLowerCase().endsWith('.gguf'))
     .map((item) => {
       const bytes = item.lfs?.size ?? item.size ?? 0;
@@ -81,6 +78,25 @@ function extractQuantizations(treeItems) {
       };
     })
     .filter((q) => q.size_gb > 0);
+
+  const merged = new Map();
+  for (const entry of rawEntries) {
+    const baseType = stripSplitPartSuffix(entry.type);
+    const existing = merged.get(baseType);
+    if (existing) {
+      existing.size_gb += entry.size_gb;
+    } else {
+      merged.set(baseType, { type: baseType, size_gb: entry.size_gb });
+    }
+  }
+
+  // Re-round after summing — individual part sizes were already rounded
+  // to 2 decimals, so a sum of several parts can pick up float drift
+  // beyond 2 decimals (e.g. 3.72 + 0.64 = 4.359999999999999).
+  return Array.from(merged.values()).map((q) => ({
+    type: q.type,
+    size_gb: Number(q.size_gb.toFixed(2)),
+  }));
 }
 
 function toFrontmatter({ title, last_synced, architecture, quantizations }) {
