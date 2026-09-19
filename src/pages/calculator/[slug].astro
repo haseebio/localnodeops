@@ -4,7 +4,7 @@ import BaseLayout from '../../layouts/BaseLayout.astro';
 import VramCalculator from '../../components/VramCalculator.astro';
 import DockerStackCTA from '../../components/DockerStackCTA.astro';
 import FAQAccordion from '../../components/FAQAccordion.astro';
-import { parseParamsB, nearestBucket, estimateVram, parseVramGbFromTitle } from '../../lib/vram-math';
+import { parseParamsB, nearestBucket, estimateVram } from '../../lib/vram-math';
 
 export async function getStaticPaths() {
   const models = await getCollection('models');
@@ -40,16 +40,6 @@ if (hasEstimate) {
     .sort((a, b) => a.vramGB - b.vramGB);
 }
 
-// 4 static, model-agnostic questions — replaces the earlier per-
-// quantization loop (one question per quant tier, ~20-29 near-identical
-// entries). That pattern duplicated the "By quantization" grid above it
-// almost verbatim, added no real information, and Google largely
-// stopped giving FAQPage rich results to that kind of thin, repetitive
-// content anyway. Answers here are checked against this site's actual
-// formula (vram-math.ts / /methodology) rather than generic claims —
-// the runtime overhead figure specifically must stay in sync with the
-// real 10%-of-(weights+KV) rule, not a flat GB number, or this section
-// would contradict /methodology.
 const faqs = [
   {
     question: `How is VRAM calculated for ${title}?`,
