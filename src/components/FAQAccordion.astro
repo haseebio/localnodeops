@@ -1,0 +1,35 @@
+---
+interface FAQItem {
+  question: string;
+  answer: string;
+}
+
+interface Props {
+  items: FAQItem[];
+  title?: string;
+}
+
+const { items, title = 'Frequently asked questions' } = Astro.props;
+---
+
+{items.length > 0 && (
+  <section class="mt-lg">
+    <h2 class="text-headline-lg text-primary mb-md">{title}</h2>
+    <div class="flex flex-col gap-sm">
+      {items.map((item) => (
+        <details class="group border border-border rounded-md bg-surface overflow-hidden">
+          <summary class="flex items-center justify-between gap-sm p-md cursor-pointer list-none text-headline-md text-primary hover:bg-surface-elevated transition-colors">
+            <span>{item.question}</span>
+            <span
+              aria-hidden="true"
+              class="shrink-0 text-accent-primary transition-transform duration-200 group-open:rotate-45"
+            >
+              +
+            </span>
+          </summary>
+          <p class="text-body-lg text-secondary px-md pb-md m-0">{item.answer}</p>
+        </details>
+      ))}
+    </div>
+  </section>
+)}

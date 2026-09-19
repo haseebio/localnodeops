@@ -11,6 +11,12 @@ tags:
   - "llama.cpp"
   - "Hardware"
 readingTime: 5
+
+faq:
+  - question: "Why does my GPU throw CUDA_OUT_OF_MEMORY if the model file is smaller than my VRAM?"
+    answer: "Model file size only represents static weights stored on disk. During inference, your GPU also requires memory for CUDA runtime initialization (~0.5–1.2 GB), tensor activation overhead, and the Key-Value (KV) cache. As context windows expand (e.g., 16k–128k tokens), the KV cache grows rapidly, pushing total VRAM usage past physical card limits even when the raw .gguf file appears to fit easily."
+  - question: "How much generation speed do I lose when offloading layers to System RAM?"
+    answer: "Offloading even a small percentage of layers to system memory causes a steep drop in token speed. While a modern GPU's VRAM transfers data at roughly 1,000 GB/s, dual-channel DDR5 system RAM maxes out around 60–80 GB/s over PCIe buses. When layers are split between VRAM and RAM, generation speed typically drops from 80+ tokens/sec down to 2–5 tokens/sec because the pipeline must wait for memory transfers across the PCIe bus."
 ---
 
 It is one of the most frustrating experiences in local AI inference: you buy a 24GB GPU like the RTX 3090 or 4090, pull a 70B GGUF quantized down to 14GB, hit `run`, and immediately watch your driver throw a `CUDA_OUT_OF_MEMORY` crash or tank your generation speed to 1.2 tokens per second.
@@ -113,3 +119,5 @@ Before downloading a model, do not look solely at the raw file size. Calculate y
 **Total VRAM Required = Model File Size (GB) + KV Cache Size (GB) + 1.5 GB (CUDA Overhead)**
 
 You can calculate precise VRAM requirements for any GGUF quantization level, context length, and GPU configuration directly on our [Interactive VRAM Calculator](https://www.google.com/search?q=/calculator&utm_source=gemini).
+
+

@@ -3,7 +3,8 @@ import { getCollection } from 'astro:content';
 import BaseLayout from '../../layouts/BaseLayout.astro';
 import VramCalculator from '../../components/VramCalculator.astro';
 import DockerStackCTA from '../../components/DockerStackCTA.astro';
-import { parseParamsB, nearestBucket, estimateVram } from '../../lib/vram-math';
+import FAQAccordion from '../../components/FAQAccordion.astro';
+import { parseParamsB, nearestBucket, estimateVram, parseVramGbFromTitle } from '../../lib/vram-math';
 
 export async function getStaticPaths() {
   const models = await getCollection('models');
@@ -29,8 +30,6 @@ const quantEstimates = hasEstimate
     }))
   : [];
 
-// "Hardware this fits" — driven by the schema's vramGB field, not a
-// title regex. Only hardware entries with vramGB set are considered.
 let fittingHardware: { slug: string; title: string; vramGB: number }[] = [];
 if (hasEstimate) {
   const cheapestTotalGb = Math.min(...quantEstimates.map((q) => q.estimate.totalGb));
@@ -41,23 +40,46 @@ if (hasEstimate) {
     .sort((a, b) => a.vramGB - b.vramGB);
 }
 
-const faq = hasEstimate
-  ? quantEstimates.map((q) => ({
-      question: `How much VRAM does ${title} need at ${q.type}?`,
-      answer:
-        `The ${q.type} quantization is ${q.size_gb.toFixed(2)} GB on disk (exact, synced from Hugging Face). ` +
-        `At a ${DEFAULT_CONTEXT.toLocaleString()}-token context, using the ${bucket.label} reference architecture for the ` +
-        `KV cache estimate, total estimated VRAM is approximately ${q.estimate.totalGb.toFixed(2)} GB. ` +
-        `This total includes a KV cache estimate and a 10% runtime overhead margin — only the weight size is exact.`,
-    }))
-  : quantizations.map((q) => ({
-      question: `How much VRAM does ${title} need at ${q.type}?`,
-      answer:
-        `The ${q.type} quantization is ${q.size_gb.toFixed(2)} GB on disk (exact, synced from Hugging Face). ` +
-        `A total VRAM estimate isn't available for this model — its parameter count or architecture ` +
-        `doesn't closely match any of our reference architectures, and we'd rather show nothing than a number ` +
-        `that looks precise but likely isn't.`,
-    }));
+// 4 static, model-agnostic questions — replaces the earlier per-
+// quantization loop (one question per quant tier, ~20-29 near-identical
+// entries). That pattern duplicated the "By quantization" grid above it
+// almost verbatim, added no real information, and Google largely
+// stopped giving FAQPage rich results to that kind of thin, repetitive
+// content anyway. Answers here are checked against this site's actual
+// formula (vram-math.ts / /methodology) rather than generic claims —
+// the runtime overhead figure specifically must stay in sync with the
+// real 10%-of-(weights+KV) rule, not a flat GB number, or this section
+// would contradict /methodology.
+const faqs = [
+  {
+    question: `How is VRAM calculated for ${title}?`,
+    answer:
+      `Total VRAM combines three things: the model weight size (exact for synced quantizations, from the real .gguf file), ` +
+      `the KV cache size (always estimated — see /methodology for why), and a runtime overhead margin of 10% of (weights + KV cache), ` +
+      `a rule-of-thumb allowance for CUDA context and activation buffers rather than a fixed number, since it scales with model size.`,
+  },
+  {
+    question: `Why does context length drastically change VRAM requirements?`,
+    answer:
+      `The KV cache stores attention history so the model doesn't recompute earlier tokens on every step. KV cache size scales ` +
+      `linearly with context length, so doubling context roughly doubles that portion of VRAM use. On larger models this can add ` +
+      `many gigabytes as context grows from 4K toward 32K or 128K tokens — see the calculator above to see the real numbers for ${title} at different context lengths.`,
+  },
+  {
+    question: `What happens if my GPU doesn't have enough VRAM for ${title}?`,
+    answer:
+      `Runners like llama.cpp or Ollama can offload remaining layers to system RAM over the PCIe bus. Execution still works, but ` +
+      `system RAM bandwidth (roughly 60–80 GB/s for dual-channel DDR5) is far slower than GPU VRAM (roughly 1,000 GB/s), so generation ` +
+      `speed typically drops sharply — often from tens of tokens per second down to single digits — the more layers get offloaded.`,
+  },
+  {
+    question: `How can I fit a model into limited VRAM?`,
+    answer:
+      `A few real options: drop to a smaller quantization (e.g. Q4_K_M instead of Q8_0), reduce context length (KV cache scales with it directly), ` +
+      `or quantize the KV cache itself (llama.cpp's --cache-type-k q8_0 --cache-type-v q8_0) to roughly halve KV cache memory. That last option is a real ` +
+      `tradeoff, not free — it can introduce a small amount of quality degradation, generally minor for most use cases but worth testing on your own workload before relying on it.`,
+  },
+];
 
 const jsonLd = [
   {
@@ -92,18 +114,6 @@ const jsonLd = [
         },
       ]
     : []),
-  {
-    '@context': 'https://schema.org',
-    '@type': 'FAQPage',
-    mainEntity: faq.map((item) => ({
-      '@type': 'Question',
-      name: item.question,
-      acceptedAnswer: {
-        '@type': 'Answer',
-        text: item.answer,
-      },
-    })),
-  },
 ];
 ---
 
@@ -197,14 +207,6 @@ const jsonLd = [
   </section>
 
   <section class="max-w-shell mx-auto px-lg pb-2xl">
-    <h2 class="text-headline-lg text-primary mb-md">FAQ</h2>
-    <div class="flex flex-col gap-md max-w-reading">
-      {faq.map((item) => (
-        <div class="border border-border rounded-md bg-surface p-md">
-          <h3 class="text-headline-md text-primary m-0">{item.question}</h3>
-          <p class="text-body-md text-secondary mt-xs m-0">{item.answer}</p>
-        </div>
-      ))}
-    </div>
+    <FAQAccordion items={faqs} title="FAQ" />
   </section>
 </BaseLayout>

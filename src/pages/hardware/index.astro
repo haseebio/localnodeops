@@ -4,6 +4,7 @@ import BaseLayout from '../../layouts/BaseLayout.astro';
 import HardwareCard from '../../components/HardwareCard.astro';
 import CategoryFilter from '../../components/CategoryFilter.astro';
 import VramCalculator from '../../components/VramCalculator.astro';
+import FAQAccordion from '../../components/FAQAccordion.astro';
 
 const hardwareEntries = (await getCollection('hardware')).sort(
   (a, b) => b.data.publishedAt.valueOf() - a.data.publishedAt.valueOf()
@@ -87,15 +88,7 @@ const jsonLd = [
   </section>
 
   <section class="max-w-shell mx-auto px-lg pb-xl">
-    <h2 class="text-headline-lg text-primary mb-md">Calculator FAQ</h2>
-    <div class="flex flex-col gap-md max-w-reading">
-      {calculatorFaq.map((item) => (
-        <div class="border border-border rounded-md bg-surface p-md">
-          <h3 class="text-headline-md text-primary m-0">{item.question}</h3>
-          <p class="text-body-md text-secondary mt-xs m-0">{item.answer}</p>
-        </div>
-      ))}
-    </div>
+    <FAQAccordion items={calculatorFaq} title="Calculator FAQ" />
   </section>
 
   <section class="max-w-shell mx-auto px-lg pb-2xl">
