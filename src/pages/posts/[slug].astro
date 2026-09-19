@@ -1,6 +1,7 @@
 ---
 import { getCollection, type CollectionEntry } from 'astro:content';
 import BaseLayout from '../../layouts/BaseLayout.astro';
+import ArticleActions from '../../components/ArticleActions.astro';
 
 export async function getStaticPaths() {
   const posts = await getCollection('posts');
@@ -58,7 +59,13 @@ if (faq && faq.length > 0) {
 ---
 
 <BaseLayout title={title} description={excerpt} jsonLd={jsonLd}>
-  <article class="max-w-reading mx-auto px-lg py-xl">
+  <div class="max-w-reading mx-auto px-lg py-xl">
+    <nav class="breadcrumb" aria-label="Breadcrumb">
+      <a href="/posts">Blog</a>
+      <span class="breadcrumb-sep" aria-hidden="true">/</span>
+      <span class="text-primary">{title}</span>
+    </nav>
+
     <p class="text-body-md text-secondary">
       {category} <span aria-hidden="true">·</span> {formattedDate}
       <span aria-hidden="true">·</span> {readingTime} min read
@@ -67,20 +74,26 @@ if (faq && faq.length > 0) {
     <h1 class="text-display-hero text-primary mt-xs">{title}</h1>
     <p class="text-body-lg text-secondary mt-sm">{excerpt}</p>
 
-    <p class="text-body-md text-secondary mt-md border-t border-border pt-sm">
+    <p class="text-body-md text-secondary mt-sm">
       Written by <span class="text-primary">{author}</span>
     </p>
 
-    <div class="docs-content mt-lg" id="post-content">
-      <Content />
+    <div class="mt-md">
+      <ArticleActions title={title} />
+    </div>
+
+    <div class="article-shell mt-lg">
+      <div class="docs-content" id="post-content">
+        <Content />
+      </div>
     </div>
 
     {faq && faq.length > 0 && (
-      <section class="mt-xl border-t border-border pt-lg">
-        <h2 class="text-headline-lg text-primary">Frequently asked questions</h2>
-        <div class="flex flex-col gap-md mt-md">
+      <section class="mt-lg">
+        <h2 class="text-headline-lg text-primary mb-md">Frequently asked questions</h2>
+        <div class="flex flex-col gap-md">
           {faq.map((item) => (
-            <div>
+            <div class="border border-border rounded-md bg-surface p-md">
               <h3 class="text-headline-md text-primary m-0">{item.question}</h3>
               <p class="text-body-lg text-secondary mt-xs m-0">{item.answer}</p>
             </div>
@@ -88,7 +101,7 @@ if (faq && faq.length > 0) {
         </div>
       </section>
     )}
-  </article>
+  </div>
 </BaseLayout>
 
 <script is:inline>
