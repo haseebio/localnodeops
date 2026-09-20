@@ -11,7 +11,6 @@ tags:
   - "llama.cpp"
   - "Hardware"
 readingTime: 5
-
 faq:
   - question: "Why does my GPU throw CUDA_OUT_OF_MEMORY if the model file is smaller than my VRAM?"
     answer: "Model file size only represents static weights stored on disk. During inference, your GPU also requires memory for CUDA runtime initialization (~0.5–1.2 GB), tensor activation overhead, and the Key-Value (KV) cache. As context windows expand (e.g., 16k–128k tokens), the KV cache grows rapidly, pushing total VRAM usage past physical card limits even when the raw .gguf file appears to fit easily."
@@ -116,8 +115,8 @@ To keep your models running entirely inside VRAM without hitting swap or context
 
 Before downloading a model, do not look solely at the raw file size. Calculate your true VRAM footprint using this formula:
 
-**Total VRAM Required = Model File Size (GB) + KV Cache Size (GB) + 1.5 GB (CUDA Overhead)**
+**Total VRAM Required = Model File Size (GB) + KV Cache Size (GB) + 10% of that subtotal (runtime overhead)**
 
-You can calculate precise VRAM requirements for any GGUF quantization level, context length, and GPU configuration directly on our [Interactive VRAM Calculator](https://www.google.com/search?q=/calculator&utm_source=gemini).
+This matches the exact formula this site's own [VRAM calculator](/calculator) and [methodology](/methodology) use — overhead scales with model size rather than being a fixed number, since CUDA context and activation memory needs grow with larger models too.
 
-
+You can calculate precise VRAM requirements for any GGUF quantization level, context length, and GPU configuration directly on our [Interactive VRAM Calculator](/calculator).
