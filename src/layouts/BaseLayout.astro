@@ -15,7 +15,7 @@ const {
   title,
   description,
   canonicalURL = new URL(Astro.url.pathname, Astro.site).toString(),
-  ogImage = '/og-default.png',
+  ogImage = '/localnodeops-banner.jpg',
   jsonLd = [],
 } = Astro.props;
 
@@ -42,10 +42,6 @@ const allSchema = [baseSchema, ...jsonLd];
   <head>
     <script is:inline>
       (function () {
-        // Light is the default theme regardless of OS/browser dark-mode
-        // setting. Only switch to dark if the visitor explicitly chose
-        // it before (saved in localStorage) — never infer it from
-        // prefers-color-scheme.
         const stored = localStorage.getItem('theme');
         if (stored === 'dark') {
           document.documentElement.classList.add('dark');
@@ -79,7 +75,7 @@ const allSchema = [baseSchema, ...jsonLd];
       <script is:inline type="application/ld+json" set:html={JSON.stringify(schema)} />
     ))}
 
-    <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
+    <link rel="icon" type="image/jpeg" href="/localnodeops-favicon.jpg" />
 
     <script defer src="https://cloud.umami.is/script.js" data-website-id="4885f6cd-aab8-4d5f-b136-ab25f5967f64"></script>
   </head>
