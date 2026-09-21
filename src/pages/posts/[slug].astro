@@ -16,7 +16,7 @@ interface Props {
   entry: CollectionEntry<'posts'>;
 }
 
-const { entry } = Astro.props;
+const { entry } = Astro.props as Props;
 const { Content } = await entry.render();
 const { title, excerpt, category, pubDate, author, readingTime, faq } = entry.data;
 
