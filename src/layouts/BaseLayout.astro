@@ -15,7 +15,7 @@ const {
   title,
   description,
   canonicalURL = new URL(Astro.url.pathname, Astro.site).toString(),
-  ogImage = '/localnodeops-banner.jpg',
+  ogImage = '/og-default.jpg',
   jsonLd = [],
 } = Astro.props;
 
@@ -75,7 +75,8 @@ const allSchema = [baseSchema, ...jsonLd];
       <script is:inline type="application/ld+json" set:html={JSON.stringify(schema)} />
     ))}
 
-    <link rel="icon" type="image/jpeg" href="/localnodeops-favicon.jpg" />
+    <link rel="icon" type="image/png" href="/favicon.png" />
+    <link rel="apple-touch-icon" href="/apple-touch-icon.png" />
 
     <script defer src="https://cloud.umami.is/script.js" data-website-id="4885f6cd-aab8-4d5f-b136-ab25f5967f64"></script>
   </head>
