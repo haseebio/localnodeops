@@ -21,8 +21,7 @@ const { allDocs, activeSlug } = Astro.props;
       const isActive = doc.slug === activeSlug;
       return (
         <li>
-          <a
-            href={`/docs/${doc.slug}`}
+          <a href={`/docs/${doc.slug}`}
             aria-current={isActive ? 'page' : undefined}
             class:list={[
               'flex items-center min-h-touch-min px-sm rounded-md text-body-md border-l-2 transition-colors',

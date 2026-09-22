@@ -36,12 +36,12 @@ const jsonLd = [
         {posts.map((post) => (
           <a href={`/posts/${post.slug}`}
             data-astro-prefetch
-            class="group block border border-border rounded-md bg-surface p-md flex flex-col gap-sm
+            class="group h-full flex flex-col gap-sm border border-border rounded-md bg-surface p-md
               no-underline cursor-pointer transition-colors
               hover:border-accent-primary hover:bg-surface-elevated"
           >
             <div class="flex items-center justify-between gap-sm">
-              <span class="text-body-md text-secondary">{post.data.category}</span>
+              <span class="text-body-md rounded-full px-sm py-[0.125rem] whitespace-nowrap font-bold bg-accent-primary-container text-primary">{post.data.category}</span>
               <span class="text-body-md text-secondary">{post.data.readingTime} min read</span>
             </div>
 
@@ -57,6 +57,8 @@ const jsonLd = [
                 {post.data.pubDate.toLocaleDateString('en-US', { year: 'numeric', month: 'short', day: 'numeric' })}
               </time>
             </div>
+
+            <span class="text-body-md font-bold text-accent-primary">Read post</span>
           </a>
         ))}
       </div>

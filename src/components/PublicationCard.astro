@@ -15,13 +15,14 @@ const formattedDate = pubDate.toLocaleDateString('en-US', {
 });
 ---
 
-<a
-  href={`/posts/${entry.slug}`}
+<a href={`/posts/${entry.slug}`}
   class="group block border border-border rounded-md bg-surface p-md flex flex-col gap-sm h-full
     no-underline cursor-pointer transition-colors
     hover:border-accent-primary hover:bg-surface-elevated"
 >
-  <span class="text-body-md text-secondary">{category}</span>
+  <span class="text-body-md rounded-full px-sm py-[0.125rem] whitespace-nowrap font-bold bg-accent-primary-container text-primary w-fit">
+    {category}
+  </span>
 
   <h3 class="text-headline-md text-primary m-0 group-hover:underline">
     {title}
@@ -34,4 +35,6 @@ const formattedDate = pubDate.toLocaleDateString('en-US', {
     <span aria-hidden="true">·</span>
     <span>{readingTime} min read</span>
   </div>
+
+  <span class="text-body-md font-bold text-accent-primary">Read post</span>
 </a>

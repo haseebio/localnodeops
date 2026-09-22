@@ -14,16 +14,23 @@ const STATUS_LABELS: Record<string, string> = {
   estimated: 'Estimated — not yet benchmarked',
 };
 
+// Filled, tinted backgrounds instead of a thin 1px outline — same
+// WCAG-checked container colors used elsewhere on the site
+// (accent-tertiary-container, accent-secondary-container). Text is
+// text-primary (charcoal) rather than an "-on-container" variant —
+// those aren't mapped Tailwind utilities in this project (see the
+// article-action-btn comment in global.css for the same issue), and
+// charcoal reads safely against any of these light pastel fills.
 const STATUS_STYLES: Record<string, string> = {
-  verified: 'border-accent-tertiary text-accent-tertiary',
-  community: 'border-border text-secondary',
-  estimated: 'border-accent-secondary text-secondary',
+  verified: 'bg-accent-tertiary-container text-primary',
+  community: 'bg-surface-elevated text-secondary border border-border',
+  estimated: 'bg-accent-secondary-container text-primary',
 };
 ---
 
 <a href={`/hardware/${entry.slug}`}
   data-astro-prefetch
-  class="group block border border-border rounded-md bg-surface p-md flex flex-col gap-sm
+  class="group h-full flex flex-col gap-sm border border-border rounded-md bg-surface p-md
     no-underline cursor-pointer transition-colors
     hover:border-accent-primary hover:bg-surface-elevated"
   data-category={category}
@@ -32,7 +39,7 @@ const STATUS_STYLES: Record<string, string> = {
     <span class="text-body-md text-secondary">{category}</span>
     <span
       class:list={[
-        'text-body-md rounded-full px-xs py-[0.125rem] border whitespace-nowrap',
+        'text-body-md rounded-full px-sm py-[0.125rem] whitespace-nowrap font-bold',
         STATUS_STYLES[status],
       ]}
     >
@@ -44,14 +51,17 @@ const STATUS_STYLES: Record<string, string> = {
     {title}
   </h3>
 
-  <div class="font-mono">
+  <div class="rounded-md bg-accent-primary-container px-sm py-xs font-mono w-fit">
     <span class="text-headline-lg text-accent-primary">{metricValue}</span>
-    <span class="text-body-md text-secondary ml-xs">{metricLabel}</span>
+    <span class="text-body-md text-primary ml-xs">{metricLabel}</span>
   </div>
 
-  <p class="text-body-md text-secondary m-0">{summary}</p>
+  <p class="text-body-md text-secondary m-0 flex-1">{summary}</p>
 
-  <span class="text-body-md text-accent-primary min-h-touch-min flex items-center group-hover:underline">
+  <span class="min-h-touch-min flex items-center justify-center rounded-md border
+    border-accent-primary text-body-md font-bold text-accent-primary
+    group-hover:bg-accent-primary-solid group-hover:text-accent-on-primary
+    group-hover:border-accent-primary-solid transition-colors">
     View benchmark
   </span>
 </a>

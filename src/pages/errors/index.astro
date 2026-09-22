@@ -11,9 +11,9 @@ const grouped = modules.map((module) => ({
 }));
 
 const severityStyle = {
-  critical: 'border-accent-error text-accent-error',
-  warning: 'border-accent-secondary text-accent-secondary',
-  info: 'border-border text-secondary',
+  critical: 'bg-accent-error-container text-primary',
+  warning: 'bg-accent-secondary-container text-primary',
+  info: 'bg-surface-elevated text-secondary border border-border',
 };
 
 const jsonLd = [
@@ -60,13 +60,21 @@ const jsonLd = [
         <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-md">
           {group.entries.map((entry) => (
             <a href={`/errors/${entry.slug}`} class="no-underline">
-              <article class="border border-border rounded-lg bg-surface p-md flex flex-col gap-sm h-full transition-colors hover:border-accent-primary">
+              <article class="border border-border rounded-lg bg-surface p-md flex flex-col gap-sm h-full transition-colors hover:border-accent-primary hover:bg-surface-elevated group">
                 <div class="flex items-center justify-between gap-sm">
                   <code class="text-code-mono text-secondary font-mono">{entry.data.errorCode}</code>
-                  <span class:list={['pill', severityStyle[entry.data.severity]]}>{entry.data.severity}</span>
+                  <span
+                    class:list={[
+                      'text-body-md rounded-full px-sm py-[0.125rem] whitespace-nowrap font-bold',
+                      severityStyle[entry.data.severity],
+                    ]}
+                  >
+                    {entry.data.severity}
+                  </span>
                 </div>
-                <h3 class="text-headline-md text-primary m-0">{entry.data.title}</h3>
+                <h3 class="text-headline-md text-primary m-0 group-hover:underline">{entry.data.title}</h3>
                 <p class="text-body-md text-secondary m-0 flex-1">{entry.data.summary}</p>
+                <span class="text-body-md font-bold text-accent-primary">View details</span>
               </article>
             </a>
           ))}
