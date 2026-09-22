@@ -41,7 +41,7 @@ function isActivePath(href: string) {
                   'text-body-md min-h-touch-min flex items-center whitespace-nowrap px-md rounded-full transition-colors',
                   active
                     ? 'text-on-primary font-bold bg-accent-primary-solid shadow-sm'
-                    : 'text-secondary hover:text-primary hover:bg-accent-primary-container',
+                    : 'text-primary hover:bg-accent-primary-container',
                 ]}
               >
                 {item.label}
@@ -103,7 +103,7 @@ function isActivePath(href: string) {
                 'text-body-lg min-h-touch-min flex items-center w-full px-sm rounded-md transition-colors',
                 active
                   ? 'text-on-primary font-bold bg-accent-primary-solid'
-                  : 'text-secondary hover:text-primary hover:bg-accent-primary-container',
+                  : 'text-primary hover:bg-accent-primary-container',
               ]}
             >
               {item.label}
@@ -143,9 +143,6 @@ function isActivePath(href: string) {
       if (isOpen) closeMenu(); else openMenu();
     });
 
-    // Close on nav (link click), Escape, or resize past the md breakpoint —
-    // otherwise the panel stays open (display: none removed by JS) if the
-    // user rotates to landscape or widens the window past 768px.
     panel.addEventListener('click', function (event) {
       if (event.target.tagName === 'A') closeMenu();
     });
