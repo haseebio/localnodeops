@@ -27,6 +27,13 @@ if (description.length > 155) {
 
 const siteName = 'LocalNodeOps';
 
+// Computed once so every og:/twitter: image tag stays in sync — and
+// og:image:type reflects the real extension rather than a hardcoded
+// guess, in case a page ever overrides ogImage with a .png instead of
+// the site-wide default .jpg.
+const ogImageURL = new URL(ogImage, Astro.site);
+const ogImageType = ogImage.endsWith('.png') ? 'image/png' : 'image/jpeg';
+
 const baseSchema = {
   '@context': 'https://schema.org',
   '@type': 'WebSite',
@@ -64,12 +71,16 @@ const allSchema = [baseSchema, ...jsonLd];
     <meta property="og:title" content={title} />
     <meta property="og:description" content={description} />
     <meta property="og:url" content={canonicalURL} />
-    <meta property="og:image" content={new URL(ogImage, Astro.site)} />
+    <meta property="og:image" content={ogImageURL} />
+    <meta property="og:image:secure_url" content={ogImageURL} />
+    <meta property="og:image:type" content={ogImageType} />
+    <meta property="og:image:width" content="1200" />
+    <meta property="og:image:height" content="630" />
 
     <meta name="twitter:card" content="summary_large_image" />
     <meta name="twitter:title" content={title} />
     <meta name="twitter:description" content={description} />
-    <meta name="twitter:image" content={new URL(ogImage, Astro.site)} />
+    <meta name="twitter:image" content={ogImageURL} />
 
     {allSchema.map((schema) => (
       <script is:inline type="application/ld+json" set:html={JSON.stringify(schema)} />
