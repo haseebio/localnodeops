@@ -44,7 +44,11 @@ export default {
         ],
       },
       fontSize: {
-        'display-hero': ['3rem', { lineHeight: '3.5rem', fontWeight: '800', letterSpacing: '-0.025em' }],
+        // Fluid instead of a fixed 3rem: at ~375px viewport this renders
+        // close to 1.875rem (matches Tailwind's text-3xl), scaling up to
+        // the full 3rem (text-5xl) by ~picking up md: (768px) width — same
+        // intent as a `text-3xl md:text-5xl` pair, without a hard jump.
+        'display-hero': ['clamp(1.875rem, 4vw + 1rem, 3rem)', { lineHeight: '1.15', fontWeight: '800', letterSpacing: '-0.025em' }],
         'headline-lg': ['2rem', { lineHeight: '2.5rem', fontWeight: '700', letterSpacing: '-0.02em' }],
         'headline-md': ['1.5rem', { lineHeight: '2rem', fontWeight: '600' }],
         'body-lg': ['1.125rem', { lineHeight: '1.75rem' }],
