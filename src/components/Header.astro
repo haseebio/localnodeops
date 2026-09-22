@@ -29,7 +29,7 @@ function isActivePath(href: string) {
       LocalNodeOps
     </a>
 
-    <nav aria-label="Main navigation" class="overflow-x-auto">
+    <nav aria-label="Main navigation" class="hidden md:block min-w-0 overflow-x-auto">
       <ul class="flex items-center gap-xs list-none m-0 p-xs rounded-full bg-surface-elevated w-max">
         {navItems.map((item) => {
           const active = isActivePath(item.href);
@@ -52,20 +52,111 @@ function isActivePath(href: string) {
       </ul>
     </nav>
 
-    <button
-      id="theme-toggle"
-      type="button"
-      aria-pressed="false"
-      aria-label="Switch to dark theme"
-      class="min-h-touch-min min-w-touch-min flex items-center justify-center rounded-full border border-border text-primary hover:bg-surface-elevated shrink-0"
-    >
-      <svg id="icon-sun" xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
-        <circle cx="12" cy="12" r="4"></circle>
-        <path d="M12 2v2M12 20v2M4.93 4.93l1.41 1.41M17.66 17.66l1.41 1.41M2 12h2M20 12h2M6.34 17.66l-1.41 1.41M19.07 4.93l-1.41 1.41"></path>
-      </svg>
-      <svg id="icon-moon" xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" class="hidden">
-        <path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"></path>
-      </svg>
-    </button>
+    <div class="flex items-center gap-xs shrink-0">
+      <button
+        id="theme-toggle"
+        type="button"
+        aria-pressed="false"
+        aria-label="Switch to dark theme"
+        class="min-h-touch-min min-w-touch-min flex items-center justify-center rounded-full border border-border text-primary hover:bg-surface-elevated shrink-0"
+      >
+        <svg id="icon-sun" xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+          <circle cx="12" cy="12" r="4"></circle>
+          <path d="M12 2v2M12 20v2M4.93 4.93l1.41 1.41M17.66 17.66l1.41 1.41M2 12h2M20 12h2M6.34 17.66l-1.41 1.41M19.07 4.93l-1.41 1.41"></path>
+        </svg>
+        <svg id="icon-moon" xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" class="hidden">
+          <path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"></path>
+        </svg>
+      </button>
+
+      <button
+        id="mobile-menu-toggle"
+        type="button"
+        aria-expanded="false"
+        aria-controls="mobile-menu-panel"
+        aria-label="Open menu"
+        class="md:hidden min-h-touch-min min-w-touch-min flex items-center justify-center rounded-full border border-border text-primary hover:bg-surface-elevated shrink-0"
+      >
+        <svg id="icon-menu-open" xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+          <path d="M3 6h18M3 12h18M3 18h18"></path>
+        </svg>
+        <svg id="icon-menu-close" xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" class="hidden">
+          <path d="M18 6 6 18M6 6l12 12"></path>
+        </svg>
+      </button>
+    </div>
   </div>
+
+  <nav
+    id="mobile-menu-panel"
+    aria-label="Mobile navigation"
+    class="hidden md:hidden border-t border-border bg-base px-lg py-sm"
+  >
+    <ul class="flex flex-col list-none m-0 p-0">
+      {navItems.map((item) => {
+        const active = isActivePath(item.href);
+        return (
+          <li>
+            <a href={item.href}
+              aria-current={active ? 'page' : undefined}
+              class:list={[
+                'text-body-lg min-h-touch-min flex items-center w-full px-sm rounded-md transition-colors',
+                active
+                  ? 'text-on-primary font-bold bg-accent-primary-solid'
+                  : 'text-secondary hover:text-primary hover:bg-accent-primary-container',
+              ]}
+            >
+              {item.label}
+            </a>
+          </li>
+        );
+      })}
+    </ul>
+  </nav>
 </header>
+
+<script is:inline>
+  (function () {
+    const toggle = document.getElementById('mobile-menu-toggle');
+    const panel = document.getElementById('mobile-menu-panel');
+    const iconOpen = document.getElementById('icon-menu-open');
+    const iconClose = document.getElementById('icon-menu-close');
+
+    function closeMenu() {
+      panel.classList.add('hidden');
+      toggle.setAttribute('aria-expanded', 'false');
+      toggle.setAttribute('aria-label', 'Open menu');
+      iconOpen.classList.remove('hidden');
+      iconClose.classList.add('hidden');
+    }
+
+    function openMenu() {
+      panel.classList.remove('hidden');
+      toggle.setAttribute('aria-expanded', 'true');
+      toggle.setAttribute('aria-label', 'Close menu');
+      iconOpen.classList.add('hidden');
+      iconClose.classList.remove('hidden');
+    }
+
+    toggle.addEventListener('click', function () {
+      const isOpen = toggle.getAttribute('aria-expanded') === 'true';
+      if (isOpen) closeMenu(); else openMenu();
+    });
+
+    // Close on nav (link click), Escape, or resize past the md breakpoint —
+    // otherwise the panel stays open (display: none removed by JS) if the
+    // user rotates to landscape or widens the window past 768px.
+    panel.addEventListener('click', function (event) {
+      if (event.target.tagName === 'A') closeMenu();
+    });
+
+    document.addEventListener('keydown', function (event) {
+      if (event.key === 'Escape') closeMenu();
+    });
+
+    const mq = window.matchMedia('(min-width: 768px)');
+    mq.addEventListener('change', function (event) {
+      if (event.matches) closeMenu();
+    });
+  })();
+</script>
