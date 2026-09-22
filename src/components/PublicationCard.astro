@@ -6,7 +6,7 @@ interface Props {
 }
 
 const { entry } = Astro.props;
-const { title, excerpt, category, pubDate, readingTime } = entry.data;
+const { title, excerpt, category, pubDate, readingTime, author } = entry.data;
 
 const formattedDate = pubDate.toLocaleDateString('en-US', {
   year: 'numeric',
@@ -16,7 +16,7 @@ const formattedDate = pubDate.toLocaleDateString('en-US', {
 ---
 
 <a href={`/posts/${entry.slug}`}
-  class="group block border border-border rounded-md bg-surface p-md flex flex-col gap-sm h-full
+  class="group h-full flex flex-col gap-sm border border-border rounded-md bg-surface p-md
     no-underline cursor-pointer transition-colors
     hover:border-accent-primary hover:bg-surface-elevated"
 >
@@ -30,11 +30,17 @@ const formattedDate = pubDate.toLocaleDateString('en-US', {
 
   <p class="text-body-md text-secondary m-0 flex-1">{excerpt}</p>
 
-  <div class="text-body-md text-secondary flex items-center gap-sm">
-    <time datetime={pubDate.toISOString()}>{formattedDate}</time>
-    <span aria-hidden="true">·</span>
-    <span>{readingTime} min read</span>
+  <div class="flex items-center justify-between gap-sm pt-sm border-t border-border">
+    <div class="flex items-center gap-xs min-w-0">
+      <span class="shrink-0 w-8 h-8 rounded-full bg-accent-primary-container text-primary font-bold flex items-center justify-center text-body-md" aria-hidden="true">
+        {author.charAt(0)}
+      </span>
+      <span class="text-body-md text-primary font-bold truncate">{author}</span>
+    </div>
+    <div class="text-body-md text-secondary flex items-center gap-xs shrink-0">
+      <time datetime={pubDate.toISOString()}>{formattedDate}</time>
+      <span aria-hidden="true">·</span>
+      <span>{readingTime} min read</span>
+    </div>
   </div>
-
-  <span class="text-body-md font-bold text-accent-primary">Read post</span>
 </a>
