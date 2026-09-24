@@ -6,36 +6,52 @@
 // one of them visible based on whether the current estimate fits any
 // local GPU profile — this file only renders markup.
 
+import { RUNPOD_URL, LAMBDA_URL, AMAZON_RTX_4090_URL } from '../lib/affiliate';
+
 interface Provider {
   name: string;
   url: string;
   blurb: string;
+  cta: string;
   umamiEvent: string;
+  primary: boolean;
 }
 
-// Fallback URLs are generic, non-affiliate homepages — used whenever
-// the corresponding env var isn't set, so a missing affiliate ID never
-// breaks the build or renders a broken/empty link.
+// Button styles. Solid fill + charcoal text = 5.21:1 in both themes.
+// The -container fill is always paired with text-primary (never
+// on-primary): on-primary on the dark-theme container is only 1.92:1.
+const BTN_BASE =
+  'inline-flex items-center justify-center min-h-touch-min rounded-full border-2 border-accent-primary px-lg font-bold text-body-md text-center no-underline cursor-pointer transition-transform hover:-translate-y-[1px]';
+const BTN_PRIMARY = `${BTN_BASE} bg-accent-primary-solid text-accent-on-primary`;
+const BTN_SECONDARY = `${BTN_BASE} bg-accent-primary-container text-primary`;
+
+// URLs (and their tagged defaults) live in src/lib/affiliate.ts.
 const cloudProviders: Provider[] = [
   {
     name: 'RunPod',
-    url: import.meta.env.PUBLIC_RUNPOD_AFFILIATE_URL || 'https://www.runpod.io/',
-    blurb: 'On-demand GPU pods, billed by the minute.',
+    url: RUNPOD_URL,
+    blurb: 'On-demand GPU pods, billed by the second.',
+    cta: 'Deploy Instantly on RunPod',
     umamiEvent: 'outbound-runpod',
+    primary: true,
   },
   {
     name: 'Lambda Labs',
-    url: import.meta.env.PUBLIC_LAMBDA_AFFILIATE_URL || 'https://lambdalabs.com/',
+    url: LAMBDA_URL,
     blurb: 'Reserved and on-demand cloud GPU instances.',
+    cta: 'Rent GPUs on Lambda Labs',
     umamiEvent: 'outbound-lambda',
+    primary: false,
   },
 ];
 
 const amazonProvider: Provider = {
   name: 'Amazon',
-  url: import.meta.env.PUBLIC_AMAZON_AFFILIATE_URL || 'https://www.amazon.com/',
-  blurb: 'Browse consumer GPUs and local hardware that fit this configuration.',
+  url: AMAZON_RTX_4090_URL,
+  blurb: 'Opens an Amazon search for the RTX 4090.',
+  cta: 'Check RTX 4090 Pricing on Amazon',
   umamiEvent: 'outbound-amazon',
+  primary: true,
 };
 ---
 
@@ -51,17 +67,19 @@ const amazonProvider: Provider = {
 
   <div class="grid grid-cols-1 sm:grid-cols-2 gap-md">
     {cloudProviders.map((provider) => (
-      <a href={provider.url}
-        id={provider.umamiEvent}
-        data-umami-event={provider.umamiEvent}
-        target="_blank"
-        rel="noopener noreferrer sponsored"
-        class="border border-border rounded-md bg-surface-elevated p-md no-underline cursor-pointer
-          transition-colors hover:border-accent-primary"
-      >
+      <div class="flex flex-col border border-border rounded-md bg-surface p-md">
         <p class="text-headline-md text-primary m-0">{provider.name}</p>
-        <p class="text-body-md text-secondary mt-xs mb-0">{provider.blurb}</p>
-      </a>
+        <p class="text-body-md text-secondary mt-xs mb-md flex-1">{provider.blurb}</p>
+        <a href={provider.url}
+          id={provider.umamiEvent}
+          data-umami-event={provider.umamiEvent}
+          target="_blank"
+          rel="noopener noreferrer sponsored"
+          class={provider.primary ? BTN_PRIMARY : BTN_SECONDARY}
+        >
+          {provider.cta}
+        </a>
+      </div>
     ))}
   </div>
 
@@ -74,12 +92,13 @@ const amazonProvider: Provider = {
 </div>
 
 <div id="local-hardware-cta"
-  class="hidden border border-border rounded-md bg-surface-elevated p-md mt-md"
+  class="hidden border border-border rounded-md bg-surface p-md mt-md"
 >
   <p class="text-body-md text-primary font-bold m-0">Fits on local hardware</p>
   <p class="text-body-md text-secondary mt-xs mb-md">
-    This configuration fits within the local GPU profiles above. If you're
-    shopping for hardware, here's a starting point.
+    This configuration fits within the local GPU profiles above. A single
+    24 GB card such as the RTX 4090 covers totals up to 24 GB; above that
+    you'd need two cards.
   </p>
 
   <a href={amazonProvider.url}
@@ -87,12 +106,13 @@ const amazonProvider: Provider = {
     data-umami-event={amazonProvider.umamiEvent}
     target="_blank"
     rel="noopener noreferrer sponsored"
-    class="block border border-border rounded-md bg-surface p-md no-underline cursor-pointer
-      transition-colors hover:border-accent-primary"
+    class={`${BTN_PRIMARY} w-full sm:w-auto`}
   >
-    <p class="text-headline-md text-primary m-0">{amazonProvider.name}</p>
-    <p class="text-body-md text-secondary mt-xs mb-0">{amazonProvider.blurb}</p>
+    {amazonProvider.cta}
   </a>
+  <p class="text-body-md text-secondary mt-xs mb-0">
+    {amazonProvider.blurb} Prices and stock change daily.
+  </p>
 
   <p class="text-body-md text-secondary mt-md border-t border-border pt-sm m-0">
     Disclosure: As an Amazon Associate, LocalNodeOps earns from qualifying
