@@ -8,9 +8,9 @@ tags: ["Qwen", "Gemma", "VRAM", "Local LLM", "Hardware"]
 readingTime: 4
 faq:
   - question: "Can a 24GB VRAM card run Qwen 3.8 27B at Q4_K_M?"
-  - answer: "Yes. At Q4_K_M quantization with an 8k context window, total VRAM requirement is approximately 19.1 GB including the 10% overhead, leaving safe headroom on an RTX 3090 or 4090."
+    answer: "Yes. At Q4_K_M quantization with an 8k context window, total VRAM requirement is approximately 19.1 GB including the 10% overhead, leaving safe headroom on an RTX 3090 or 4090."
   - question: "Does Gemma 4 31B fit on a single 24GB GPU?"
-  - answer: "Tightly. At Q4_K_M with an 8k context, it requires ~22.0 GB VRAM with overhead, leaving less than 2GB of headroom on a 24GB card."
+    answer: "Tightly. At Q4_K_M with an 8k context, it requires ~22.0 GB VRAM with overhead, leaving less than 2GB of headroom on a 24GB card."
 ---
 
 The release of Alibaba's **Qwen 3.8 27B** and Google DeepMind's **Gemma 4 31B Dense** brings top-tier, open-weight reasoning directly to local workstations. Both models deliver extraordinary coding and agentic performance, but they push consumer VRAM limits to the absolute edge. 
