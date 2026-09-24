@@ -4,6 +4,11 @@ errorCode: "VLLM_TENSOR_PARALLEL_CRASH"
 title: "vLLM tensor-parallel crash on startup"
 summary: "Tensor-parallel size doesn't evenly divide the model's attention heads."
 severity: "critical"
+faq:
+  - question: "How do I know what tensor_parallel_size values are valid for my model?"
+    answer: "Check the model's num_key_value_heads, not num_attention_heads, using AutoConfig — tensor_parallel_size must evenly divide that number. A model with 8 KV heads only supports 1, 2, 4, or 8 GPUs for tensor parallelism."
+  - question: "My GPU count doesn't divide the KV head count evenly, what are my options?"
+    answer: "Use fewer GPUs for tensor parallelism so the count divides evenly, leaving the rest idle or for a different model, or switch to --pipeline-parallel-size instead, which doesn't have this divisibility constraint."
 ---
 
 ## What's actually happening

@@ -4,6 +4,11 @@ errorCode: "CUDA_ERROR_INSUFFICIENT_DRIVER"
 title: "CUDA driver version mismatch"
 summary: "Installed CUDA toolkit version is newer than what the installed driver supports."
 severity: "warning"
+faq:
+  - question: "Does reinstalling my GPU driver fix this?"
+    answer: "Yes, but only if you install a driver version that supports your installed CUDA toolkit — check the toolkit's release notes for the minimum required driver version first, don't just reinstall the latest driver blindly."
+  - question: "Does this mean my GPU is too old for CUDA?"
+    answer: "No. This error is purely a driver-vs-toolkit version mismatch, not a hardware compatibility issue — even a fully supported GPU throws this if the installed driver predates what the toolkit expects."
 ---
 
 ## What's actually happening

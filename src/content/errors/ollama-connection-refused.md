@@ -4,6 +4,11 @@ errorCode: "OLLAMA_CONNECTION_REFUSED"
 title: "Error: could not connect to Ollama, is it running?"
 summary: "The Ollama server isn't running, or a client is pointed at the wrong host/port."
 severity: "info"
+faq:
+  - question: "I confirmed Ollama is running, why is it still refused?"
+    answer: "If Ollama and your client are in separate Docker containers, \"localhost\" inside the client's container doesn't reach Ollama's container — point it at the service name from your docker-compose.yml instead, e.g. http://ollama:11434."
+  - question: "Can I connect to Ollama from another machine on my network?"
+    answer: "Not with Ollama's default binding. Set OLLAMA_HOST to 0.0.0.0 (or a specific interface) before starting the service — the default only accepts connections from the same machine."
 ---
 
 ## Symptom

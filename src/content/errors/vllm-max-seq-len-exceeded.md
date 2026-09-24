@@ -4,6 +4,11 @@ errorCode: "VLLM_MAX_SEQ_LEN_EXCEEDED"
 title: "ValueError: prompt exceeds the model's maximum context length"
 summary: "The request's prompt + max_tokens exceeds max_model_len, often after that value was manually raised past what KV cache memory supports."
 severity: "warning"
+faq:
+  - question: "If I raise --max-model-len, will that let me use a longer context?"
+    answer: "No — raising it past what the model was actually trained on doesn't extend real context, it only changes the threshold at which vLLM rejects a request. The model's usable context length is fixed by training, not by this flag."
+  - question: "Can this error be related to CUDA out-of-memory errors on the same server?"
+    answer: "Yes. --max-model-len directly controls how much KV cache memory vLLM reserves — lowering it to match your actual context needs can resolve both this error and a separate KV-cache out-of-memory error on the same setup."
 ---
 
 ## Symptom

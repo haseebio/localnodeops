@@ -4,6 +4,11 @@ errorCode: "CUDA_OUT_OF_MEMORY"
 title: "CUDA error: out of memory"
 summary: "The model, context length, or batch size requested more VRAM than the GPU has available."
 severity: "critical"
+faq:
+  - question: "Will restarting Ollama fix this?"
+    answer: "Only if another process, or a stale Ollama instance, was already holding VRAM. Check nvidia-smi first — if the model, quantization, and context you're loading genuinely exceed your GPU's VRAM, a restart won't help; you need a smaller quantization or shorter context."
+  - question: "Why does this happen partway through a conversation instead of at load?"
+    answer: "KV cache grows with each token of context. A model that loads fine can still run out of VRAM once enough conversation history accumulates — that's the KV cache portion of memory filling the remaining headroom, not the model weights."
 ---
 
 ## Symptom

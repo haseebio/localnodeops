@@ -4,6 +4,11 @@ errorCode: "PYTORCH_DEVICE_MISMATCH"
 title: "RuntimeError: Expected all tensors on the same device"
 summary: "Mixing CPU and GPU tensors in a forward pass, often from partial CPU offload during quantized inference."
 severity: "warning"
+faq:
+  - question: "Does this mean my model doesn't fit on my GPU?"
+    answer: "Sometimes, but not always. If accelerate split layers onto CPU because VRAM ran out, check model.hf_device_map — if that split was unintentional, you need a lower quantization or fewer GPU-offloaded layers. But it can also come from a single manually-created tensor that wasn't moved with .to(device), with no VRAM shortage at all."
+  - question: "Why does this only appear mid-inference instead of at model load?"
+    answer: "Partial-offload setups often load successfully because the initial forward pass exercises a code path where devices happen to line up. A custom input, cache object, or hook created later in the session is what actually trips the mismatch, which is why it surfaces mid-inference rather than immediately."
 ---
 
 ## Symptom

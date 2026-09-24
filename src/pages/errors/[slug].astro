@@ -2,6 +2,7 @@
 import { getCollection } from 'astro:content';
 import BaseLayout from '../../layouts/BaseLayout.astro';
 import ArticleActions from '../../components/ArticleActions.astro';
+import FAQAccordion from '../../components/FAQAccordion.astro';
 
 export async function getStaticPaths() {
   const entries = await getCollection('errors');
@@ -13,15 +14,27 @@ export async function getStaticPaths() {
 
 const { entry } = Astro.props;
 const { Content } = await entry.render();
-const { module, errorCode, title, summary, severity } = entry.data;
+const { module, errorCode, title, summary, severity, faq } = entry.data;
 
+// Same normalization as posts/[slug].astro — tsconfig's non-strict base
+// makes Zod infer faq items with optional fields, but the schema
+// guarantees both are strings, so assert that here to match
+// FAQAccordion's required FAQItem shape.
+const faqItems = (faq ?? []).map((item) => ({
+  question: item.question as string,
+  answer: item.answer as string,
+}));
+
+// Filled, tinted backgrounds — matches the errors listing page
+// (src/pages/errors/index.astro), which already moved off the old
+// thin 1px outline pills for the same low-contrast reason.
 const SEVERITY_STYLES: Record<string, string> = {
-  critical: 'border-accent-error text-accent-error',
-  warning: 'border-accent-secondary text-accent-secondary',
-  info: 'border-border text-secondary',
+  critical: 'bg-accent-error-container text-primary',
+  warning: 'bg-accent-secondary-container text-primary',
+  info: 'bg-surface-elevated text-secondary border border-border',
 };
 
-const jsonLd = [
+const jsonLd: object[] = [
   {
     '@context': 'https://schema.org',
     '@type': 'TechArticle',
@@ -29,6 +42,21 @@ const jsonLd = [
     description: summary,
   },
 ];
+
+if (faq && faq.length > 0) {
+  jsonLd.push({
+    '@context': 'https://schema.org',
+    '@type': 'FAQPage',
+    mainEntity: faq.map((item) => ({
+      '@type': 'Question',
+      name: item.question,
+      acceptedAnswer: {
+        '@type': 'Answer',
+        text: item.answer,
+      },
+    })),
+  });
+}
 ---
 
 <BaseLayout title={`${errorCode}: ${title}`} description={summary} jsonLd={jsonLd}>
@@ -43,7 +71,14 @@ const jsonLd = [
 
     <div class="flex items-center gap-sm flex-wrap">
       <code class="text-code-mono text-secondary font-mono">{errorCode}</code>
-      <span class:list={['pill', SEVERITY_STYLES[severity]]}>{severity}</span>
+      <span
+        class:list={[
+          'text-body-md rounded-full px-sm py-[0.125rem] whitespace-nowrap font-bold',
+          SEVERITY_STYLES[severity],
+        ]}
+      >
+        {severity}
+      </span>
     </div>
 
     <h1 class="text-display-hero text-primary mt-xs">{title}</h1>
@@ -58,5 +93,7 @@ const jsonLd = [
         <Content />
       </div>
     </div>
+
+    <FAQAccordion items={faqItems} title="Frequently asked questions" />
   </div>
 </BaseLayout>

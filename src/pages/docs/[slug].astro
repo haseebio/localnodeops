@@ -41,7 +41,13 @@ const jsonLd = [
     </aside>
 
     <article class="max-w-reading min-w-0">
-      <p class="text-body-md text-secondary">Version {version}</p>
+      <nav class="breadcrumb" aria-label="Breadcrumb">
+        <a href="/docs">Docs</a>
+        <span class="breadcrumb-sep" aria-hidden="true">/</span>
+        <span class="text-primary">{title}</span>
+      </nav>
+
+      <p class="text-body-md text-secondary mt-sm">Version {version}</p>
       <h1 class="text-display-hero text-primary mt-xs">{title}</h1>
       <p class="text-body-lg text-secondary mt-sm">{description}</p>
 

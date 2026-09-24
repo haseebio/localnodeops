@@ -4,6 +4,11 @@ errorCode: "VLLM_KV_CACHE_OOM"
 title: "vLLM KV cache allocation failure"
 summary: "gpu_memory_utilization is set too high, leaving no room for the KV cache."
 severity: "warning"
+faq:
+  - question: "Is gpu_memory_utilization a percentage of free memory or total memory?"
+    answer: "Total memory, not currently-free memory. If another process is already using VRAM, vLLM's calculation doesn't automatically account for that, so the effective headroom is smaller than the utilization fraction suggests."
+  - question: "I already lowered gpu_memory_utilization and it still fails, what next?"
+    answer: "Check --max-model-len — a context length higher than your use case actually needs increases the KV cache block vLLM tries to pre-allocate, independent of the utilization fraction, and can still cause this even at a conservative utilization setting."
 ---
 
 ## What's actually happening

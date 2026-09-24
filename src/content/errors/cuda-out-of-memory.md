@@ -4,6 +4,11 @@ errorCode: "CUDA_ERROR_OUT_OF_MEMORY"
 title: "CUDA out of memory"
 summary: "The model, context, or batch size requested more VRAM than the GPU has available."
 severity: "critical"
+faq:
+  - question: "Is this the same error as Ollama's \"CUDA error: out of memory\"?"
+    answer: "They're two different error codes, CUDA_ERROR_OUT_OF_MEMORY vs CUDA_OUT_OF_MEMORY, that mean the same thing at the CUDA driver level. Which one you see depends on which framework is reporting it, not on a different root cause."
+  - question: "My GPU shows free VRAM in nvidia-smi, so why does this still happen?"
+    answer: "nvidia-smi's free memory doesn't account for CUDA's own allocation overhead, fragmentation on long-running processes, or a batching setting like gpu_memory_utilization that reserves memory ahead of actual use — see the diagnostic steps above to isolate which one applies."
 ---
 
 ## What's actually happening

@@ -113,6 +113,12 @@ const jsonLd = [
   jsonLd={jsonLd}
 >
   <section class="max-w-shell mx-auto px-lg pt-2xl pb-md">
+    <nav class="breadcrumb" aria-label="Breadcrumb">
+      <a href="/calculator">Calculator</a>
+      <span class="breadcrumb-sep" aria-hidden="true">/</span>
+      <span class="text-primary">{title}</span>
+    </nav>
+
     <p class="text-body-md text-secondary">Synced from Hugging Face — {syncedDate}</p>
     <h1 class="text-display-hero text-primary max-w-reading mt-xs">
       How much VRAM does {title} need?

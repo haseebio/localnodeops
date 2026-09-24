@@ -4,6 +4,11 @@ errorCode: "OLLAMA_MODEL_NOT_FOUND"
 title: "Ollama model not found locally"
 summary: "The model tag hasn't been pulled yet, or the tag name doesn't match the registry exactly."
 severity: "info"
+faq:
+  - question: "I pulled the model, why does Ollama still say it's not found?"
+    answer: "The tag you requested probably doesn't exactly match what you pulled — check ollama list and compare tags exactly, including the quantization suffix, since llama3:8b and llama3:8b-instruct-q4_0 are treated as different models."
+  - question: "Why does this only show up in my CI pipeline, not locally?"
+    answer: "Locally, Ollama's automatic pull-on-first-use silently downloads a missing model. In an unattended pipeline that same behavior turns into a hang or timeout instead of a clear error — add an explicit ollama pull step before your run step to avoid this."
 ---
 
 ## What's actually happening

@@ -77,6 +77,14 @@ const errors = defineCollection({
     title: z.string(),
     summary: z.string().max(160),
     severity: z.enum(['critical', 'warning', 'info']),
+    faq: z
+      .array(
+        z.object({
+          question: z.string(),
+          answer: z.string(),
+        })
+      )
+      .optional(),
   }),
 });
 
