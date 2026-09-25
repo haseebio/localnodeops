@@ -101,6 +101,12 @@ const jsonLd = [
           name: `${title} — VRAM requirements by quantization`,
           description: `Estimated total VRAM per quantization for ${title}, computed using the ${bucket.label} reference architecture.`,
           variableMeasured: 'VRAM (GB)',
+          creator: {
+            '@type': 'Organization',
+            name: 'LocalNodeOps',
+            url: 'https://localnodeops.com',
+          },
+          license: 'https://creativecommons.org/licenses/by/4.0/',
         },
       ]
     : []),

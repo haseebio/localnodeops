@@ -3,6 +3,7 @@ import { getCollection, type CollectionEntry } from 'astro:content';
 import BaseLayout from '../../layouts/BaseLayout.astro';
 import ArticleActions from '../../components/ArticleActions.astro';
 import FAQAccordion from '../../components/FAQAccordion.astro';
+import StickyActionBar from '../../components/StickyActionBar.astro';
 
 export async function getStaticPaths() {
   const posts = await getCollection('posts');
@@ -99,6 +100,8 @@ if (faq && faq.length > 0) {
 
     <FAQAccordion items={faqItems} title="Frequently asked questions" />
   </div>
+
+  <StickyActionBar />
 </BaseLayout>
 
 <script is:inline>

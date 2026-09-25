@@ -1,0 +1,51 @@
+---
+import { RUNPOD_URL } from '../lib/affiliate';
+
+// Same button styles as CloudFallbackCTA. Solid fill + charcoal text =
+// 5.21:1 in both themes. The -container fill is paired with text-primary
+// (12.34:1 light, 6.70:1 dark), never on-primary (1.92:1 in dark).
+const BTN_BASE =
+  'flex-1 inline-flex items-center justify-center min-h-touch-min rounded-full border-2 border-accent-primary px-sm sm:px-lg font-bold text-body-md leading-tight text-center no-underline cursor-pointer transition-transform hover:-translate-y-[1px]';
+const BTN_PRIMARY = `${BTN_BASE} bg-accent-primary-solid text-accent-on-primary`;
+const BTN_SECONDARY = `${BTN_BASE} bg-accent-primary-container text-primary`;
+---
+
+<div id="sticky-action-bar"
+  class="fixed inset-x-0 bottom-0 z-40 border-t border-border bg-surface shadow-[0_-2px_8px_rgba(0,0,0,0.08)] print:hidden"
+>
+  <div class="max-w-shell mx-auto px-lg py-xs">
+    <div class="flex gap-xs">
+      <a href="/calculator"
+        data-umami-event="sticky-calculate-vram"
+        class={BTN_SECONDARY}
+      >
+        Calculate VRAM
+      </a>
+      <a href={RUNPOD_URL}
+        data-umami-event="sticky-runpod"
+        target="_blank"
+        rel="noopener noreferrer sponsored"
+        class={BTN_PRIMARY}
+      >
+        Rent GPU on RunPod
+      </a>
+    </div>
+    <p class="text-code-mono text-primary text-center mt-[0.25rem] mb-0">
+      RunPod is an affiliate link — we may earn a commission.
+    </p>
+  </div>
+</div>
+
+<!--
+  Keeps the fixed bar from covering the end of the page (footer) and from
+  hiding keyboard-focused elements. Global on purpose: it targets html/body.
+  Only pages that render this component receive these rules.
+-->
+<style is:global>
+  html {
+    scroll-padding-bottom: 7.5rem;
+  }
+  body {
+    padding-bottom: 7rem;
+  }
+</style>

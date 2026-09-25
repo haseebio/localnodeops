@@ -87,6 +87,12 @@ const jsonLd = [
       description: STATUS_SCHEMA_DESCRIPTIONS[status],
       variableMeasured: metricLabel,
       value: metricValue,
+      creator: {
+        '@type': 'Organization',
+        name: 'LocalNodeOps',
+        url: 'https://localnodeops.com',
+      },
+      license: 'https://creativecommons.org/licenses/by/4.0/',
     },
   },
 ];
