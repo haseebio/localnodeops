@@ -1,5 +1,6 @@
 ---
 title: "Diagnosing and Fixing CUDA Out of Memory (OOM) Errors"
+description: "Stop your local LLMs from crashing. Learn how to calculate KV cache, adjust quantization, and fix CUDA OOM errors permanently."
 excerpt: "Stop your local LLMs from crashing. Learn how to calculate KV cache, adjust quantization, and fix CUDA OOM errors permanently."
 sidebarPosition: 2
 version: "1.0"
@@ -14,7 +15,6 @@ faq:
   - question: "How can I fix an OOM error without buying a new GPU?"
     answer: "You can reduce your model's context window in your inference engine, drop to a lower quantization (like from Q4_K_M to IQ3), or offload some layers to your CPU."
 ---
-
 If you are running local Large Language Models, you will eventually see the dreaded `RuntimeError: CUDA out of memory`. It kills your server, dumps your chat history, and forces a hard restart.
 
 An OOM (Out of Memory) crash happens when your inference engine tries to allocate VRAM that your GPU simply doesn't have. But why does it happen mid-conversation when the model loaded fine initially? Let's diagnose the root causes and fix them.
