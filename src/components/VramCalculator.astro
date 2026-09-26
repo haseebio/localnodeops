@@ -3,9 +3,6 @@ import { getCollection } from 'astro:content';
 import CloudFallbackCTA from './CloudFallbackCTA.astro';
 
 interface Props {
-  // Optional slug from the `models` collection. When set, the
-  // calculator opens pre-selected to that model instead of defaulting
-  // to "Generic estimate" — used by /calculator/[slug].astro.
   preselectedModel?: string;
 }
 
@@ -138,9 +135,6 @@ const preselectedIndex = preselectedModel
     </div>
   </div>
 
-  <!-- Live change log — records each committed manipulation (slider
-       release, dropdown selection) with the resulting total at that
-       moment. Most recent first, capped at 8 entries. -->
   <div class="mt-md border-t border-border pt-sm">
     <p class="text-body-md text-primary mb-xs">Live changes</p>
     <ul id="change-log" class="flex flex-col gap-[0.125rem] text-body-md text-secondary font-mono max-h-40 overflow-y-auto">
@@ -181,15 +175,15 @@ const preselectedIndex = preselectedModel
 
     const CONTEXT_LENGTHS = [2048, 4096, 8192, 16384, 32768, 65536, 131072];
 
-    // singleGpuCeiling marks the largest profile a person can actually
-    // buy as ONE card. Anything past it (the dual-card entry) requires
-    // buying two cards, so it must never be treated as "fits on the
-    // single card we recommend via the Amazon CTA below" — see the
-    // compute() comment where this is used.
+    // amazonQuery marks a profile as a real, single-card purchase (the
+    // dual-GPU entry has none, since "buy two cards" isn't a single
+    // Amazon search). compute() picks the SMALLEST amazonQuery profile
+    // that fits, so the Amazon CTA always names the actual cheapest
+    // card that works — never a fixed card regardless of the total.
     const PROFILES = [
-      { label: 'RTX 3060 12GB', vramGb: 12 },
-      { label: 'RTX 4060 Ti 16GB', vramGb: 16 },
-      { label: 'RTX 3090 / 4090 24GB', vramGb: 24, singleGpuCeiling: true },
+      { label: 'RTX 3060 12GB', vramGb: 12, amazonQuery: 'RTX 3060 12GB' },
+      { label: 'RTX 4060 Ti 16GB', vramGb: 16, amazonQuery: 'RTX 4060 Ti 16GB' },
+      { label: 'RTX 3090 / 4090 24GB', vramGb: 24, amazonQuery: 'RTX 4090 24GB' },
       { label: 'Dual RTX 3090/4090 48GB', vramGb: 48 },
     ];
 
@@ -344,32 +338,50 @@ const preselectedIndex = preselectedModel
       // Vendor-blind: this only reads the totalGb this same function
       // already computed above from vram-math's formula. Both CTA cards
       // have zero knowledge of VRAM figures — exactly one is shown,
-      // toggled purely by this one boolean.
+      // toggled purely by this logic.
       //
-      // Fixed bug: this used to be `PROFILES.every(p => totalGb > p.vramGb)`,
-      // which only counted as "doesn't fit anywhere" if it exceeded even
-      // the DUAL-card 48GB profile. That meant a config needing two
-      // cards (e.g. 35GB — fails the single 24GB card, fits the 48GB
-      // dual setup) showed the single-card "Fits on local hardware —
-      // Check RTX 4090 Pricing on Amazon" CTA, directly contradicting
-      // the "Fits on:" list above it (which correctly showed ✗ on the
-      // 24GB card). The CTA choice must be based on the largest
-      // SINGLE-card profile, not "any profile including two cards."
-      const singleGpuProfile = PROFILES.find((p) => p.singleGpuCeiling);
-      const fitsSingleGpu = singleGpuProfile ? totalGb <= singleGpuProfile.vramGb : false;
+      // bestSingleFit is the CHEAPEST single-card profile that actually
+      // fits — not "any profile including the dual-card one" (that bug
+      // showed the Amazon CTA even when only two cards would work), and
+      // not a fixed card name (that bug always said "RTX 4090" even for
+      // a config that only needed a 12GB or 16GB card). The Amazon CTA
+      // below is rewritten every recalculation to name this exact card,
+      // so what it says can never drift from what "Fits on:" shows.
+      const singleGpuProfiles = PROFILES.filter((p) => p.amazonQuery);
+      const bestSingleFit = singleGpuProfiles.find((p) => totalGb <= p.vramGb) || null;
+      const fitsSingleGpu = !!bestSingleFit;
+
       const cloudCta = document.getElementById('cloud-fallback-cta');
       const localCta = document.getElementById('local-hardware-cta');
       if (cloudCta) cloudCta.classList.toggle('hidden', fitsSingleGpu);
       if (localCta) localCta.classList.toggle('hidden', !fitsSingleGpu);
+
+      if (bestSingleFit) {
+        const cardNameEl = document.getElementById('local-cta-card-name');
+        const descEl = document.getElementById('local-cta-desc');
+        const btnEl = document.getElementById('outbound-amazon');
+        const btnTextEl = document.getElementById('local-cta-btn-text');
+        const blurbEl = document.getElementById('local-cta-blurb');
+
+        if (cardNameEl) cardNameEl.textContent = bestSingleFit.label;
+        if (descEl) {
+          descEl.textContent =
+            `This configuration fits on a single ${bestSingleFit.label} card ` +
+            `(the cheapest single card in the list above that has enough VRAM).`;
+        }
+        if (btnTextEl) btnTextEl.textContent = `Check ${bestSingleFit.amazonQuery} Pricing on Amazon`;
+        if (btnEl) {
+          btnEl.href =
+            'https://www.amazon.com/s?k=' +
+            encodeURIComponent(bestSingleFit.amazonQuery) +
+            '&tag=localnodeops-20';
+        }
+        if (blurbEl) {
+          blurbEl.textContent = `Opens an Amazon search for the ${bestSingleFit.amazonQuery}. Prices and stock change daily.`;
+        }
+      }
     }
 
-    // Appends one line to the live change log with the total VRAM at
-    // the moment this specific manipulation was committed. Called
-    // separately from compute() so slider drags (which call compute()
-    // continuously via 'input') don't spam one log entry per frame —
-    // logging only happens on 'change' (slider release / dropdown
-    // selection), while the numeric output still updates live while
-    // dragging.
     function logChange(message) {
       logEntries.unshift(`${message} → Total: ${outTotal.textContent}`);
       if (logEntries.length > MAX_LOG_ENTRIES) logEntries.length = MAX_LOG_ENTRIES;

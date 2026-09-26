@@ -11,7 +11,20 @@ export const RUNPOD_URL =
 export const LAMBDA_URL =
   import.meta.env.PUBLIC_LAMBDA_AFFILIATE_URL || 'https://lambdalabs.com/';
 
-// Opens an Amazon search for the RTX 4090 (not a specific listing).
+// Just the tag, not a full URL — used to build a SEARCH QUERY THAT
+// VARIES per recommended card (see VramCalculator.astro's compute()).
+// Separate from PUBLIC_AMAZON_AFFILIATE_URL below, which is a full URL
+// override for the static/no-JS default only.
+export const AMAZON_AFFILIATE_TAG =
+  import.meta.env.PUBLIC_AMAZON_TAG || 'localnodeops-20';
+
+export function amazonSearchUrl(query: string): string {
+  return `https://www.amazon.com/s?k=${encodeURIComponent(query)}&tag=${AMAZON_AFFILIATE_TAG}`;
+}
+
+// Static default — used only as the pre-JS fallback href on the Amazon
+// button in CloudFallbackCTA.astro. VramCalculator.astro's compute()
+// overwrites both the href and the button text on page load with the
+// specific card that actually fits the current estimate.
 export const AMAZON_RTX_4090_URL =
-  import.meta.env.PUBLIC_AMAZON_AFFILIATE_URL ||
-  'https://www.amazon.com/s?k=RTX+4090&tag=localnodeops-20';
+  import.meta.env.PUBLIC_AMAZON_AFFILIATE_URL || amazonSearchUrl('RTX 4090 24GB');

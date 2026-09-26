@@ -45,11 +45,16 @@ const cloudProviders: Provider[] = [
   },
 ];
 
+// Generic on purpose — VramCalculator.astro's compute() overwrites this
+// text and href on load with the specific cheapest card that fits.
+// This is only what a person would see for the instant before JS runs
+// (or in the unlikely case JS fails), so it must never name a specific
+// card — that mismatch is the exact bug this replaced.
 const amazonProvider: Provider = {
   name: 'Amazon',
   url: AMAZON_RTX_4090_URL,
-  blurb: 'Opens an Amazon search for the RTX 4090.',
-  cta: 'Check RTX 4090 Pricing on Amazon',
+  blurb: 'Opens an Amazon search for a compatible GPU.',
+  cta: 'Check GPU Pricing on Amazon',
   umamiEvent: 'outbound-amazon',
   primary: true,
 };
@@ -94,23 +99,31 @@ const amazonProvider: Provider = {
 <div id="local-hardware-cta"
   class="hidden border border-border rounded-md bg-surface p-md mt-md"
 >
-  <p class="text-body-md text-primary font-bold m-0">Fits on local hardware</p>
-  <p class="text-body-md text-secondary mt-xs mb-md">
-    This configuration fits within the local GPU profiles above. A single
-    24 GB card such as the RTX 4090 covers totals up to 24 GB; above that
-    you'd need two cards.
+  <!--
+    The card name and Amazon link are set dynamically by
+    VramCalculator.astro's compute() on every recalculation — the text
+    below is only a static fallback for the (extremely unlikely) case
+    that JS fails to run. It must stay generic: hardcoding a specific
+    card name here caused the exact bug this replaced (button always
+    said "RTX 4090" regardless of what the calculator actually needed).
+  -->
+  <p class="text-body-md text-primary font-bold m-0">
+    Fits on: <strong id="local-cta-card-name" class="text-accent-primary">a single local GPU</strong>
+  </p>
+  <p class="text-body-md text-secondary mt-xs mb-md" id="local-cta-desc">
+    This configuration fits within the local GPU profiles above.
   </p>
 
   <a href={amazonProvider.url}
-    id={amazonProvider.umamiEvent}
-    data-umami-event={amazonProvider.umamiEvent}
+    id="outbound-amazon"
+    data-umami-event="outbound-amazon"
     target="_blank"
     rel="noopener noreferrer sponsored"
     class={`${BTN_PRIMARY} w-full sm:w-auto`}
   >
-    {amazonProvider.cta}
+    <span id="local-cta-btn-text">{amazonProvider.cta}</span>
   </a>
-  <p class="text-body-md text-secondary mt-xs mb-0">
+  <p class="text-body-md text-secondary mt-xs mb-0" id="local-cta-blurb">
     {amazonProvider.blurb} Prices and stock change daily.
   </p>
 
