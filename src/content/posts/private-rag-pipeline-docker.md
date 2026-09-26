@@ -1,6 +1,7 @@
 ---
 title: "Building a Private RAG Pipeline with Qdrant, Ollama, and Docker"
-description: "Learn how to orchestrate a fully containerized Retrieval-Augmented Generation (RAG) stack locally using Ollama, Qdrant, and Open WebUI."
+excerpt: "Learn how to orchestrate a fully containerized Retrieval-Augmented Generation (RAG) stack locally using Ollama, Qdrant, and Open WebUI."
+category: "Guides"
 pubDate: 2026-09-26
 author: "Haseeb"
 tags: ["RAG", "Docker", "Qdrant", "Ollama", "Vector Database", "Local AI"]
