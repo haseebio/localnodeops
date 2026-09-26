@@ -11,68 +11,37 @@ const BTN_SECONDARY =
 ---
 
 <!--
-  This div is the very last thing rendered inside <main>, right before
-  BaseLayout's <Footer/>. Its own position in the document (0 height,
-  position: relative) is the "dock point" — where main ends and the
-  footer begins.
+  position: sticky, not fixed — and this is the LAST element inside
+  <main>, right before BaseLayout renders <Footer/> as main's next
+  sibling. A sticky element can never render outside its own containing
+  block (main), so it is physically incapable of overlapping the
+  footer: it floats at the bottom of the viewport while scrolling
+  through the page, then stops exactly at main's edge once you reach
+  it — no JS, no guessed pixel thresholds, no race condition.
 -->
-<div id="sticky-bar-zone" class="relative">
-  <div
-    id="sticky-action-bar"
-    class="fixed inset-x-0 bottom-0 z-40 flex justify-center px-sm print:hidden pointer-events-none"
-  >
-    <!--
-      mb-md/sm:mb-lg on the card itself (not padding on the outer wrapper)
-      is what creates the gap above the footer when docked — margin is
-      unambiguous space, unlike padding-vs-content-box on a position:
-      absolute box, which didn't produce a visible gap in practice.
-    -->
-    <div class="pointer-events-auto w-auto max-w-[90vw] rounded-2xl border border-border bg-surface shadow-lg px-md py-xs mb-md sm:mb-lg">
-      <div class="flex flex-wrap justify-center gap-sm">
-        <a href="/calculator"
-          data-umami-event="sticky-calculate-vram"
-          class={BTN_SECONDARY}
-        >
-          Calculate VRAM
-        </a>
-        <a href={RUNPOD_URL}
-          data-umami-event="sticky-runpod"
-          target="_blank"
-          rel="noopener noreferrer sponsored"
-          class={BTN_PRIMARY}
-        >
-          Rent GPU on RunPod
-        </a>
-      </div>
-      <p class="text-secondary text-[0.7rem] leading-[0.95rem] text-center mt-[0.25rem] mb-0">
-        RunPod partner link — we may earn a commission.
-      </p>
+<div
+  id="sticky-action-bar"
+  class="sticky bottom-0 z-40 flex justify-center px-sm print:hidden"
+>
+  <div class="w-auto max-w-[90vw] rounded-2xl border border-border bg-surface shadow-lg px-md py-xs mb-md sm:mb-lg">
+    <div class="flex flex-wrap justify-center gap-sm">
+      <a href="/calculator"
+        data-umami-event="sticky-calculate-vram"
+        class={BTN_SECONDARY}
+      >
+        Calculate VRAM
+      </a>
+      <a href={RUNPOD_URL}
+        data-umami-event="sticky-runpod"
+        target="_blank"
+        rel="noopener noreferrer sponsored"
+        class={BTN_PRIMARY}
+      >
+        Rent GPU on RunPod
+      </a>
     </div>
+    <p class="text-secondary text-[0.7rem] leading-[0.95rem] text-center mt-[0.25rem] mb-0">
+      RunPod partner link — we may earn a commission.
+    </p>
   </div>
 </div>
-
-<script>
-  (function () {
-    const zone = document.getElementById('sticky-bar-zone');
-    const bar = document.getElementById('sticky-action-bar');
-    if (!zone || !bar || !('IntersectionObserver' in window)) return;
-
-    // How close to the dock point (in px) before switching from
-    // floating (fixed) to parked (absolute, sitting above the footer).
-    const TRIGGER_PX = 130;
-
-    const io = new IntersectionObserver(
-      ([entry]) => {
-        if (entry.isIntersecting) {
-          bar.classList.remove('fixed');
-          bar.classList.add('absolute');
-        } else {
-          bar.classList.remove('absolute');
-          bar.classList.add('fixed');
-        }
-      },
-      { root: null, rootMargin: `0px 0px -${TRIGGER_PX}px 0px`, threshold: 0 }
-    );
-    io.observe(zone);
-  })();
-</script>
