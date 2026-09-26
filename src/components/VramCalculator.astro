@@ -181,10 +181,15 @@ const preselectedIndex = preselectedModel
 
     const CONTEXT_LENGTHS = [2048, 4096, 8192, 16384, 32768, 65536, 131072];
 
+    // singleGpuCeiling marks the largest profile a person can actually
+    // buy as ONE card. Anything past it (the dual-card entry) requires
+    // buying two cards, so it must never be treated as "fits on the
+    // single card we recommend via the Amazon CTA below" — see the
+    // compute() comment where this is used.
     const PROFILES = [
       { label: 'RTX 3060 12GB', vramGb: 12 },
       { label: 'RTX 4060 Ti 16GB', vramGb: 16 },
-      { label: 'RTX 3090 / 4090 24GB', vramGb: 24 },
+      { label: 'RTX 3090 / 4090 24GB', vramGb: 24, singleGpuCeiling: true },
       { label: 'Dual RTX 3090/4090 48GB', vramGb: 48 },
     ];
 
@@ -340,11 +345,22 @@ const preselectedIndex = preselectedModel
       // already computed above from vram-math's formula. Both CTA cards
       // have zero knowledge of VRAM figures — exactly one is shown,
       // toggled purely by this one boolean.
-      const noneFit = PROFILES.every((profile) => totalGb > profile.vramGb);
+      //
+      // Fixed bug: this used to be `PROFILES.every(p => totalGb > p.vramGb)`,
+      // which only counted as "doesn't fit anywhere" if it exceeded even
+      // the DUAL-card 48GB profile. That meant a config needing two
+      // cards (e.g. 35GB — fails the single 24GB card, fits the 48GB
+      // dual setup) showed the single-card "Fits on local hardware —
+      // Check RTX 4090 Pricing on Amazon" CTA, directly contradicting
+      // the "Fits on:" list above it (which correctly showed ✗ on the
+      // 24GB card). The CTA choice must be based on the largest
+      // SINGLE-card profile, not "any profile including two cards."
+      const singleGpuProfile = PROFILES.find((p) => p.singleGpuCeiling);
+      const fitsSingleGpu = singleGpuProfile ? totalGb <= singleGpuProfile.vramGb : false;
       const cloudCta = document.getElementById('cloud-fallback-cta');
       const localCta = document.getElementById('local-hardware-cta');
-      if (cloudCta) cloudCta.classList.toggle('hidden', !noneFit);
-      if (localCta) localCta.classList.toggle('hidden', noneFit);
+      if (cloudCta) cloudCta.classList.toggle('hidden', fitsSingleGpu);
+      if (localCta) localCta.classList.toggle('hidden', !fitsSingleGpu);
     }
 
     // Appends one line to the live change log with the total VRAM at
