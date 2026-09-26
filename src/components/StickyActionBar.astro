@@ -40,13 +40,16 @@ const BTN_SECONDARY =
 <!--
   Keeps the fixed bar from covering the end of the page (footer) and from
   hiding keyboard-focused elements. Global on purpose: it targets html/body.
-  Only pages that render this component receive these rules.
+  Card's own footprint (buttons + padding + disclosure + its bottom
+  offset) is roughly 110-115px — the previous 7rem (112px) body padding
+  matched that almost exactly, leaving no real gap. 9rem gives ~30px of
+  actual clearance instead of relying on the numbers lining up perfectly.
 -->
 <style is:global>
   html {
-    scroll-padding-bottom: 7rem;
+    scroll-padding-bottom: 9rem;
   }
   body {
-    padding-bottom: 7rem;
+    padding-bottom: 9rem;
   }
 </style>
