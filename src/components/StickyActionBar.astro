@@ -10,46 +10,66 @@ const BTN_SECONDARY =
   'inline-flex items-center justify-center min-h-touch-min rounded-full px-lg font-semibold text-body-md text-center whitespace-nowrap no-underline cursor-pointer border-2 border-accent-primary text-primary bg-transparent transition-colors hover:bg-accent-primary-container';
 ---
 
-<div class="fixed inset-x-0 bottom-0 z-40 flex justify-center px-sm pb-lg sm:pb-xl print:hidden pointer-events-none">
+<!--
+  This div is the very last thing rendered inside <main>, right before
+  BaseLayout's <Footer/>. Its own position in the document (0 height,
+  position: relative) is the "dock point" — where main ends and the
+  footer begins.
+-->
+<div id="sticky-bar-zone" class="relative">
   <div
     id="sticky-action-bar"
-    class="pointer-events-auto w-auto max-w-[90vw] rounded-2xl border border-border bg-surface shadow-lg px-md py-xs"
+    class="fixed inset-x-0 bottom-0 z-40 flex justify-center px-sm pb-lg sm:pb-xl print:hidden pointer-events-none"
   >
-    <div class="flex flex-wrap justify-center gap-sm">
-      <a href="/calculator"
-        data-umami-event="sticky-calculate-vram"
-        class={BTN_SECONDARY}
-      >
-        Calculate VRAM
-      </a>
-      <a href={RUNPOD_URL}
-        data-umami-event="sticky-runpod"
-        target="_blank"
-        rel="noopener noreferrer sponsored"
-        class={BTN_PRIMARY}
-      >
-        Rent GPU on RunPod
-      </a>
+    <div class="pointer-events-auto w-auto max-w-[90vw] rounded-2xl border border-border bg-surface shadow-lg px-md py-xs">
+      <div class="flex flex-wrap justify-center gap-sm">
+        <a href="/calculator"
+          data-umami-event="sticky-calculate-vram"
+          class={BTN_SECONDARY}
+        >
+          Calculate VRAM
+        </a>
+        <a href={RUNPOD_URL}
+          data-umami-event="sticky-runpod"
+          target="_blank"
+          rel="noopener noreferrer sponsored"
+          class={BTN_PRIMARY}
+        >
+          Rent GPU on RunPod
+        </a>
+      </div>
+      <p class="text-secondary text-[0.7rem] leading-[0.95rem] text-center mt-[0.25rem] mb-0">
+        RunPod partner link — we may earn a commission.
+      </p>
     </div>
-    <p class="text-secondary text-[0.7rem] leading-[0.95rem] text-center mt-[0.25rem] mb-0">
-      RunPod partner link — we may earn a commission.
-    </p>
   </div>
 </div>
 
-<!--
-  Keeps the fixed bar from covering the end of the page (footer) and from
-  hiding keyboard-focused elements. Global on purpose: it targets html/body.
-  Card's own footprint (buttons + padding + disclosure + its bottom
-  offset) is roughly 110-115px — the previous 7rem (112px) body padding
-  matched that almost exactly, leaving no real gap. 9rem gives ~30px of
-  actual clearance instead of relying on the numbers lining up perfectly.
--->
-<style is:global>
-  html {
-    scroll-padding-bottom: 9rem;
-  }
-  body {
-    padding-bottom: 9rem;
-  }
-</style>
+<script>
+  (function () {
+    const zone = document.getElementById('sticky-bar-zone');
+    const bar = document.getElementById('sticky-action-bar');
+    if (!zone || !bar || !('IntersectionObserver' in window)) return;
+
+    // How close to the dock point (in px) before switching from
+    // floating (fixed) to parked (absolute, sitting right above the
+    // footer). Generous on purpose — parking a little early just means
+    // it stops moving slightly sooner, which is harmless; parking late
+    // risks a visible overlap with the footer for a frame.
+    const TRIGGER_PX = 130;
+
+    const io = new IntersectionObserver(
+      ([entry]) => {
+        if (entry.isIntersecting) {
+          bar.classList.remove('fixed');
+          bar.classList.add('absolute');
+        } else {
+          bar.classList.remove('absolute');
+          bar.classList.add('fixed');
+        }
+      },
+      { root: null, rootMargin: `0px 0px -${TRIGGER_PX}px 0px`, threshold: 0 }
+    );
+    io.observe(zone);
+  })();
+</script>
