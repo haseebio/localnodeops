@@ -2,6 +2,8 @@
 title: "The Best Local LLM Setup for Late 2026: My Daily Driver"
 excerpt: "A breakdown of the exact models, runners, and VRAM math I use for local inference right now."
 pubDate: 2026-09-30
+tags: ["local-llm", "vram", "ollama", "hardware"]
+readingTime: "5 min read"
 ---
 
 The local AI space moved fast in September 2026. With the release of dense reasoning models that can actually fit on consumer hardware, running a local node is no longer just a party trick—it is a viable daily workflow.
@@ -13,7 +15,7 @@ If you are just getting into self-hosting your AI, here is exactly what I run, w
 You have two main choices for your inference engine:
 
 1. **Ollama:** This is my default recommendation. It runs as a headless background service, manages your models cleanly via the command line, and exposes a local API (port 11434) that mimics OpenAI. If you want to connect frontends like Open-WebUI or integrate AI into your code editor, Ollama is the standard.
-2. **LM Studio:** If you prefer a visual interface and hate the terminal, LM Studio is excellent. It lets you search the Hugging Face hub directly, download specific `.gguf` quantizations, and chat with them in a desktop app. 
+2. **LM Studio:** If you prefer a visual interface and hate the terminal, LM Studio is excellent. It lets you search the Hugging Face hub directly, download specific `.gguf` quantizations, and chat with them in a desktop app.
 
 ## The Models (Late 2026 Tier List)
 
