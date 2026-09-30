@@ -127,6 +127,29 @@ const amazonProvider: Provider = {
     {amazonProvider.blurb} Prices and stock change daily.
   </p>
 
+  <!--
+    Cloud-equivalent budget line (CapEx vs OpEx comparison). Text and
+    href set by VramCalculator.astro's compute(); hidden by default and
+    only shown once a runpodEquivalent mapping exists for the recommended
+    tier. Rate is Community Cloud, checked August 2026 — labeled
+    approximate in the text itself, same honesty pattern as the rest of
+    this site, since even a verified rate drifts over time.
+  -->
+  <div class="mt-sm border-t border-border pt-sm hidden" id="local-cta-runpod-budget">
+    <p class="text-body-md text-secondary mb-xs" id="local-cta-runpod-label">
+      Renting instead of buying:
+    </p>
+    <a href={RUNPOD_URL}
+      id="outbound-runpod-budget"
+      data-umami-event="outbound-runpod-budget"
+      target="_blank"
+      rel="noopener noreferrer sponsored"
+      class={`${BTN_SECONDARY} w-full sm:w-auto`}
+    >
+      <span id="local-cta-runpod-text">Deploy closest cloud equivalent on RunPod</span>
+    </a>
+  </div>
+
   <p class="text-body-md text-secondary mt-md border-t border-border pt-sm m-0">
     Disclosure: As an Amazon Associate, LocalNodeOps earns from qualifying
     purchases at no extra cost to you. This never affects the VRAM math
