@@ -2,8 +2,9 @@
 title: "The Best Local LLM Setup for Late 2026: My Daily Driver"
 excerpt: "A breakdown of the exact models, runners, and VRAM math I use for local inference right now."
 pubDate: 2026-09-30
+author: "LocalNodeOps"
 tags: ["local-llm", "vram", "ollama", "hardware"]
-readingTime: "5 min read"
+readingTime: 5
 ---
 
 The local AI space moved fast in September 2026. With the release of dense reasoning models that can actually fit on consumer hardware, running a local node is no longer just a party trick—it is a viable daily workflow.
