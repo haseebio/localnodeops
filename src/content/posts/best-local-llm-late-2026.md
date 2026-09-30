@@ -3,6 +3,7 @@ title: "The Best Local LLM Setup for Late 2026: My Daily Driver"
 excerpt: "A breakdown of the exact models, runners, and VRAM math I use for local inference right now."
 pubDate: 2026-09-30
 author: "LocalNodeOps"
+category: "Hardware"
 tags: ["local-llm", "vram", "ollama", "hardware"]
 readingTime: 5
 ---
