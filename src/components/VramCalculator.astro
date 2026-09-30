@@ -1,12 +1,21 @@
 ---
 import { getCollection } from 'astro:content';
 import CloudFallbackCTA from './CloudFallbackCTA.astro';
+import { getModelArch } from '../lib/vram-math';
+import { AMAZON_AFFILIATE_TAG } from '../lib/affiliate';
 
 interface Props {
+  // Optional slug from the `models` collection. When set, the
+  // calculator opens pre-selected to that model instead of defaulting
+  // to "Generic estimate" — used by /calculator/[slug].astro.
   preselectedModel?: string;
 }
 
 const { preselectedModel } = Astro.props;
+
+// Same button style as CloudFallbackCTA.astro's BTN_PRIMARY.
+const BTN_PRIMARY =
+  'inline-flex items-center justify-center min-h-touch-min rounded-full px-lg font-semibold text-body-md text-center no-underline cursor-pointer bg-accent-primary-solid text-accent-on-primary transition-transform hover:-translate-y-[1px]';
 
 const modelEntries = await getCollection('models');
 const models = modelEntries.map((entry) => ({
@@ -14,14 +23,18 @@ const models = modelEntries.map((entry) => ({
   title: entry.data.title,
   lastSynced: entry.data.last_synced,
   quantizations: entry.data.quantizations,
+  // Per-model attention config from src/data/model-arch.json, or null.
+  arch: getModelArch(entry.slug),
 }));
 
 const preselectedIndex = preselectedModel
   ? models.findIndex((m) => m.slug === preselectedModel)
   : -1;
+
+const GPU_QUANTITIES = [1, 2, 3, 4, 5, 6, 7, 8];
 ---
 
-<div class="border border-border rounded-md bg-surface p-md" id="vram-calculator">
+<div class="border border-border rounded-md bg-surface p-md" id="vram-calculator" data-amazon-tag={AMAZON_AFFILIATE_TAG}>
   <h2 class="text-headline-lg text-primary m-0">VRAM calculator</h2>
   <p class="text-body-md text-secondary mt-xs mb-md">
     Estimate total VRAM for a given model size, quantization, and context
@@ -50,19 +63,18 @@ const preselectedIndex = preselectedModel
           Model size: <span id="model-size-label" class="font-mono text-accent-primary">7B</span>
         </label>
         <input
-          type="range"
-          id="model-size"
-          min="0"
-          max="3"
-          step="1"
-          value="0"
-          class="w-full"
-          aria-valuetext="7B"
-        />
-        <div class="flex justify-between text-body-md text-secondary mt-[0.125rem]">
-          <span>7B</span><span>13B</span><span>70B</span><span>120B</span>
-        </div>
-      </div>
+  type="range"
+  id="model-size"
+  min="0"
+  max="4"
+  step="1"
+  value="0"
+  class="w-full"
+  aria-valuetext="7B"
+/>
+<div class="flex justify-between text-body-md text-secondary mt-[0.125rem]">
+  <span>7B</span><span>13B</span><span>32B</span><span>70B</span><span>120B</span>
+</div>
 
       <div id="generic-quant-row">
         <label for="quant" class="text-body-md text-primary block mb-xs">
@@ -98,20 +110,28 @@ const preselectedIndex = preselectedModel
           type="range"
           id="context"
           min="0"
-          max="6"
+          max="7"
           step="1"
           value="1"
           class="w-full"
           aria-valuetext="4096 tokens"
         />
         <div class="flex justify-between text-body-md text-secondary mt-[0.125rem]">
-          <span>2K</span><span>4K</span><span>8K</span><span>16K</span><span>32K</span><span>64K</span><span>128K</span>
+          <span>2K</span><span>4K</span><span>8K</span><span>16K</span><span>32K</span><span>64K</span><span>128K</span><span>256K</span>
         </div>
+        <p class="text-body-md text-secondary mt-xs hidden" id="context-note"></p>
       </div>
     </div>
 
+    <!--
+      Total Required VRAM is UNCONDITIONAL — visible as soon as a model
+      is selected, no hardware choice required (progressive disclosure:
+      Task 1). Everything about matching it to real hardware and its
+      cost lives inside the <dialog> below, opened only on request.
+    -->
     <div class="flex flex-col gap-sm">
       <div class="border border-border rounded-md bg-surface-elevated p-md">
+        <p class="text-body-md text-primary font-bold m-0 mb-xs">Total required VRAM</p>
         <dl class="grid grid-cols-2 gap-y-xs text-body-md">
           <dt class="text-secondary">Model weights</dt>
           <dd class="text-primary font-mono text-right" id="out-weights">—</dd>
@@ -125,21 +145,92 @@ const preselectedIndex = preselectedModel
           <dt class="text-primary font-bold border-t border-border pt-xs mt-xs">Total VRAM</dt>
           <dd class="text-accent-primary font-mono text-right font-bold border-t border-border pt-xs mt-xs" id="out-total">—</dd>
         </dl>
-      </div>
-
-      <div>
-        <p class="text-body-md text-primary mb-xs">Fits on:</p>
-        <ul class="flex flex-col gap-[0.125rem]" id="out-profiles"></ul>
-        <CloudFallbackCTA />
+        <button
+          type="button"
+          id="open-hardware-modal"
+          class={`${BTN_PRIMARY} mt-md w-full`}
+        >
+          Check Hardware &amp; Cloud Budget
+        </button>
       </div>
     </div>
   </div>
 
+  <!--
+    Everything hardware/budget-related lives in this dialog, opened only
+    on request (Task 1: progressive disclosure). Native <dialog> gives
+    focus trapping and Escape-to-close for free. This project disables
+    Tailwind's preflight (astro.config.mjs: applyBaseStyles: false), so
+    the browser's UA stylesheet for <dialog> (its own border/background/
+    position) is NOT reset automatically — the classes below explicitly
+    override every property that matters (border, bg, width, padding),
+    verified against the compiled CSS, but the actual rendered look
+    still needs a live check same as any other visual change.
+  -->
+  <dialog
+    id="hardware-modal"
+    aria-labelledby="hardware-modal-title"
+    class="backdrop:bg-black/50 p-lg rounded-md border border-border bg-surface w-full max-w-2xl"
+  >
+    <div class="flex items-start justify-between gap-md mb-sm">
+      <h3 id="hardware-modal-title" class="text-headline-md text-primary m-0">
+        Check hardware compatibility &amp; budget
+      </h3>
+      <button
+        type="button"
+        id="close-hardware-modal"
+        aria-label="Close"
+        class="text-secondary hover:text-primary text-headline-md leading-none cursor-pointer bg-transparent border-0 p-0"
+      >
+        ×
+      </button>
+    </div>
+
+    <div>
+      <label for="gpu-qty" class="text-body-md text-primary block mb-xs">
+        Number of GPUs (identical cards)
+      </label>
+      <select
+        id="gpu-qty"
+        class="w-full min-h-touch-min rounded-md border border-border bg-surface text-primary text-body-lg px-sm font-mono"
+      >
+        {GPU_QUANTITIES.map((n) => (
+          <option value={String(n)} selected={n === 1}>{n}</option>
+        ))}
+      </select>
+      <p class="text-body-md text-secondary mt-xs hidden" id="gpu-qty-note">
+        Pooled VRAM assumes weights and KV cache split evenly across the
+        cards (for example llama.cpp layer splitting). Real usage varies
+        with the framework, the link between cards (PCIe vs NVLink), and
+        per-card buffers, so treat pooled VRAM as an upper bound. Tensor
+        parallelism in vLLM also generally needs the card count to divide
+        the model's attention heads evenly, so counts like 3, 5, 6, or 7
+        may not work there.
+      </p>
+    </div>
+
+    <div class="mt-sm">
+      <p class="text-body-md text-primary mb-xs">Fits on:</p>
+      <ul class="flex flex-col gap-[0.125rem]" id="out-profiles"></ul>
+      <CloudFallbackCTA />
+    </div>
+  </dialog>
+
+  <!-- Live change log — records each committed manipulation (slider
+       release, dropdown selection) with the resulting total at that
+       moment. Most recent first, capped at 8 entries. -->
   <div class="mt-md border-t border-border pt-sm">
     <p class="text-body-md text-primary mb-xs">Live changes</p>
     <ul id="change-log" class="flex flex-col gap-[0.125rem] text-body-md text-secondary font-mono max-h-40 overflow-y-auto">
       <li id="change-log-empty" class="text-secondary italic">No changes yet — adjust a control above.</li>
     </ul>
+    <button
+      type="button"
+      id="open-hardware-modal-text"
+      class="text-accent-primary hover:underline mt-xs bg-transparent border-0 p-0 cursor-pointer text-body-md"
+    >
+      View required hardware
+    </button>
   </div>
 
   <p class="text-body-md text-secondary mt-md border-t border-border pt-sm">
@@ -149,14 +240,16 @@ const preselectedIndex = preselectedModel
     models; 120B: extrapolated, no real model exists at that exact
     size). <strong class="text-primary">Model-specific (HF-synced):</strong>
     weight size is the exact <code>.gguf</code> file size fetched from
-    Hugging Face — no estimation. KV cache is <em>still estimated</em>:
-    this schema doesn't carry layer count, head count, or head dimension,
-    so the calculator parses an approximate parameter count from the
-    model's title (e.g. "8B") and reuses the nearest size bucket's
-    reference architecture for the KV math, same caveats as the generic
-    mode. If no parameter count can be parsed from the title, it falls
-    back to the 7B architecture and says so next to the quantization
-    dropdown. Batch size is fixed at 1 in both modes. Treat all figures
+    Hugging Face — no estimation. KV cache is <em>still estimated</em>.
+    For models whose published attention config is recorded on this site
+    (layers, KV heads, head dimension, and any sliding-window layout), it
+    is computed from that config. For every other model the calculator
+    falls back to the nearest reference bucket, but only when the model is
+    within 5B parameters of a bucket and is not a mixture-of-experts
+    model; otherwise no total is shown. Batch size is fixed at 1 in both
+    modes. <strong class="text-primary">Multiple GPUs:</strong> pooled
+    VRAM is the number of cards times the VRAM per card, compared against
+    the same total (weights + KV cache + 10% overhead). Treat all figures
     here as a starting estimate, not a guarantee. Full formula and known
     limitations: <a href="/methodology" class="text-accent-primary hover:underline">/methodology</a>.
   </p>
@@ -167,28 +260,49 @@ const preselectedIndex = preselectedModel
 <script is:inline>
   (function () {
     const MODEL_SIZES = [
-      { label: '7B', params: 7e9, layers: 32, kvHeads: 8, headDim: 128 },
-      { label: '13B', params: 13e9, layers: 40, kvHeads: 40, headDim: 128 },
-      { label: '70B', params: 70e9, layers: 80, kvHeads: 8, headDim: 128 },
-      { label: '120B', params: 120e9, layers: 88, kvHeads: 8, headDim: 128 },
-    ];
+  { label: '7B', params: 7e9, layers: 32, kvHeads: 8, headDim: 128 },
+  { label: '13B', params: 13e9, layers: 40, kvHeads: 40, headDim: 128 },
+  { label: '32B', params: 32e9, layers: 64, kvHeads: 8, headDim: 128 },
+  { label: '70B', params: 70e9, layers: 80, kvHeads: 8, headDim: 128 },
+  { label: '120B', params: 120e9, layers: 88, kvHeads: 8, headDim: 128 },
+];
 
-    const CONTEXT_LENGTHS = [2048, 4096, 8192, 16384, 32768, 65536, 131072];
+    // Same rules as nearestBucket() in src/lib/vram-math.ts — keep in sync.
+    const BUCKET_DISTANCE_CAP_B = 5;
+    const MOE_NAME_PATTERN = /\bmoe\b|mixtral|\d+x\d+b/i;
 
-    // amazonQuery marks a profile as a real, single-card purchase (the
-    // dual-GPU entry has none, since "buy two cards" isn't a single
-    // Amazon search). compute() picks the SMALLEST amazonQuery profile
-    // that fits, so the Amazon CTA always names the actual cheapest
-    // card that works — never a fixed card regardless of the total.
+    const CONTEXT_LENGTHS = [2048, 4096, 8192, 16384, 32768, 65536, 131072, 262144];
+
+    // Every profile here is a single card someone can buy. The number-of-
+    // GPUs dropdown multiplies them. amazonQuery is what the Amazon CTA
+    // searches for. runpodEquivalent is the closest REAL RunPod catalog
+    // card at equal-or-greater VRAM (confirmed against RunPod's own
+    // published GPU list — RunPod does not offer the RTX 3060 or RTX
+    // 4060 Ti at all) with an hourly rate checked August 2026 —
+    // Community Cloud, on-demand. Rates drift; the UI labels this
+    // "approximate" rather than presenting it as a locked-in price.
     const PROFILES = [
-      { label: 'RTX 3060 12GB', vramGb: 12, amazonQuery: 'RTX 3060 12GB' },
-      { label: 'RTX 4060 Ti 16GB', vramGb: 16, amazonQuery: 'RTX 4060 Ti 16GB' },
-      { label: 'RTX 3090 / 4090 24GB', vramGb: 24, amazonQuery: 'RTX 4090 24GB' },
-      { label: 'Dual RTX 3090/4090 48GB', vramGb: 48 },
+      {
+        label: 'RTX 3060 12GB', vramGb: 12, amazonQuery: 'RTX 3060 12GB',
+        runpodEquivalent: { name: 'RTX 3080 Ti', hourlyRate: 0.18 },
+      },
+      {
+        label: 'RTX 4060 Ti 16GB', vramGb: 16, amazonQuery: 'RTX 4060 Ti 16GB',
+        runpodEquivalent: { name: 'RTX 4080 SUPER', hourlyRate: 0.28 },
+      },
+      {
+        label: 'RTX 3090 / 4090 24GB', vramGb: 24, amazonQuery: 'RTX 4090 24GB',
+        runpodEquivalent: { name: 'RTX 4090', hourlyRate: 0.34 },
+      },
     ];
 
     const GB = 1024 ** 3;
     const MAX_LOG_ENTRIES = 8;
+
+    const root = document.getElementById('vram-calculator');
+    // Affiliate tag comes from src/lib/affiliate.ts via a data attribute,
+    // so it is never hardcoded in this script.
+    const AMAZON_TAG = (root && root.dataset.amazonTag) || '';
 
     let ingestedModels = [];
     try {
@@ -209,7 +323,10 @@ const preselectedIndex = preselectedModel
     const modelLabel = document.getElementById('model-size-label');
     const contextSlider = document.getElementById('context');
     const contextLabel = document.getElementById('context-label');
+    const contextNote = document.getElementById('context-note');
     const quantSelect = document.getElementById('quant');
+    const gpuQtySelect = document.getElementById('gpu-qty');
+    const gpuQtyNote = document.getElementById('gpu-qty-note');
 
     const outWeights = document.getElementById('out-weights');
     const outKv = document.getElementById('out-kv');
@@ -225,13 +342,18 @@ const preselectedIndex = preselectedModel
       return (bytes / GB).toFixed(2) + ' GB';
     }
 
+    function formatContext(tokens) {
+      return Math.round(tokens / 1024) + 'K';
+    }
+
     function parseParamsB(title) {
       const match = title.match(/(\d+(?:\.\d+)?)\s?B/i);
       return match ? parseFloat(match[1]) : null;
     }
 
-    function nearestBucket(paramsB) {
+    function nearestBucket(paramsB, modelName) {
       if (paramsB == null) return null;
+      if (modelName && MOE_NAME_PATTERN.test(modelName)) return null;
       let closest = MODEL_SIZES[0];
       let closestDiff = Infinity;
       for (const bucket of MODEL_SIZES) {
@@ -241,7 +363,27 @@ const preselectedIndex = preselectedModel
           closest = bucket;
         }
       }
+      if (closestDiff > BUCKET_DISTANCE_CAP_B) return null;
       return closest;
+    }
+
+    function bucketToArch(bucket) {
+      if (!bucket) return null;
+      return {
+        label: bucket.label,
+        kvGroups: [{ layers: bucket.layers, kvHeads: bucket.kvHeads, headDim: bucket.headDim }],
+      };
+    }
+
+    function archForModel(model) {
+      if (model.arch) return model.arch;
+      return bucketToArch(nearestBucket(parseParamsB(model.title), model.title));
+    }
+
+    function kvBytesFor(arch, context) {
+      return arch.kvGroups.reduce(function (sum, g) {
+        return sum + 2 * g.layers * g.kvHeads * g.headDim * Math.min(context, g.window || context) * 2;
+      }, 0);
     }
 
     function populateModelQuantOptions(model) {
@@ -253,19 +395,24 @@ const preselectedIndex = preselectedModel
         modelQuantSelect.appendChild(opt);
       });
 
-      const paramsB = parseParamsB(model.title);
-      const bucket = nearestBucket(paramsB);
       const syncedDate = model.lastSynced ? model.lastSynced.slice(0, 10) : 'unknown date';
+      const arch = archForModel(model);
 
-      if (bucket && paramsB != null) {
+      if (model.arch) {
         modelMatchNote.textContent =
-          `KV cache estimated using ${bucket.label} reference architecture ` +
-          `(matched from "${paramsB}B" in the model name). Weights synced ${syncedDate}.`;
+          `KV cache computed from this model's published attention config (${model.arch.label}). ` +
+          (model.arch.note ? model.arch.note + ' ' : '') +
+          `Weights synced ${syncedDate}.`;
+      } else if (arch) {
+        modelMatchNote.textContent =
+          `KV cache estimated using the ${arch.label} reference architecture ` +
+          `(matched from "${parseParamsB(model.title)}B" in the model name). Weights synced ${syncedDate}.`;
       } else {
         modelMatchNote.textContent =
-          `Could not parse a parameter count from this model's name — ` +
-          `defaulting to 7B reference architecture for the KV cache estimate. ` +
-          `Weights synced ${syncedDate}.`;
+          `No total VRAM estimate for this model: it is a mixture-of-experts model, ` +
+          `has no parameter count in its name, or is more than ${BUCKET_DISTANCE_CAP_B}B parameters ` +
+          `from every reference architecture, and no published attention config is recorded for it. ` +
+          `Weights (exact) synced ${syncedDate}.`;
       }
     }
 
@@ -282,13 +429,37 @@ const preselectedIndex = preselectedModel
       }
     }
 
+    function setCtaVisibility(showCloud, showLocal) {
+      const cloudCta = document.getElementById('cloud-fallback-cta');
+      const localCta = document.getElementById('local-hardware-cta');
+      if (cloudCta) cloudCta.classList.toggle('hidden', !showCloud);
+      if (localCta) localCta.classList.toggle('hidden', !showLocal);
+    }
+
+    function showNoEstimate(weightBytes) {
+      outWeights.textContent = formatGb(weightBytes);
+      outKv.textContent = '—';
+      outOverhead.textContent = '—';
+      outTotal.textContent = '—';
+      outProfiles.innerHTML = '';
+      const li = document.createElement('li');
+      li.className = 'text-body-md text-secondary';
+      li.textContent = 'No total estimate for this model — see the note under the quantization dropdown.';
+      outProfiles.appendChild(li);
+      setCtaVisibility(false, false);
+    }
+
     function compute() {
       const context = CONTEXT_LENGTHS[Number(contextSlider.value)];
       contextLabel.textContent = context.toLocaleString();
       contextSlider.setAttribute('aria-valuetext', context.toLocaleString() + ' tokens');
 
+      const qty = Number(gpuQtySelect.value) || 1;
+      gpuQtyNote.classList.toggle('hidden', qty === 1);
+
       let weightBytes;
-      let kvBucket;
+      let arch;
+      let maxContext = null;
 
       if (sourceSelect.value === 'generic') {
         const model = MODEL_SIZES[Number(modelSlider.value)];
@@ -297,7 +468,7 @@ const preselectedIndex = preselectedModel
         modelSlider.setAttribute('aria-valuetext', model.label);
 
         weightBytes = model.params * (bpw / 8);
-        kvBucket = model;
+        arch = bucketToArch(model);
       } else {
         const index = Number(sourceSelect.value.split(':')[1]);
         const model = ingestedModels[index];
@@ -307,11 +478,25 @@ const preselectedIndex = preselectedModel
         const quant = model.quantizations[quantIndex];
         weightBytes = quant.size_gb * GB;
 
-        const paramsB = parseParamsB(model.title);
-        kvBucket = nearestBucket(paramsB) ?? MODEL_SIZES[0];
+        arch = archForModel(model);
+        if (model.arch && model.arch.maxContext) maxContext = model.arch.maxContext;
       }
 
-      const kvBytes = 2 * kvBucket.layers * kvBucket.kvHeads * kvBucket.headDim * context * 2;
+      if (maxContext && context > maxContext) {
+        contextNote.textContent =
+          `This model's native context is ${formatContext(maxContext)}. ` +
+          `${formatContext(context)} is beyond it and would need RoPE/YaRN extension.`;
+        contextNote.classList.remove('hidden');
+      } else {
+        contextNote.classList.add('hidden');
+      }
+
+      if (!arch) {
+        showNoEstimate(weightBytes);
+        return;
+      }
+
+      const kvBytes = kvBytesFor(arch, context);
       const overheadBytes = (weightBytes + kvBytes) * 0.1;
       const totalBytes = weightBytes + kvBytes + overheadBytes;
 
@@ -324,60 +509,72 @@ const preselectedIndex = preselectedModel
 
       outProfiles.innerHTML = '';
       PROFILES.forEach((profile) => {
-        const fits = totalGb <= profile.vramGb;
+        const pooledGb = profile.vramGb * qty;
+        const fits = totalGb <= pooledGb;
         const li = document.createElement('li');
         li.className =
           'flex items-center gap-xs text-body-md ' +
           (fits ? 'text-accent-tertiary' : 'text-accent-error');
+        const name = qty > 1 ? qty + '× ' + profile.label + ' (' + pooledGb + ' GB pooled)' : profile.label;
         li.innerHTML =
           '<span aria-hidden="true">' + (fits ? '✓' : '✗') + '</span>' +
-          '<span>' + profile.label + '</span>';
+          '<span>' + name + '</span>';
         outProfiles.appendChild(li);
       });
 
-      // Vendor-blind: this only reads the totalGb this same function
-      // already computed above from vram-math's formula. Both CTA cards
-      // have zero knowledge of VRAM figures — exactly one is shown,
-      // toggled purely by this logic.
-      //
-      // bestSingleFit is the CHEAPEST single-card profile that actually
-      // fits — not "any profile including the dual-card one" (that bug
-      // showed the Amazon CTA even when only two cards would work), and
-      // not a fixed card name (that bug always said "RTX 4090" even for
-      // a config that only needed a 12GB or 16GB card). The Amazon CTA
-      // below is rewritten every recalculation to name this exact card,
-      // so what it says can never drift from what "Fits on:" shows.
-      const singleGpuProfiles = PROFILES.filter((p) => p.amazonQuery);
-      const bestSingleFit = singleGpuProfiles.find((p) => totalGb <= p.vramGb) || null;
-      const fitsSingleGpu = !!bestSingleFit;
+      const bestFit = PROFILES.find((p) => totalGb <= p.vramGb * qty) || null;
+      setCtaVisibility(!bestFit, !!bestFit);
 
-      const cloudCta = document.getElementById('cloud-fallback-cta');
-      const localCta = document.getElementById('local-hardware-cta');
-      if (cloudCta) cloudCta.classList.toggle('hidden', fitsSingleGpu);
-      if (localCta) localCta.classList.toggle('hidden', !fitsSingleGpu);
-
-      if (bestSingleFit) {
+      if (bestFit) {
+        const pooledGb = bestFit.vramGb * qty;
         const cardNameEl = document.getElementById('local-cta-card-name');
         const descEl = document.getElementById('local-cta-desc');
         const btnEl = document.getElementById('outbound-amazon');
         const btnTextEl = document.getElementById('local-cta-btn-text');
         const blurbEl = document.getElementById('local-cta-blurb');
+        const runpodBox = document.getElementById('local-cta-runpod-budget');
+        const runpodBtnEl = document.getElementById('outbound-runpod-budget');
+        const runpodTextEl = document.getElementById('local-cta-runpod-text');
 
-        if (cardNameEl) cardNameEl.textContent = bestSingleFit.label;
+        const displayName = qty > 1 ? qty + '× ' + bestFit.label : bestFit.label;
+
+        if (cardNameEl) cardNameEl.textContent = displayName;
         if (descEl) {
           descEl.textContent =
-            `This configuration fits on a single ${bestSingleFit.label} card ` +
-            `(the cheapest single card in the list above that has enough VRAM).`;
+            qty > 1
+              ? `This configuration fits on ${qty} of these cards (${pooledGb} GB pooled) — you would need to buy ${qty}. ` +
+                `Pooled VRAM is an upper bound; see the multi-GPU note above.`
+              : `This configuration fits on a single ${bestFit.label} card ` +
+                `(the cheapest single card in the list above that has enough VRAM).`;
         }
-        if (btnTextEl) btnTextEl.textContent = `Check ${bestSingleFit.amazonQuery} Pricing on Amazon`;
+        if (btnTextEl) {
+          btnTextEl.textContent =
+            qty > 1
+              ? `Check current live pricing on Amazon for ${bestFit.amazonQuery} × ${qty}`
+              : `Check current live pricing on Amazon for ${bestFit.amazonQuery}`;
+        }
         if (btnEl) {
           btnEl.href =
             'https://www.amazon.com/s?k=' +
-            encodeURIComponent(bestSingleFit.amazonQuery) +
-            '&tag=localnodeops-20';
+            encodeURIComponent(bestFit.amazonQuery) +
+            (AMAZON_TAG ? '&tag=' + encodeURIComponent(AMAZON_TAG) : '');
         }
         if (blurbEl) {
-          blurbEl.textContent = `Opens an Amazon search for the ${bestSingleFit.amazonQuery}. Prices and stock change daily.`;
+          blurbEl.textContent = `Opens an Amazon search for the ${bestFit.amazonQuery}. Prices and stock change daily.`;
+        }
+
+        if (runpodBox && bestFit.runpodEquivalent) {
+          runpodBox.classList.remove('hidden');
+          const eq = bestFit.runpodEquivalent;
+          const hourly = (eq.hourlyRate * qty).toFixed(2);
+          const eqName = qty > 1 ? qty + '× ' + eq.name : eq.name;
+          if (runpodTextEl) {
+            runpodTextEl.textContent =
+              `Deploy closest cloud equivalent (${eqName}) instantly on RunPod for ~$${hourly}/hr`;
+          }
+          if (runpodBtnEl) runpodBtnEl.setAttribute('aria-label', runpodTextEl ? runpodTextEl.textContent : '');
+        } else if (runpodBox) {
+          runpodBox.classList.add('hidden');
         }
       }
     }
@@ -422,6 +619,30 @@ const preselectedIndex = preselectedModel
       compute();
       logChange('Quantization → ' + modelQuantSelect.options[modelQuantSelect.selectedIndex].text);
     });
+
+    gpuQtySelect.addEventListener('change', () => {
+      compute();
+      logChange('GPUs → ' + gpuQtySelect.value + '×');
+    });
+
+    // Dialog wiring. Escape-to-close and focus trapping are handled
+    // natively by showModal() — nothing to write for those. Backdrop
+    // click-to-close is NOT native behavior and is added here: a click
+    // directly on the <dialog> element itself (not on anything inside
+    // it) means the click landed on the backdrop area.
+    const hardwareModal = document.getElementById('hardware-modal');
+    const openBtn = document.getElementById('open-hardware-modal');
+    const openTextBtn = document.getElementById('open-hardware-modal-text');
+    const closeBtn = document.getElementById('close-hardware-modal');
+
+    if (hardwareModal) {
+      if (openBtn) openBtn.addEventListener('click', () => hardwareModal.showModal());
+      if (openTextBtn) openTextBtn.addEventListener('click', () => hardwareModal.showModal());
+      if (closeBtn) closeBtn.addEventListener('click', () => hardwareModal.close());
+      hardwareModal.addEventListener('click', (e) => {
+        if (e.target === hardwareModal) hardwareModal.close();
+      });
+    }
 
     updateSourceVisibility();
     compute();

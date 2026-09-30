@@ -5,7 +5,19 @@
 // on purpose. If you change one, change the other, or the calculator's
 // live output and this site's own stated formulas will disagree.
 
+import archData from '../data/model-arch.json';
+
 export const GB = 1024 ** 3;
+
+// One group of attention layers that share the same KV shape. A window
+// makes the group's KV cache stop growing at that many tokens (sliding-
+// window attention). Standard models are a single group with no window.
+export interface KvGroup {
+  layers: number;
+  kvHeads: number;
+  headDim: number;
+  window?: number;
+}
 
 export interface ArchBucket {
   label: string;
@@ -13,16 +25,25 @@ export interface ArchBucket {
   layers: number;
   kvHeads: number;
   headDim: number;
+  // Only set for per-model overrides (src/data/model-arch.json). When
+  // present, KV cache is computed from these groups instead of the
+  // single layers/kvHeads/headDim triple above.
+  kvGroups?: KvGroup[];
+  maxContext?: number;
+  note?: string;
 }
 
 // Reference architectures. 7B/13B/70B are real published model specs
 // (Llama 3 8B / Mistral 7B-style GQA for 7B, Llama 2 13B-style MHA for
-// 13B, Llama 3 70B-style GQA for 70B). 120B has no real published
-// reference model at that size and is extrapolated from the 70B
-// architecture — not a measured spec.
+// 13B, Llama 3 70B-style GQA for 70B). 32B is Qwen2.5-32B-Instruct's
+// published config (verified against Hugging Face: 64 layers, 8 KV
+// heads, head_dim 128 — standard GQA, no MoE, no sliding window). 120B
+// has no real published reference model at that size and is
+// extrapolated from the 70B architecture — not a measured spec.
 export const MODEL_SIZES: ArchBucket[] = [
   { label: '7B', params: 7e9, layers: 32, kvHeads: 8, headDim: 128 },
   { label: '13B', params: 13e9, layers: 40, kvHeads: 40, headDim: 128 },
+  { label: '32B', params: 32e9, layers: 64, kvHeads: 8, headDim: 128 },
   { label: '70B', params: 70e9, layers: 80, kvHeads: 8, headDim: 128 },
   { label: '120B', params: 120e9, layers: 88, kvHeads: 8, headDim: 128 },
 ];
@@ -76,6 +97,45 @@ export function nearestBucket(paramsB: number | null, modelName?: string): ArchB
   return closest;
 }
 
+// Per-model attention configs taken from each model's published
+// config. Keyed by the synced model's slug. Returns null for any model
+// without one, which then falls back to nearestBucket() as before.
+// Overrides only change the KV cache shape: weights still come from
+// the exact synced .gguf size, so MoE models are covered correctly
+// (all experts are resident in the file).
+const MODEL_ARCH = archData as unknown as Record<
+  string,
+  { label: string; maxContext?: number; kvGroups: KvGroup[]; note?: string }
+>;
+
+export function getModelArch(slug: string): ArchBucket | null {
+  const entry = MODEL_ARCH[slug];
+  if (!entry) return null;
+  const first = entry.kvGroups[0];
+  return {
+    label: entry.label,
+    params: 0,
+    layers: first.layers,
+    kvHeads: first.kvHeads,
+    headDim: first.headDim,
+    kvGroups: entry.kvGroups,
+    maxContext: entry.maxContext,
+    note: entry.note,
+  };
+}
+
+// Bytes of KV cache (fp16 K and V) for a given context length.
+export function kvBytesFor(bucket: ArchBucket, contextTokens: number): number {
+  const groups: KvGroup[] = bucket.kvGroups ?? [
+    { layers: bucket.layers, kvHeads: bucket.kvHeads, headDim: bucket.headDim },
+  ];
+  return groups.reduce(
+    (sum, g) =>
+      sum + 2 * g.layers * g.kvHeads * g.headDim * Math.min(contextTokens, g.window ?? contextTokens) * 2,
+    0
+  );
+}
+
 export interface VramEstimate {
   weightGb: number;
   kvGb: number;
@@ -89,7 +149,7 @@ export interface VramEstimate {
 // contextTokens: context length to estimate KV cache at.
 export function estimateVram(weightSizeGb: number, bucket: ArchBucket, contextTokens: number): VramEstimate {
   const weightBytes = weightSizeGb * GB;
-  const kvBytes = 2 * bucket.layers * bucket.kvHeads * bucket.headDim * contextTokens * 2;
+  const kvBytes = kvBytesFor(bucket, contextTokens);
   const overheadBytes = (weightBytes + kvBytes) * 0.1;
   const totalBytes = weightBytes + kvBytes + overheadBytes;
 
