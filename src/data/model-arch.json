@@ -1,0 +1,38 @@
+{
+  "unsloth-qwen3-coder-30b-a3b-instruct-gguf": {
+    "label": "Qwen3-Coder-30B-A3B published config",
+    "maxContext": 262144,
+    "kvGroups": [{ "layers": 48, "kvHeads": 4, "headDim": 128 }],
+    "note": "30.5B-parameter MoE (3.3B active). All experts stay resident, so weights are the full GGUF file size; only attention layers hold KV cache."
+  },
+  "unsloth-qwen3-6-27b-gguf": {
+    "label": "Qwen3.6-27B published config",
+    "maxContext": 262144,
+    "kvGroups": [{ "layers": 16, "kvHeads": 4, "headDim": 256 }],
+    "note": "Hybrid model: only the 16 full-attention layers (of 64) grow a KV cache. The Gated DeltaNet layers keep a small fixed-size state that this estimate does not include."
+  },
+  "unsloth-devstral-small-2507-gguf": {
+    "label": "Devstral Small 2507 published config",
+    "maxContext": 131072,
+    "kvGroups": [{ "layers": 40, "kvHeads": 8, "headDim": 128 }],
+    "note": "Dense 24B model with standard grouped-query attention."
+  },
+  "unsloth-gpt-oss-20b-gguf": {
+    "label": "gpt-oss-20b published config",
+    "maxContext": 131072,
+    "kvGroups": [
+      { "layers": 12, "kvHeads": 8, "headDim": 64, "window": 128 },
+      { "layers": 12, "kvHeads": 8, "headDim": 64 }
+    ],
+    "note": "21B-parameter MoE (3.6B active). Half the layers use a 128-token sliding window, so their KV cache stops growing past 128 tokens."
+  },
+  "bartowski-google-gemma-4-26b-a4b-it-gguf": {
+    "label": "Gemma 4 26B-A4B published config",
+    "maxContext": 262144,
+    "kvGroups": [
+      { "layers": 25, "kvHeads": 8, "headDim": 256, "window": 1024 },
+      { "layers": 5, "kvHeads": 2, "headDim": 512 }
+    ],
+    "note": "25.2B-parameter MoE (~3.8B active). 25 sliding-window layers (1024 tokens) plus 5 global layers. Global layers may share K and V; this estimate stores both, so it errs high."
+  }
+}
