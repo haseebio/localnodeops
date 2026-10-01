@@ -1,6 +1,8 @@
 ---
 title: VRAM Calculation Methodology
 description: Mathematical formulas and system overhead models used by LocalNodeOps for local LLM hardware profiling.
+sidebarPosition: 1
+version: "1.0"
 ---
 
 LocalNodeOps predicts GPU memory consumption for Large Language Models prior to downloading or running inference.
