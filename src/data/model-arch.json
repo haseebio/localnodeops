@@ -34,5 +34,11 @@
       { "layers": 5, "kvHeads": 2, "headDim": 512 }
     ],
     "note": "25.2B-parameter MoE (~3.8B active). 25 sliding-window layers (1024 tokens) plus 5 global layers. Global layers may share K and V; this estimate stores both, so it errs high."
+  },
+  "unsloth-glm-4-7-flash-gguf": {
+    "label": "GLM-4.7-Flash published config",
+    "maxContext": 202752,
+    "kvGroups": [{ "layers": 47, "kvHeads": 20, "headDim": 256 }],
+    "note": "30B-parameter MoE (~3B active). True multi-head attention, not grouped — kvHeads equals the full attention-head count, so its KV cache is unusually heavy per token for a MoE model this size."
   }
 }

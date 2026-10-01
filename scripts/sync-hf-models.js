@@ -14,14 +14,24 @@ const REPOS = [
   'bartowski/DeepSeek-R1-Distill-Llama-8B-GGUF',
   'bartowski/DeepSeek-R1-Distill-Qwen-14B-GGUF',
   'bartowski/DeepSeek-R1-Distill-Qwen-32B-GGUF',
-  // Dense-only additions. Gemma 4's other public variants (E2B/E4B edge
-  // models, 26B-A4B) and most Qwen 3.5 variants (397B-A17B, 122B-A10B,
-  // 35B-A3B) are MoE — deliberately excluded, since their "A4B"/"A17B"-
-  // style active-parameter naming doesn't match this script's MoE name
-  // filter (mixtral/\d+x\d+b) and would risk silently force-matching to
-  // a dense reference bucket. Only confirmed-dense repos are added here.
   'bartowski/google_gemma-4-31B-it-GGUF',
   'bartowski/Qwen3.8-27B-GGUF',
+  // MoE/hybrid-attention repos. These used to be excluded here (see git
+  // history) because this script has no way to express a non-dense KV
+  // cache shape, and force-matching one to the nearest dense bucket in
+  // MODEL_SIZES would silently produce a wrong number. That's fixed now:
+  // src/data/model-arch.json holds a real published kvGroups override
+  // for each slug below, read via getModelArch() in vram-math.ts. If
+  // you add another MoE/sliding-window repo here, add its model-arch.json
+  // entry first — verified against the model's actual published config,
+  // not estimated — or its weights will sync correctly but its total
+  // VRAM estimate will silently fall back to "no estimate".
+  'unsloth/Qwen3-Coder-30B-A3B-Instruct-GGUF',
+  'unsloth/Qwen3.6-27B-GGUF',
+  'unsloth/Devstral-Small-2507-GGUF',
+  'unsloth/gpt-oss-20b-GGUF',
+  'bartowski/google_gemma-4-26B-A4B-it-GGUF',
+  'unsloth/GLM-4.7-Flash-GGUF',
 ];
 
 const OUTPUT_DIR = new URL('../src/content/models/', import.meta.url);
