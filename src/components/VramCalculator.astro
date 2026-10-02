@@ -599,7 +599,11 @@ const SYSTEM_RAM_OPTIONS = [8, 16, 32, 64, 128, 256];
 
     function updateSourceVisibility() {
       const isGeneric = sourceSelect.value === 'generic';
-      genericSizeRow.classList.toggle('hidden', !isGeneric);
+           // genericSizeRow also wraps the quantization, context and engine
+      // controls (its closing tag is missing in the markup, and closing
+      // it would change the page layout), so hide only its own first
+      // three children: label, slider, tick labels.
+      Array.from(genericSizeRow.children).slice(0, 3).forEach((el) => el.classList.toggle('hidden', !isGeneric));
       genericQuantRow.classList.toggle('hidden', !isGeneric);
       modelQuantRow.classList.toggle('hidden', isGeneric);
 
