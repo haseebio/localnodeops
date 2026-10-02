@@ -32,6 +32,8 @@ const preselectedIndex = preselectedModel
   : -1;
 
 const GPU_QUANTITIES = [1, 2, 3, 4, 5, 6, 7, 8];
+const GPU_VRAM_OPTIONS = [6, 8, 12, 16, 24, 32, 48];
+const SYSTEM_RAM_OPTIONS = [8, 16, 32, 64, 128, 256];
 ---
 
 <div class="border border-border rounded-md bg-surface p-md" id="vram-calculator" data-amazon-tag={AMAZON_AFFILIATE_TAG}>
@@ -121,6 +123,21 @@ const GPU_QUANTITIES = [1, 2, 3, 4, 5, 6, 7, 8];
         </div>
         <p class="text-body-md text-secondary mt-xs hidden" id="context-note"></p>
       </div>
+
+      <fieldset class="border-0 p-0 m-0">
+        <legend class="text-body-md text-primary mb-xs p-0">Inference engine</legend>
+        <div class="flex gap-md">
+          <label class="flex items-center gap-xs text-body-lg text-primary cursor-pointer">
+            <input type="radio" name="engine" id="engine-llamacpp" value="llamacpp" checked />
+            llama.cpp
+          </label>
+          <label class="flex items-center gap-xs text-body-lg text-primary cursor-pointer">
+            <input type="radio" name="engine" id="engine-vllm" value="vllm" />
+            vLLM
+          </label>
+        </div>
+        <p class="text-body-md text-secondary mt-xs" id="engine-note"></p>
+      </fieldset>
     </div>
 
     <!--
@@ -144,7 +161,11 @@ const GPU_QUANTITIES = [1, 2, 3, 4, 5, 6, 7, 8];
 
           <dt class="text-primary font-bold border-t border-border pt-xs mt-xs">Total VRAM</dt>
           <dd class="text-accent-primary font-mono text-right font-bold border-t border-border pt-xs mt-xs" id="out-total">—</dd>
+
+          <dt class="text-secondary hidden" id="out-required-label">GPU VRAM needed (total ÷ 0.90)</dt>
+          <dd class="text-primary font-mono text-right hidden" id="out-required">—</dd>
         </dl>
+        <div id="fit-status" class="mt-sm text-body-md hidden" role="status"></div>
         <button
           type="button"
           id="open-hardware-modal"
@@ -209,6 +230,38 @@ const GPU_QUANTITIES = [1, 2, 3, 4, 5, 6, 7, 8];
       </p>
     </div>
 
+    <div class="mt-sm grid grid-cols-1 sm:grid-cols-2 gap-md">
+      <div>
+        <label for="gpu-vram" class="text-body-md text-primary block mb-xs">
+          VRAM per card
+        </label>
+        <select
+          id="gpu-vram"
+          class="w-full min-h-touch-min rounded-md border border-border bg-surface text-primary text-body-lg px-sm font-mono"
+        >
+          <option value="" selected>Not set</option>
+          {GPU_VRAM_OPTIONS.map((n) => (
+            <option value={String(n)}>{n} GB</option>
+          ))}
+        </select>
+      </div>
+      <div>
+        <label for="system-ram" class="text-body-md text-primary block mb-xs">
+          System RAM
+        </label>
+        <select
+          id="system-ram"
+          class="w-full min-h-touch-min rounded-md border border-border bg-surface text-primary text-body-lg px-sm font-mono"
+        >
+          <option value="" selected>Not set</option>
+          {SYSTEM_RAM_OPTIONS.map((n) => (
+            <option value={String(n)}>{n} GB</option>
+          ))}
+        </select>
+      </div>
+    </div>
+    <div id="fit-status-modal" class="mt-sm text-body-md hidden" role="status"></div>
+
     <div class="mt-sm">
       <p class="text-body-md text-primary mb-xs">Fits on:</p>
       <ul class="flex flex-col gap-[0.125rem]" id="out-profiles"></ul>
@@ -249,8 +302,14 @@ const GPU_QUANTITIES = [1, 2, 3, 4, 5, 6, 7, 8];
     model; otherwise no total is shown. Batch size is fixed at 1 in both
     modes. <strong class="text-primary">Multiple GPUs:</strong> pooled
     VRAM is the number of cards times the VRAM per card, compared against
-    the same total (weights + KV cache + 10% overhead). Treat all figures
-    here as a starting estimate, not a guarantee. Full formula and known
+    the same total (weights + KV cache + 10% overhead). <strong class="text-primary">Engines:</strong>
+    llama.cpp reserves the KV cache for the full context when the model
+    loads. vLLM reserves 90% of VRAM by default (so the GPU needs the
+    total divided by 0.90) and allocates KV in 16-token blocks; its
+    overhead reuses the same 10% estimate, and it usually serves
+    safetensors rather than GGUF. <strong class="text-primary">Fit status:</strong>
+    offload assumes about 4 GB of system RAM stays with the operating
+    system. Treat all figures here as a starting estimate, not a guarantee. Full formula and known
     limitations: <a href="/methodology" class="text-accent-primary hover:underline">/methodology</a>.
   </p>
 </div>
@@ -299,6 +358,40 @@ const GPU_QUANTITIES = [1, 2, 3, 4, 5, 6, 7, 8];
     const GB = 1024 ** 3;
     const MAX_LOG_ENTRIES = 8;
 
+    // Mirror of src/lib/engine-math.ts — keep in sync.
+    const VLLM_BLOCK_TOKENS = 16;
+    const VLLM_GPU_UTILIZATION = 0.9;
+    const OVERHEAD_FRACTION = 0.1;
+    // Fit status: system RAM left for the OS when estimating CPU offload.
+    const OS_RESERVED_RAM_GB = 4;
+
+    const ENGINE_NOTES = {
+      llamacpp:
+        'llama.cpp reserves the KV cache for the full context when the model loads, so out-of-memory errors show up at startup. Extra server slots share the same context and add no memory.',
+      vllm:
+        'vLLM reserves 90% of VRAM by default and allocates KV in 16-token blocks, so your GPU needs the total divided by 0.90. Overhead reuses the 10% estimate. vLLM usually serves safetensors (AWQ, GPTQ, FP8), not GGUF, so weight size is a GGUF-based estimate.',
+    };
+
+    function engineEstimate(weightBytes, arch, context, engine) {
+      let kvBytes;
+      let gpuMultiplier = 1;
+      if (engine === 'vllm') {
+        const rounded = Math.ceil(context / VLLM_BLOCK_TOKENS) * VLLM_BLOCK_TOKENS;
+        kvBytes = kvBytesFor(arch, rounded);
+        gpuMultiplier = 1 / VLLM_GPU_UTILIZATION;
+      } else {
+        kvBytes = kvBytesFor(arch, context);
+      }
+      const overheadBytes = (weightBytes + kvBytes) * OVERHEAD_FRACTION;
+      const totalBytes = weightBytes + kvBytes + overheadBytes;
+      return {
+        kvBytes: kvBytes,
+        overheadBytes: overheadBytes,
+        totalBytes: totalBytes,
+        requiredGpuBytes: totalBytes * gpuMultiplier,
+      };
+    }
+
     const root = document.getElementById('vram-calculator');
     // Affiliate tag comes from src/lib/affiliate.ts via a data attribute,
     // so it is never hardcoded in this script.
@@ -327,6 +420,16 @@ const GPU_QUANTITIES = [1, 2, 3, 4, 5, 6, 7, 8];
     const quantSelect = document.getElementById('quant');
     const gpuQtySelect = document.getElementById('gpu-qty');
     const gpuQtyNote = document.getElementById('gpu-qty-note');
+    const gpuVramSelect = document.getElementById('gpu-vram');
+    const systemRamSelect = document.getElementById('system-ram');
+    const engineNote = document.getElementById('engine-note');
+    const engineRadios = document.querySelectorAll('input[name="engine"]');
+    const outRequiredLabel = document.getElementById('out-required-label');
+    const outRequired = document.getElementById('out-required');
+    const fitStatusEls = [
+      document.getElementById('fit-status'),
+      document.getElementById('fit-status-modal'),
+    ];
 
     const outWeights = document.getElementById('out-weights');
     const outKv = document.getElementById('out-kv');
@@ -337,6 +440,84 @@ const GPU_QUANTITIES = [1, 2, 3, 4, 5, 6, 7, 8];
     const changeLog = document.getElementById('change-log');
     const changeLogEmpty = document.getElementById('change-log-empty');
     const logEntries = [];
+
+    function currentEngine() {
+      const checked = document.querySelector('input[name="engine"]:checked');
+      return checked ? checked.value : 'llamacpp';
+    }
+
+    // Three-tier fit status. Returns null until a GPU VRAM size is chosen.
+    function computeFitStatus(totalGb, requiredGpuGb, engine, qty) {
+      const vramPerCard = Number(gpuVramSelect.value);
+      if (!vramPerCard) return null;
+      const pooledGb = vramPerCard * qty;
+      const ramGb = Number(systemRamSelect.value);
+
+      if (requiredGpuGb <= pooledGb) {
+        return {
+          tier: 'full',
+          title: 'Full GPU fit',
+          text:
+            'Weights and KV cache fit entirely in your ' + pooledGb + ' GB of VRAM' +
+            (engine === 'vllm' ? ' (after the 90% vLLM reservation).' : '.'),
+        };
+      }
+
+      if (!ramGb) {
+        return {
+          tier: 'unknown',
+          title: 'Does not fit in GPU VRAM',
+          text: 'Set your system RAM to check whether CPU offload could work.',
+        };
+      }
+
+      const gpuUsableGb = engine === 'vllm' ? pooledGb * VLLM_GPU_UTILIZATION : pooledGb;
+      const usableRamGb = Math.max(0, ramGb - OS_RESERVED_RAM_GB);
+      if (totalGb <= gpuUsableGb + usableRamGb) {
+        return {
+          tier: 'offload',
+          title: 'Offload required',
+          text:
+            'Needs about ' + totalGb.toFixed(1) + ' GB, more than your GPU can hold. Part of the model would run from system RAM, which reduces token generation speed.' +
+            (engine === 'vllm' ? ' llama.cpp is usually the better engine for partial CPU offload.' : ''),
+        };
+      }
+
+      return {
+        tier: 'oom',
+        title: 'Out of memory',
+        text:
+          'Needs about ' + totalGb.toFixed(1) + ' GB, more than your GPU VRAM plus usable system RAM (' +
+          (gpuUsableGb + usableRamGb).toFixed(1) + ' GB). Use a smaller quantization, shorten the context, or add memory.',
+      };
+    }
+
+    function renderFitStatus(status) {
+      const styles = {
+        full: 'border-accent-tertiary text-accent-tertiary',
+        offload: 'border-accent-secondary text-accent-secondary',
+        oom: 'border-accent-error text-accent-error',
+        unknown: 'border-border text-secondary',
+      };
+      fitStatusEls.forEach(function (el) {
+        if (!el) return;
+        if (!status) {
+          el.classList.add('hidden');
+          el.innerHTML = '';
+          return;
+        }
+        el.className = 'mt-sm text-body-md rounded-md border p-sm ' + styles[status.tier];
+        el.innerHTML = '';
+        const title = document.createElement('p');
+        title.className = 'font-bold m-0';
+        title.textContent = status.title;
+        const text = document.createElement('p');
+        text.className = 'm-0 mt-xs';
+        text.textContent = status.text;
+        el.appendChild(title);
+        el.appendChild(text);
+      });
+    }
 
     function formatGb(bytes) {
       return (bytes / GB).toFixed(2) + ' GB';
@@ -441,6 +622,9 @@ const GPU_QUANTITIES = [1, 2, 3, 4, 5, 6, 7, 8];
       outKv.textContent = '—';
       outOverhead.textContent = '—';
       outTotal.textContent = '—';
+      outRequiredLabel.classList.add('hidden');
+      outRequired.classList.add('hidden');
+      renderFitStatus(null);
       outProfiles.innerHTML = '';
       const li = document.createElement('li');
       li.className = 'text-body-md text-secondary';
@@ -496,21 +680,31 @@ const GPU_QUANTITIES = [1, 2, 3, 4, 5, 6, 7, 8];
         return;
       }
 
-      const kvBytes = kvBytesFor(arch, context);
-      const overheadBytes = (weightBytes + kvBytes) * 0.1;
-      const totalBytes = weightBytes + kvBytes + overheadBytes;
+      const engine = currentEngine();
+      engineNote.textContent = ENGINE_NOTES[engine];
+      const est = engineEstimate(weightBytes, arch, context, engine);
 
       outWeights.textContent = formatGb(weightBytes);
-      outKv.textContent = formatGb(kvBytes);
-      outOverhead.textContent = formatGb(overheadBytes);
-      outTotal.textContent = formatGb(totalBytes);
+      outKv.textContent = formatGb(est.kvBytes);
+      outOverhead.textContent = formatGb(est.overheadBytes);
+      outTotal.textContent = formatGb(est.totalBytes);
 
-      const totalGb = totalBytes / GB;
+      const isVllm = engine === 'vllm';
+      outRequiredLabel.classList.toggle('hidden', !isVllm);
+      outRequired.classList.toggle('hidden', !isVllm);
+      outRequired.textContent = formatGb(est.requiredGpuBytes);
+
+      const totalGb = est.totalBytes / GB;
+      // What the GPU itself must provide: higher than the total for vLLM
+      // because of its 0.90 utilization ceiling.
+      const neededGb = est.requiredGpuBytes / GB;
+
+      renderFitStatus(computeFitStatus(totalGb, neededGb, engine, qty));
 
       outProfiles.innerHTML = '';
       PROFILES.forEach((profile) => {
         const pooledGb = profile.vramGb * qty;
-        const fits = totalGb <= pooledGb;
+        const fits = neededGb <= pooledGb;
         const li = document.createElement('li');
         li.className =
           'flex items-center gap-xs text-body-md ' +
@@ -522,7 +716,7 @@ const GPU_QUANTITIES = [1, 2, 3, 4, 5, 6, 7, 8];
         outProfiles.appendChild(li);
       });
 
-      const bestFit = PROFILES.find((p) => totalGb <= p.vramGb * qty) || null;
+      const bestFit = PROFILES.find((p) => neededGb <= p.vramGb * qty) || null;
       setCtaVisibility(!bestFit, !!bestFit);
 
       if (bestFit) {
@@ -624,6 +818,16 @@ const GPU_QUANTITIES = [1, 2, 3, 4, 5, 6, 7, 8];
       compute();
       logChange('GPUs → ' + gpuQtySelect.value + '×');
     });
+
+    engineRadios.forEach((radio) => {
+      radio.addEventListener('change', () => {
+        compute();
+        logChange('Engine → ' + (currentEngine() === 'vllm' ? 'vLLM' : 'llama.cpp'));
+      });
+    });
+
+    gpuVramSelect.addEventListener('change', compute);
+    systemRamSelect.addEventListener('change', compute);
 
     // Dialog wiring. Escape-to-close and focus trapping are handled
     // natively by showModal() — nothing to write for those. Backdrop
