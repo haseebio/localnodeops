@@ -36,9 +36,9 @@ What the table shows:
 
 Two models with the same file size can need very different GPUs. Always check the model's own calculator page before you download it.
 
-## Long Context Is Where Most OOM Errors Start
+## Context Length Sets Your Memory Bill at Startup
 
-Weights stay fixed, so a model that loads fine can still crash once the conversation grows. Two ways to buy back memory:
+Both llama.cpp and vLLM reserve KV cache memory for your full context window when the model loads. llama.cpp allocates the whole cache for the context you set. vLLM sizes a block pool from a fixed share of VRAM (90% by default). So an out-of-memory error shows up at startup, not halfway through a chat. Two ways to buy back memory:
 
 * **Lower the context window.** This is free and works first.
 * **Quantize the KV cache to 8-bit.** This roughly halves the KV part of the total, with some quality cost. It cannot rescue a model whose weights alone exceed your VRAM.

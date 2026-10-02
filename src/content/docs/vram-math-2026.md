@@ -27,7 +27,7 @@ Every token in the conversation is stored in the KV cache. It grows in a straigh
 
 ### 3. The 10% Overhead
 
-Add 10% of (weights + KV cache). Skipping it is a common reason a model loads fine and then crashes mid-chat.
+Add 10% of (weights + KV cache). Skipping it is a common reason a model that fits on paper still fails to start.
 
 ## Worked Example: 32B Model on a 24GB GPU
 

@@ -33,7 +33,7 @@ All numbers below use the `Q4_K_M` (4-bit) GGUF file and an 8K context window.
 
 ## The Hardware Reality (Do The Math)
 
-The fastest way to ruin a local setup is a CUDA out-of-memory (OOM) error in the middle of a response. LocalNodeOps uses one formula:
+The fastest way to ruin a local setup is a CUDA out-of-memory (OOM) error because you guessed your hardware limits. Both llama.cpp and vLLM reserve the KV cache for your full context window when the model loads, so a model that does not fit fails at startup, not halfway through a chat. LocalNodeOps uses one formula:
 
 **Total VRAM = Weights + KV Cache + 10% Overhead**
 
