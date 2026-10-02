@@ -1,35 +1,52 @@
 ---
-title: "Late September 2026 Trends: Hybrid Agentic SDKs and Extreme Quantization"
-excerpt: "From Google's new offline Antigravity SDK to 1.7-bit ternary models, here is what is dominating the local LLM space this week."
-category: "News"
+title: "Local LLM Trends: MoE Models and the KV Cache Problem"
+excerpt: "Why KV cache size, not parameter count, decides which new MoE models fit a 16GB or 24GB GPU. Real GGUF sizes and the math behind each result."
+category: "Analysis"
 pubDate: 2026-09-27
 author: "Haseeb"
-tags: ["Google Antigravity", "Gemma 4", "Quantization", "Qwen3", "Ollama"]
-readingTime: 5
+tags: ["MoE", "KV cache", "VRAM", "Quantization", "Qwen3"]
+readingTime: 4
 ---
 
-The last week of September 2026 has brought some of the most significant architectural shifts we have seen in the local AI space. The focus has rapidly moved from simply running smaller models to building hybrid cloud-local pipelines and utilizing extreme compression techniques to squeeze massive intelligence into tiny VRAM footprints.
+Many of the strongest open-weight models you can run at home are now mixture-of-experts (MoE) models. They advertise small "active" parameter counts, but that number does not tell you how much VRAM you need. This post shows what actually decides whether a model fits your GPU.
 
-Here are the biggest trending developments in local LLMs this week and what they mean for your home server hardware.
+## Active Parameters Do Not Shrink Your VRAM Bill
 
-## 1. Google's Antigravity SDK Goes Local
+An MoE model only uses a few experts per token, but every expert must stay loaded in memory. The weights you need in VRAM are the full file size. Speed improves, memory does not.
 
-On September 23, Google made a massive push into the local ecosystem by adding offline support to their Antigravity SDK. Developers can now run agentic workflows completely offline, natively featuring the Gemma 4 26B model utilizing Google AI Edge's LiteRT. 
+The part that varies is the KV cache, the memory that stores your conversation. It depends on the model's attention design, not on its parameter count.
 
-What makes this a game-changer is the official endorsement of **hybrid workflows**. Google demonstrated a pipeline where a powerful cloud model (Gemini 3.8 Flash) acts as a high-level planner, while a local "swarm" of Gemma 4 26B models does the heavy lifting of executing code, auditing, and bug fixing entirely on-device. In their benchmark run, 97.2% of the tokens were processed locally, keeping proprietary code secure and cutting API costs drastically. 
+## Same Size Class, Very Different Memory Cost
 
-## 2. The Rise of Extreme Quantization
+Numbers below use the real Q4_K_M file from the LocalNodeOps database and the standard formula: total = weights + KV cache + 10% overhead. These are **mathematical estimates**, not benchmarks.
 
-If you have been battling CUDA OOM errors, this week brought major relief from the open-weights community:
+| Model | Q4_K_M file | KV cache at 8K | Total at 8K | KV cache at 32K | Total at 32K |
+| :--- | :--- | :--- | :--- | :--- | :--- |
+| gpt-oss 20b | 10.83 GB | 0.19 GB | ~12.1 GB | 0.75 GB | ~12.7 GB |
+| Gemma 4 26B A4B | 15.87 GB | 0.35 GB | ~17.8 GB | 0.82 GB | ~18.4 GB |
+| Qwen3-Coder 30B | 17.28 GB | 0.75 GB | ~19.8 GB | 3.00 GB | ~22.3 GB |
+| GLM-4.7-Flash | 17.05 GB | 7.34 GB | ~26.8 GB | 29.38 GB | ~51.1 GB |
+| R1-Distill-Qwen-32B (dense) | 18.49 GB | 2.00 GB | ~22.5 GB | 8.00 GB | ~29.1 GB |
 
-*   **Ternary Compression (Bonsai 2 27B):** Prism ML released Bonsai 2, a reasoning model built on Qwen3.8-27B. Using ternary compression, they crushed the model down to 1.76 bits per weight, making it just 5.9 GB while retaining 98.2% of its full-precision benchmark intelligence.
-*   **Engine-Level KV Compression:** Local application runners are getting smarter. Atomic Chat's new TurboQuant engine just introduced 3-bit quantization combined with KV-cache compression. This update theoretically enables running 70B parameter models on cards with as little as 6GB of VRAM. 
+What the table shows:
 
-## 3. Qwen3 and DeepSeek Dominate the Leaderboards
+* **gpt-oss 20b and Gemma 4 26B A4B** use sliding-window attention in most layers, so their KV cache grows slowly. Both stay small even at 32K context.
+* **Qwen3-Coder 30B** has a normal, grouped KV cache. It fits a 24GB card at 32K, but only just.
+* **GLM-4.7-Flash** is the warning case. It has about the same file size as Qwen3-Coder, but it uses full multi-head attention, so its KV cache is ten times larger. At 8K context it already needs more than a 24GB card.
 
-When choosing a model to plug into Ollama (which, by the way, just added auto-detection for AMD ROCm GPUs), the community consensus has firmly crystallized:
+Two models with the same file size can need very different GPUs. Always check the model's own calculator page before you download it.
 
-*   **For Coding and Multilingual:** The Qwen3 family remains the undisputed champion. It is heavily recommended for multi-language environments and complex agent code tasks.
-*   **For Logic and Math:** DeepSeek's R1 Distill 32B is dominating reasoning benchmarks, scoring an incredible 72.6% on AIME compared to OpenAI's o1-mini at 63.6%.
+## Long Context Is Where Most OOM Errors Start
 
-*(If you are setting up your own local ecosystem this weekend, check out our **[LocalNodeOps Pro Docker Stack](/docs)** to get Ollama, Qdrant, and Grafana VRAM monitoring running instantly, or grab some cheap cloud GPUs via **[RunPod](/calculator?ref=localnodeops)**).*
+Weights stay fixed, so a model that loads fine can still crash once the conversation grows. Two ways to buy back memory:
+
+* **Lower the context window.** This is free and works first.
+* **Quantize the KV cache to 8-bit.** This roughly halves the KV part of the total, with some quality cost. It cannot rescue a model whose weights alone exceed your VRAM.
+
+## A Benchmark Baseline, Not Breaking News
+
+DeepSeek-R1-Distill-Qwen-32B was released in January 2025. DeepSeek reported 72.6% pass@1 on AIME 2024 for it. That figure is a useful baseline for judging newer reasoning models, but it is more than a year old, and benchmark setups differ between labs. Treat any comparison as indicative, not exact.
+
+## Check Your Own Hardware
+
+Open the [VRAM Calculator](/calculator) and pick your model, quantization and context length. If it does not fit, you can rent a GPU by the hour on [RunPod](https://www.runpod.io/?ref=localnodeops) or set up your own server with the [LocalNodeOps Docker Stack](/docker-stack).
