@@ -1,55 +1,65 @@
 ---
-title: "VRAM Math: Sizing Hardware for 2026 Local LLMs"
-description: "A definitive guide to calculating exact VRAM requirements for modern models like Qwen3, DeepSeek R1, and gpt-oss to avoid CUDA out-of-memory errors."
+title: "VRAM Math: Sizing Hardware for Local LLMs"
+description: "How LocalNodeOps estimates VRAM for local LLMs: weights, KV cache and 10% overhead, with a worked example for a 32B model on a 24GB GPU."
 sidebarPosition: 4
-version: "2.1.0"
+version: "2.2.0"
 ---
 
-With the late September 2026 release of models like **Qwen3-Coder**, **DeepSeek R1-Distill 32B**, and the open-weight **gpt-oss 20b**, local AI capabilities have surged. However, these new architectures make precise VRAM estimation more critical than ever. 
+Running out of VRAM (CUDA OOM) is the most common failure when running local models. This page shows the exact math LocalNodeOps uses, so you can check a model before you download it. The full formula reference is on the [methodology page](/methodology).
 
-Running out of VRAM (CUDA OOM) remains the most common error in local node operations. This documentation page explains exactly how localnodeops.com calculates VRAM requirements so you can provision your hardware correctly.
-
-## The LocalNodeOps VRAM Formula
-
-Never guess your hardware requirements. All of our internal calculators and benchmarks strictly enforce the following mathematical reality for VRAM allocation:
+## The Formula
 
 **Total VRAM = Weights + KV Cache + 10% Overhead**
 
-If you fail to account for the KV (Key-Value) cache or the CUDA/system overhead, your model will crash mid-generation when the context window fills up.
+The 10% is taken on top of weights plus KV cache combined. It covers the CUDA context and inference engine buffers (Ollama, llama.cpp).
 
-### 1. Weights (The Model Size)
-The weights represent the physical size of the model file loaded into memory. In 2026, the `Q4_K_M` (4-bit) quantization is the undisputed standard for balancing speed and intelligence. 
-* *Example:* A 32B parameter model (like DeepSeek R1-Distill) at 4-bit precision consumes roughly **19.2 GB** of VRAM just to load the weights into the GPU.
+### 1. Weights
 
-### 2. KV Cache (The Context Memory)
-Every token you send to the model and every token it generates must be stored in the KV Cache. Newer 2026 models support massive 128K+ context windows, which consume VRAM rapidly. For a standard 8K context on a 32B model, expect the KV Cache to consume about **1.5 GB**.
+Weights are the size of the model file loaded into memory. For GGUF models, use the real file size of the quantization you plan to download. The [calculator](/calculator) lists synced sizes for each model.
+
+* *Example:* DeepSeek-R1-Distill-Qwen-32B at Q4_K_M is an 18.49 GB file.
+### 2. KV Cache
+
+Every token in the conversation is stored in the KV cache. It grows in a straight line with context length.
+
+* *Example:* A dense 32B model with 64 layers, 8 KV heads and a head size of 128 uses 2.0 GB of KV cache at 8K context, 8.0 GB at 32K, and 16.0 GB at 64K (fp16 cache).
+* Models differ a lot here. Mixture-of-experts and sliding-window models can use far less KV cache than their size suggests, so always check the model's own calculator page.
 
 ### 3. The 10% Overhead
-CUDA contexts, system background processes, and inference engine memory buffers (like Ollama or llama.cpp) require breathing room. We strictly mandate calculating a 10% overhead on top of the combined Weights and KV Cache.
 
-## A Practical Example: Qwen3-Coder 4B
+Add 10% of (weights + KV cache). Skipping it is a common reason a model loads fine and then crashes mid-chat.
 
-Let's size a lightweight coding assistant for an older 4GB GPU:
-* **Weights (Q4_K_M):** ~2.5 GB
-* **KV Cache (8K Context):** ~0.4 GB
-* **Base Subtotal:** 2.9 GB
-* **10% Overhead:** ~0.29 GB
-* **Total Required VRAM:** 3.19 GB
+## Worked Example: 32B Model on a 24GB GPU
 
-This proves that Qwen3-Coder 4B will comfortably run on a standard 4GB VRAM GPU. 
+DeepSeek-R1-Distill-Qwen-32B at Q4_K_M, 8K context:
 
-## Sizing for the Heavyweights (24GB+ GPUs)
+* **Weights:** 18.49 GB
+* **KV cache (8K):** 2.00 GB
+* **Base subtotal:** 20.49 GB
+* **10% overhead:** 2.05 GB
+* **Total required:** about 22.5 GB
 
-If you are running the top-tier 2026 models like **gpt-oss 20b** or **DeepSeek R1 32B**, you are targeting the 24GB VRAM tier (e.g., RTX 3090 or RTX 4090). 
+That fits on a 24GB card (RTX 3090 or 4090) with roughly 1.5 GB to spare. Now raise the context:
 
-When sizing for these models, the math usually leaves you with around 1.5 GB of safety margin on a 24GB card. If you push the context window to 32K or 64K to ingest large codebases, the KV Cache will balloon, pushing the total past 24GB and triggering a CUDA OOM error. 
+| Context | KV cache | Total required | Fits 24GB? |
+| :--- | :--- | :--- | :--- |
+| 8K | 2.0 GB | ~22.5 GB | Yes, barely |
+| 32K | 8.0 GB | ~29.1 GB | No |
+| 64K | 16.0 GB | ~37.9 GB | No |
 
-### Infrastructure Next Steps
+Weights stay fixed. The KV cache is what pushes you into an OOM error when you raise the context window.
 
-If your current local hardware fails the math above, you have two options to run modern workloads:
-1. **Cloud Inference:** Spin up an ephemeral cloud GPU instance. We recommend RunPod for testing heavy 2026 models without buying new hardware. You can [spin up a RunPod instance here](https://www.runpod.io/?ref=localnodeops).
-2. **Hardware Upgrades:** If you are building a dedicated local node, check our hardware guides or browse single-card 24GB solutions on [Amazon](https://www.amazon.com/?tag=localnodeops-20). 
+## A Smaller Example: gpt-oss 20b
+
+gpt-oss 20b at Q4_K_M is a 10.83 GB file. It is a mixture-of-experts model with sliding-window attention, so its KV cache stays small: about 0.2 GB at 8K and 1.5 GB at 64K. The total is roughly 12.1 GB at 8K and 13.6 GB at 64K, so it fits a 16GB card with room to spare.
+
+## If Your Hardware Fails the Math
+
+1. **Cut the context window.** This is the fastest fix and costs nothing.
+2. **Use a smaller quantization.** A lower-bit file shrinks the weights.
+3. **Rent a cloud GPU.** For heavy models, you can [spin up a RunPod instance](https://www.runpod.io/?ref=localnodeops) by the hour instead of buying hardware.
+4. **Upgrade locally.** Browse [24GB graphics cards on Amazon](https://www.amazon.com/s?k=RTX+4090+24GB&tag=localnodeops-20).
 
 ***
 
-*(Note: The benchmarks and math formulas provided here are licensed under CC BY 4.0. This license is strictly scoped to benchmark/VRAM figures and explicitly excludes site code, branding, and our paid Docker Stack.)*
+*(The benchmarks and math formulas on this page are licensed under CC BY 4.0. The license covers benchmark and VRAM figures only. It excludes site code, branding, and the paid Docker Stack.)*
