@@ -4,7 +4,7 @@ import BaseLayout from '../../layouts/BaseLayout.astro';
 import VramCalculator from '../../components/VramCalculator.astro';
 import DockerStackCTA from '../../components/DockerStackCTA.astro';
 import FAQAccordion from '../../components/FAQAccordion.astro';
-import { parseParamsB, nearestBucket, estimateVram } from '../../lib/vram-math';
+import { parseParamsB, nearestBucket, estimateVram, getModelArch } from '../../lib/vram-math';
 
 export async function getStaticPaths() {
   const models = await getCollection('models');
@@ -18,7 +18,7 @@ const { entry } = Astro.props;
 const { title, last_synced, quantizations } = entry.data;
 
 const paramsB = parseParamsB(title);
-const bucket = nearestBucket(paramsB, title);
+const bucket = getModelArch(entry.slug) ?? nearestBucket(paramsB, title);
 const syncedDate = last_synced.slice(0, 10);
 const hasEstimate = bucket !== null;
 

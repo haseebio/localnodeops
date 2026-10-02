@@ -2,7 +2,7 @@
 import { getCollection } from 'astro:content';
 import BaseLayout from '../../layouts/BaseLayout.astro';
 import ArticleActions from '../../components/ArticleActions.astro';
-import { parseParamsB, nearestBucket, estimateVram } from '../../lib/vram-math';
+import { parseParamsB, nearestBucket, estimateVram, getModelArch } from '../../lib/vram-math';
 
 export async function getStaticPaths() {
   const entries = await getCollection('hardware');
@@ -58,7 +58,7 @@ if (vramGB != null) {
   fittingModels = allModels
     .map((m) => {
       const paramsB = parseParamsB(m.data.title);
-      const bucket = nearestBucket(paramsB, m.data.title);
+      const bucket = getModelArch(m.slug) ?? nearestBucket(paramsB, m.data.title);
       if (!bucket) return null;
 
       const usableQuants = m.data.quantizations.filter((q) => isUsableQuantType(q.type));
