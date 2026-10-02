@@ -1,6 +1,6 @@
 ---
-title: "The Best Local LLM Setup for Late 2026: My Daily Driver"
-excerpt: "A breakdown of the exact models, runners, and VRAM math I use for local inference right now."
+title: "Best Local LLMs for 16GB and 24GB GPUs in Late 2026"
+excerpt: "Three local models, which GPU each one fits, and the exact VRAM math behind it, using real GGUF file sizes."
 pubDate: 2026-09-30
 author: "LocalNodeOps"
 category: "Hardware"
@@ -8,39 +8,47 @@ tags: ["local-llm", "vram", "ollama", "hardware"]
 readingTime: 5
 ---
 
-The local AI space moved fast in September 2026. With the release of dense reasoning models that can actually fit on consumer hardware, running a local node is no longer just a party trick—it is a viable daily workflow.
-
-If you are just getting into self-hosting your AI, here is exactly what I run, why I run it, and the math required to keep it from crashing out of memory.
+Local AI is now a practical daily tool, not just a demo. The hard part is picking a model that actually fits your GPU. This post lists three strong options, shows which card each one needs, and gives the math so you can check it yourself.
 
 ## The Runner: Ollama vs. LM Studio
 
-You have two main choices for your inference engine:
+You have two main choices for running models:
 
-1. **Ollama:** This is my default recommendation. It runs as a headless background service, manages your models cleanly via the command line, and exposes a local API (port 11434) that mimics OpenAI. If you want to connect frontends like Open-WebUI or integrate AI into your code editor, Ollama is the standard.
-2. **LM Studio:** If you prefer a visual interface and hate the terminal, LM Studio is excellent. It lets you search the Hugging Face hub directly, download specific `.gguf` quantizations, and chat with them in a desktop app.
+1. **Ollama:** A headless background service. You manage models from the command line, and it exposes a local API (port 11434) that is compatible with the OpenAI format. It works well with frontends like Open-WebUI and with code editors.
+2. **LM Studio:** A desktop app with a visual interface. You can search the Hugging Face hub, download a specific `.gguf` quantization, and chat with it. A good fit if you prefer to avoid the terminal.
 
-## The Models (Late 2026 Tier List)
+## Three Models and the GPU They Need
 
-You cannot run a 70B parameter model on a laptop. If you have a standard 16GB or 24GB VRAM GPU setup, these are the three most capable models right now using a standard `Q4_K_M` (4-bit) quantization:
+All numbers below use the `Q4_K_M` (4-bit) GGUF file and an 8K context window.
 
-* **Qwen3-Coder 30B:** The absolute best coding model you can run at home. It handles deep context well and follows complex system prompts without hallucinating phantom imports.
-* **Devstral 24B:** A highly efficient dense reasoning model. If Qwen feels too heavy for your system, this is the immediate fallback.
-* **gpt-oss 20b:** OpenAI's open-weight release. It is extremely fast, highly coherent for conversational tasks, and runs easily on 16GB of VRAM.
+| Model | Type | Q4_K_M file | Total VRAM needed | Fits 16GB? | Fits 24GB? |
+| :--- | :--- | :--- | :--- | :--- | :--- |
+| gpt-oss 20b | Mixture of experts | 10.83 GB | ~12.1 GB | Yes | Yes |
+| Devstral 24B | Dense | 13.35 GB | ~16.1 GB | No (just over) | Yes |
+| Qwen3-Coder 30B | Mixture of experts | 17.28 GB | ~19.8 GB | No | Yes |
+
+* **gpt-oss 20b:** OpenAI's open-weight model. It is the easiest to run, and it leaves room for long context on a 16GB card.
+* **Devstral 24B:** A dense model built for coding. It needs a 24GB card at 8K context.
+* **Qwen3-Coder 30B:** The largest of the three. It is a mixture-of-experts model, so all of its weights must sit in VRAM even though only a part is active per token. The file alone is bigger than a 16GB card.
 
 ## The Hardware Reality (Do The Math)
 
-The fastest way to ruin your local setup is hitting a CUDA Out-Of-Memory (OOM) error mid-generation because you guessed your hardware limits. 
+The fastest way to ruin a local setup is a CUDA out-of-memory (OOM) error in the middle of a response. LocalNodeOps uses one formula:
 
-At localnodeops.com, we enforce a strict baseline formula for local infrastructure: 
-**Total VRAM = Weights + KV Cache + 10% System Overhead**
+**Total VRAM = Weights + KV Cache + 10% Overhead**
 
-For example, if you want to run `Qwen3-Coder 30B` at Q4_K_M:
-* **Weights:** ~16.87 GB
-* **KV Cache (8K context):** ~1.5 GB
-* **Base Total:** 18.37 GB
-* **10% Overhead:** ~1.83 GB
-* **Total Required:** ~20.2 GB
+The 10% is taken on top of weights plus KV cache. Here is the full example for `Qwen3-Coder 30B` at Q4_K_M with 8K context:
 
-That model demands a 24GB card (like an RTX 3090 or 4090). It will strictly not fit on a 16GB card unless you heavily quantize the KV cache to FP8, which impacts reasoning quality.
+* **Weights:** 17.28 GB
+* **KV cache (8K context):** ~0.75 GB
+* **Base total:** ~18.03 GB
+* **10% overhead:** ~1.80 GB
+* **Total required:** ~19.8 GB
 
-If you are unsure whether a model will fit your specific machine, drop the specs into our [VRAM Calculator](/hardware). It runs this exact math against the real `.gguf` file sizes synced from Hugging Face.
+That fits a 24GB card (RTX 3090 or 4090) with a few GB to spare. It does not fit a 16GB card at all, because the weights alone are larger than 16 GB. Compressing the KV cache cannot fix that, since the cache is only about 0.75 GB here.
+
+Your numbers will go up if you raise the context window. See [how the formula works](/methodology) for the details.
+
+## Check Your Own Setup
+
+To see whether a specific model fits your GPU, use the [VRAM Calculator](/calculator). It runs this math against the real `.gguf` file sizes synced from Hugging Face.
