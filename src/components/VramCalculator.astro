@@ -333,25 +333,45 @@ const SYSTEM_RAM_OPTIONS = [8, 16, 32, 64, 128, 256];
     const CONTEXT_LENGTHS = [2048, 4096, 8192, 16384, 32768, 65536, 131072, 262144];
 
     // Every profile here is a single card someone can buy. The number-of-
-    // GPUs dropdown multiplies them. amazonQuery is what the Amazon CTA
-    // searches for. runpodEquivalent is the closest REAL RunPod catalog
-    // card at equal-or-greater VRAM (confirmed against RunPod's own
-    // published GPU list — RunPod does not offer the RTX 3060 or RTX
-    // 4060 Ti at all) with an hourly rate checked August 2026 —
-    // Community Cloud, on-demand. Rates drift; the UI labels this
-    // "approximate" rather than presenting it as a locked-in price.
+    // GPUs dropdown multiplies them. group is the heading shown above it
+    // in the "Fits on" list, so profiles of one group must sit together.
+    // amazonQuery is what the Amazon CTA searches for. runpodEquivalent
+    // is optional: the closest REAL RunPod catalog card at equal-or-
+    // greater VRAM, with a rate checked against RunPod's own pricing page
+    // (RunPod does not offer the RTX 3060 or RTX 4060 Ti at all). Cards
+    // with no verified RunPod rate omit it and the UI hides that line.
+    // vllmNote is shown next to the card only when vLLM is selected. The
+    // CTA picks the first profile in this order that fits, so keep each
+    // group sorted by VRAM, NVIDIA first.
     const PROFILES = [
       {
+        group: 'Consumer NVIDIA',
         label: 'RTX 3060 12GB', vramGb: 12, amazonQuery: 'RTX 3060 12GB',
         runpodEquivalent: { name: 'RTX 3080 Ti', hourlyRate: 0.18 },
       },
       {
+        group: 'Consumer NVIDIA',
         label: 'RTX 4060 Ti 16GB', vramGb: 16, amazonQuery: 'RTX 4060 Ti 16GB',
         runpodEquivalent: { name: 'RTX 4080 SUPER', hourlyRate: 0.28 },
       },
       {
+        group: 'Consumer NVIDIA',
         label: 'RTX 3090 / 4090 24GB', vramGb: 24, amazonQuery: 'RTX 4090 24GB',
         runpodEquivalent: { name: 'RTX 4090', hourlyRate: 0.34 },
+      },
+      {
+        group: 'Consumer NVIDIA',
+        label: 'RTX 5090 32GB', vramGb: 32, amazonQuery: 'RTX 5090 32GB',
+      },
+      {
+        group: 'Consumer AMD & Intel',
+        label: 'Intel Arc A770 16GB', vramGb: 16, amazonQuery: 'Intel Arc A770 16GB',
+        vllmNote: 'Intel support is basic and has no prebuilt wheels',
+      },
+      {
+        group: 'Consumer AMD & Intel',
+        label: 'AMD RX 7900 XTX 24GB', vramGb: 24, amazonQuery: 'RX 7900 XTX 24GB',
+        vllmNote: 'needs ROCm 6.3 or newer',
       },
     ];
 
@@ -599,7 +619,7 @@ const SYSTEM_RAM_OPTIONS = [8, 16, 32, 64, 128, 256];
 
     function updateSourceVisibility() {
       const isGeneric = sourceSelect.value === 'generic';
-           // genericSizeRow also wraps the quantization, context and engine
+      // genericSizeRow also wraps the quantization, context and engine
       // controls (its closing tag is missing in the markup, and closing
       // it would change the page layout), so hide only its own first
       // three children: label, slider, tick labels.
@@ -706,17 +726,31 @@ const SYSTEM_RAM_OPTIONS = [8, 16, 32, 64, 128, 256];
       renderFitStatus(computeFitStatus(totalGb, neededGb, engine, qty));
 
       outProfiles.innerHTML = '';
+      let lastGroup = null;
       PROFILES.forEach((profile) => {
+        if (profile.group !== lastGroup) {
+          lastGroup = profile.group;
+          const header = document.createElement('li');
+          header.className = 'text-body-md text-primary font-bold mt-xs';
+          header.textContent = profile.group;
+          outProfiles.appendChild(header);
+        }
         const pooledGb = profile.vramGb * qty;
         const fits = neededGb <= pooledGb;
         const li = document.createElement('li');
         li.className =
-          'flex items-center gap-xs text-body-md ' +
+          'flex flex-wrap items-center gap-xs text-body-md ' +
           (fits ? 'text-accent-tertiary' : 'text-accent-error');
         const name = qty > 1 ? qty + '× ' + profile.label + ' (' + pooledGb + ' GB pooled)' : profile.label;
         li.innerHTML =
           '<span aria-hidden="true">' + (fits ? '✓' : '✗') + '</span>' +
           '<span>' + name + '</span>';
+        if (engine === 'vllm' && profile.vllmNote) {
+          const note = document.createElement('span');
+          note.className = 'text-secondary';
+          note.textContent = '(vLLM: ' + profile.vllmNote + ')';
+          li.appendChild(note);
+        }
         outProfiles.appendChild(li);
       });
 
@@ -743,7 +777,7 @@ const SYSTEM_RAM_OPTIONS = [8, 16, 32, 64, 128, 256];
               ? `This configuration fits on ${qty} of these cards (${pooledGb} GB pooled) — you would need to buy ${qty}. ` +
                 `Pooled VRAM is an upper bound; see the multi-GPU note above.`
               : `This configuration fits on a single ${bestFit.label} card ` +
-                `(the cheapest single card in the list above that has enough VRAM).`;
+                `(the lowest-VRAM card in the list above that has enough VRAM).`;
         }
         if (btnTextEl) {
           btnTextEl.textContent =
