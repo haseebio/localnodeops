@@ -13,7 +13,7 @@ tags:
 readingTime: 5
 faq:
   - question: "Why does my GPU throw CUDA_OUT_OF_MEMORY if the model file is smaller than my VRAM?"
-    answer: "Model file size only represents static weights stored on disk. During inference, your GPU also requires memory for CUDA runtime initialization (~0.5–1.2 GB), tensor activation overhead, and the Key-Value (KV) cache. As context windows expand (e.g., 16k–128k tokens), the KV cache grows rapidly, pushing total VRAM usage past physical card limits even when the raw .gguf file appears to fit easily."
+    answer: "Model file size only represents static weights stored on disk. During inference, your GPU also requires memory for CUDA runtime initialization (~0.5–1.2 GB), tensor activation overhead, and the Key-Value (KV) cache. The KV cache is reserved for your full context window when the model loads, so as you set larger context windows (e.g., 16k–128k tokens), the KV cache grows rapidly, pushing total VRAM usage past physical card limits even when the raw .gguf file appears to fit easily."
   - question: "How much generation speed do I lose when offloading layers to System RAM?"
     answer: "Offloading even a small percentage of layers to system memory causes a steep drop in token speed. While a modern GPU's VRAM transfers data at roughly 1,000 GB/s, dual-channel DDR5 system RAM maxes out around 60–80 GB/s over PCIe buses. When layers are split between VRAM and RAM, generation speed typically drops from 80+ tokens/sec down to 2–5 tokens/sec because the pipeline must wait for memory transfers across the PCIe bus."
 ---
@@ -26,15 +26,15 @@ If you want to size local hardware accurately—or prevent system RAM spillover�
 
 ---
 
-## 1. The Baseline: Static Weights vs. Dynamic Memory
+## 1. The Baseline: Static Weights vs. Everything Else
 
 When you inspect a `.gguf` file on Hugging Face, the file size tells you only the static storage cost of the model's weights. 
 
-For example, a **32B model** at **Q4_K_M** quantization takes up roughly **19.8 GB** of disk space. When loaded into VRAM, those weights remain fixed. However, inference is a dynamic process. The moment you send a prompt, your system allocates additional VRAM across three primary pools:
+For example, a **32B model** at **Q4_K_M** quantization takes up roughly **19.8 GB** of disk space. When loaded into VRAM, those weights remain fixed. However, weights are not the only thing that needs VRAM. When the model loads, your system also reserves memory for three more things:
 
 1. **CUDA Context & Driver Overhead:** Allocates ~0.5 GB to 1.2 GB merely initializing the GPU runtime environment.
 2. **Activation Memory:** Temporary memory used during tensor calculations during forward passes.
-3. **KV Cache (Key-Value Cache):** Memory required to maintain context across multi-turn conversations or long prompts.
+3. **KV Cache (Key-Value Cache):** Memory reserved for the full context window you set, sized up front when the model loads.
 
 While CUDA context and activation memory remain relatively small and constant, **KV cache scales linearly with context length and batch size**.
 

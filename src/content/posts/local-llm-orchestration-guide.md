@@ -41,7 +41,7 @@ running.
 This is the one that bites people. It grows with context length,
 batch size, and — critically — with the model's attention
 architecture. Unlike weights, KV cache isn't fixed; it scales with
-*usage*, which means a model that fits comfortably at a 4K context can
+the context length you set, which means a model that fits comfortably at a 4K context can
 OOM at 32K with the exact same weights loaded.
 
 ### 3. Runtime overhead

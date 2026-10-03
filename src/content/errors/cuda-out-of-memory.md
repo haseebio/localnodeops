@@ -29,15 +29,17 @@ nvidia-smi --query-compute-apps=pid,used_memory --format=csv
 If `used_memory` is nonzero before you've launched your inference
 process, kill whatever's holding it or account for it in your budget.
 
-**2. Check whether the failure happens on load or during generation.**
+**2. Check whether the failure happens on load or later.**
 
-Failure immediately on model load points to weights alone exceeding
-VRAM — check your model's file size at its quantization level against
-`nvidia-smi --query-gpu=memory.total --format=csv`. Failure partway
-through a session, after some tokens have already been generated,
-points to KV cache growth from accumulating context — see the
-[VRAM budgeting guide](/posts/vram-budget-for-70b-models) for the exact
-math.
+Failure on model load means the weights plus the KV cache reserved for
+your full context exceed VRAM. Check your model's file size at its
+quantization level against
+`nvidia-smi --query-gpu=memory.total --format=csv`, then see how much
+your context length adds in the
+[VRAM budgeting guide](/posts/vram-budget-for-70b-models). llama.cpp and
+vLLM both reserve their KV cache up front, so a failure after
+generation has started usually means another process took VRAM since
+the model loaded, or concurrent requests (see step 3 below).
 
 **3. If it only happens under concurrent load, it's a batching issue,
 not a sizing issue.**
@@ -50,7 +52,7 @@ available when multiple requests overlap.
 
 - **Weights too large**: drop to a more aggressive quantization
   (Q4_K_M instead of Q8_0), or reduce parameter count.
-- **KV cache growth**: lower `--ctx-size` (llama.cpp) or the
+- **KV cache too large for your context**: lower `--ctx-size` (llama.cpp) or the
   equivalent context window setting; enable KV cache quantization if
   your inference engine supports it.
 - **Concurrent batching**: lower `gpu_memory_utilization` or the

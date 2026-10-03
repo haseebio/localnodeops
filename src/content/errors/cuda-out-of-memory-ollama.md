@@ -7,15 +7,15 @@ severity: "critical"
 faq:
   - question: "Will restarting Ollama fix this?"
     answer: "Only if another process, or a stale Ollama instance, was already holding VRAM. Check nvidia-smi first — if the model, quantization, and context you're loading genuinely exceed your GPU's VRAM, a restart won't help; you need a smaller quantization or shorter context."
-  - question: "Why does this happen partway through a conversation instead of at load?"
-    answer: "KV cache grows with each token of context. A model that loads fine can still run out of VRAM once enough conversation history accumulates — that's the KV cache portion of memory filling the remaining headroom, not the model weights."
+  - question: "Why does this usually happen at load instead of partway through a conversation?"
+    answer: "llama.cpp reserves the KV cache for the full context window when the model loads, and Ollama's num_ctx setting sets that window. So a model that does not fit fails at load. If the error appears later, check nvidia-smi: another process may have taken VRAM since the model loaded."
 ---
 
 ## Symptom
 
 `CUDA error: out of memory` or `torch.cuda.OutOfMemoryError: CUDA out of memory. Tried to allocate X GiB...`
 
-Can happen at model load, or partway through generation as context grows.
+Usually happens at model load, because the KV cache for the full context is reserved up front. If it appears later, another process has probably taken VRAM.
 
 ## Cause
 
