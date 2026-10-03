@@ -51,4 +51,4 @@ Your numbers will go up if you raise the context window. See [how the formula wo
 
 ## Check Your Own Setup
 
-To see whether a specific model fits your GPU, use the [VRAM Calculator](/calculator). It runs this math against the real `.gguf` file sizes synced from Hugging Face.
+To see whether a specific model fits your GPU, use the [VRAM Calculator](/hardware). It runs this math against the real `.gguf` file sizes synced from Hugging Face.

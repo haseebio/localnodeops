@@ -49,4 +49,4 @@ DeepSeek-R1-Distill-Qwen-32B was released in January 2025. DeepSeek reported 72.
 
 ## Check Your Own Hardware
 
-Open the [VRAM Calculator](/calculator) and pick your model, quantization and context length. If it does not fit, you can rent a GPU by the hour on [RunPod](https://www.runpod.io/?ref=localnodeops) or set up your own server with the [LocalNodeOps Docker Stack](/docker-stack).
+Open the [VRAM Calculator](/hardware) and pick your model, quantization and context length. If it does not fit, you can rent a GPU by the hour on [RunPod](https://www.runpod.io/?ref=localnodeops) or set up your own server with the [LocalNodeOps Docker Stack](/docker-stack).
