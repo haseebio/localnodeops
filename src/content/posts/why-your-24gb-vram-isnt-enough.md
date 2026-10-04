@@ -1,6 +1,6 @@
 ---
 title: "Why Your 24GB VRAM Isn't Enough: Context Spillover and Layer Offloading Explained"
-excerpt: "Why does a 14GB GGUF model crash a 24GB RTX 4090? A deep dive into KV cache scaling, CUDA context overhead, and layer offloading math."
+excerpt: "Why does an 18.49GB 32B GGUF crash a 24GB RTX 4090? A deep dive into KV cache scaling, CUDA context overhead, and layer offloading math."
 category: "Hardware"
 pubDate: 2026-09-18
 author: "LocalNodeOps"
@@ -18,9 +18,9 @@ faq:
     answer: "Offloading even a small percentage of layers to system memory causes a steep drop in token speed. While a modern GPU's VRAM transfers data at roughly 1,000 GB/s, dual-channel DDR5 system RAM maxes out around 60–80 GB/s over PCIe buses. When layers are split between VRAM and RAM, generation speed typically drops from 80+ tokens/sec down to 2–5 tokens/sec because the pipeline must wait for memory transfers across the PCIe bus."
 ---
 
-It is one of the most frustrating experiences in local AI inference: you buy a 24GB GPU like the RTX 3090 or 4090, pull a 70B GGUF quantized down to 14GB, hit `run`, and immediately watch your driver throw a `CUDA_OUT_OF_MEMORY` crash or tank your generation speed to 1.2 tokens per second.
+It is one of the most frustrating experiences in local AI inference: you buy a 24GB GPU like the RTX 3090 or 4090, download a 32B model such as DeepSeek-R1-Distill-Qwen-32B at Q4_K_M, see that the file is only 18.49 GB, set a 16K context window, hit `run`, and watch the loader throw a `CUDA_OUT_OF_MEMORY` error, or watch your generation speed collapse once layers spill into system RAM.
 
-On paper, 14GB fits inside 24GB with 10GB of safety margin. In practice, model parameter size is only the baseline cost of running a local LLM. 
+On paper, 18.49 GB fits inside 24 GB with 5.5 GB to spare. In practice, the weights are only the baseline cost of running a local LLM. At a 16K context window, the KV cache alone reserves about 4 GB, and the runtime adds roughly 10% on top, for a total of about 24.7 GB. That is past the card's limit. At 8K context the same model needs about 22.5 GB and just fits.
 
 If you want to size local hardware accurately—or prevent system RAM spillover—you need to calculate the hidden VRAM consumers: **CUDA runtime context**, **KV cache scaling**, and **layer offloading math**.
 
@@ -30,7 +30,7 @@ If you want to size local hardware accurately—or prevent system RAM spillover�
 
 When you inspect a `.gguf` file on Hugging Face, the file size tells you only the static storage cost of the model's weights. 
 
-For example, a **32B model** at **Q4_K_M** quantization takes up roughly **19.8 GB** of disk space. When loaded into VRAM, those weights remain fixed. However, weights are not the only thing that needs VRAM. When the model loads, your system also reserves memory for three more things:
+For example, a **32B model** at **Q4_K_M** quantization takes up **18.49 GB** of disk space. When loaded into VRAM, those weights remain fixed. However, weights are not the only thing that needs VRAM. When the model loads, your system also reserves memory for three more things:
 
 1. **CUDA Context & Driver Overhead:** Allocates ~0.5 GB to 1.2 GB merely initializing the GPU runtime environment.
 2. **Activation Memory:** Temporary memory used during tensor calculations during forward passes.
@@ -57,7 +57,7 @@ For a dense 70B parameter model (e.g., Llama 3 70B with 80 layers and Grouped-Qu
 * **At 32k context (FP16 KV cache):** Needs ~9.6 GB of extra VRAM.
 * **At 128k context (FP16 KV cache):** Needs ~38.4 GB of extra VRAM **just for context memory**.
 
-This is why a 19GB model running on a 24GB card crashes at 16k context: the static model weights (19 GB) + CUDA overhead (1 GB) + KV cache (6 GB) exceed the card's physical limit of 24 GB.
+This is why an 18.49 GB 32B model that loads on a 24GB card at 8k context fails to load at 16k: the weights (18.49 GB) + KV cache (4.0 GB) + 10% runtime overhead (2.25 GB) come to about 24.7 GB, past the card's physical limit of 24 GB.
 
 ### Mitigating KV Cache Bloat
 
@@ -99,15 +99,18 @@ While VRAM on an RTX 4090 moves data at **1,008 GB/s**, DDR5 system memory maxes
 
 To keep your models running entirely inside VRAM without hitting swap or context OOM crashes, use these practical sizing rules:
 
-| GPU / VRAM Target | Safe Model Size Target | Ideal Quantization | Max Safe Context (Default FP16 KV) |
+| GPU / VRAM Target | Safe Model Size Target | Ideal Quantization (file size) | Max Safe Context (FP16 KV, llama.cpp) |
 | --- | --- | --- | --- |
-| **8 GB VRAM** (RTX 4060, Mac 8GB) | 8B Parameters | Q4_K_M (~4.8 GB) | 4,096 tokens |
-| **12 GB VRAM** (RTX 3060, RTX 4070) | 8B to 14B Parameters | Q4_K_M / Q8_0 (~8.5 GB) | 16,384 tokens |
-| **16 GB VRAM** (RTX 4070 Ti, M-Series 16GB) | 14B to 27B Parameters | Q4_K_M (~10.5 GB) | 16,384 tokens |
-| **24 GB VRAM** (RTX 3090, 4090, 5090) | 32B Parameters | Q4_K_M / Q5_K_M (~20 GB) | 16,384 tokens |
-| **48 GB VRAM** (Dual RTX 3090 / 4090) | 70B Parameters | Q4_K_M (~41 GB) | 8,192 tokens |
+| **8 GB VRAM** (RTX 4060) | 8B Parameters | Q4_K_M (~4.6 GB) | 16,384 tokens |
+| **12 GB VRAM** (RTX 3060, RTX 4070) | 8B Parameters | Q8_0 (~8.0 GB) | 16,384 tokens |
+| **16 GB VRAM** (RTX 4060 Ti 16GB, Arc A770 16GB) | 20B MoE (gpt-oss 20b) | Q4_K_M (~10.8 GB) | 131,072 tokens |
+| **24 GB VRAM** (RTX 3090, 4090) | 32B Parameters | Q4_K_M (~18.5 GB) | 8,192 tokens |
+| **32 GB VRAM** (RTX 5090) | 32B Parameters | Q4_K_M (~18.5 GB) | 32,768 tokens |
+| **48 GB VRAM** (RTX 6000 Ada, or two 24 GB cards pooled) | 70B Parameters | Q4_K_M (~39.6 GB) | 8,192 tokens |
 
-*Note on Apple Silicon:* Macs share Unified Memory between the CPU and GPU. macOS automatically reserves 20% to 30% of total system RAM for OS tasks, meaning a 16GB Mac Mini M4 has an effective Metal allocation ceiling of ~11.5 GB for model execution.
+These rows come from the same formula as our [VRAM calculator](/hardware): weights + KV cache + 10% runtime overhead. They use real file sizes (Llama 3.1 8B, gpt-oss 20b, DeepSeek-R1-Distill-Qwen-32B, Llama 3.1 70B) and assume the GPU has nothing else loaded. A 32B Q4_K_M model at 16K context needs about 24.7 GB, so it is **not safe** on a 24 GB card. 27B-class Q4_K_M files are 15.5 to 16.2 GB, so they do not fit a 16 GB card at all: the weights alone fill it. The 16 GB row uses a mixture-of-experts model with sliding-window attention, which keeps its KV cache small; a dense model of similar size will not reach that context. The two-card row assumes the weights split evenly, which is an upper bound.
+
+*Note on Apple Silicon:* Macs share Unified Memory between the CPU and GPU. By default macOS lets the GPU use roughly 75% of total RAM (the exact figure varies), so a 16GB Mac has about 12 GB for model execution. That is why Macs are not listed in the rows above.
 
 ---
 
