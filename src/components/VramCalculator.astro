@@ -64,19 +64,13 @@ const SYSTEM_RAM_OPTIONS = [8, 16, 32, 64, 128, 256];
         <label for="model-size" class="text-body-md text-primary block mb-xs">
           Model size: <span id="model-size-label" class="font-mono text-accent-primary">7B</span>
         </label>
-        <input
-  type="range"
-  id="model-size"
-  min="0"
-  max="4"
-  step="1"
-  value="0"
-  class="w-full"
-  aria-valuetext="7B"
-/>
-<div class="flex justify-between text-body-md text-secondary mt-[0.125rem]">
-  <span>7B</span><span>13B</span><span>32B</span><span>70B</span><span>120B</span>
-</div>
+        <div class="flex items-center gap-sm">
+          <input type="range" id="model-size" min="1" max="120" step="1" value="7" class="w-full min-w-0 flex-1" aria-valuetext="7B" />
+          <input type="number" id="model-size-num" min="1" max="120" step="0.1" value="7" inputmode="decimal" aria-label="Model size in billions of parameters" class="w-24 shrink-0 min-h-touch-min rounded-md border border-border bg-surface text-primary text-body-lg px-sm font-mono" />
+        </div>
+                <div class="flex justify-between text-body-md text-secondary mt-[0.125rem] pr-[6.75rem]">
+          <span>1B</span><span>30B</span><span>60B</span><span>90B</span><span>120B</span>
+        </div>
 
       <div id="generic-quant-row">
         <label for="quant" class="text-body-md text-primary block mb-xs">
@@ -106,20 +100,14 @@ const SYSTEM_RAM_OPTIONS = [8, 16, 32, 64, 128, 256];
 
       <div>
         <label for="context" class="text-body-md text-primary block mb-xs">
-          Context length: <span id="context-label" class="font-mono text-accent-primary">4096</span> tokens
+          Context length: <span id="context-label" class="font-mono text-accent-primary">4,096</span> tokens
         </label>
-        <input
-          type="range"
-          id="context"
-          min="0"
-          max="7"
-          step="1"
-          value="1"
-          class="w-full"
-          aria-valuetext="4096 tokens"
-        />
-        <div class="flex justify-between text-body-md text-secondary mt-[0.125rem]">
-          <span>2K</span><span>4K</span><span>8K</span><span>16K</span><span>32K</span><span>64K</span><span>128K</span><span>256K</span>
+        <div class="flex items-center gap-sm">
+          <input type="range" id="context" min="0" max="1000" step="1" value="333" class="w-full min-w-0 flex-1" aria-valuetext="4,096 tokens" />
+          <input type="number" id="context-num" min="512" max="262144" step="1" value="4096" inputmode="numeric" aria-label="Context length in tokens" class="w-28 shrink-0 min-h-touch-min rounded-md border border-border bg-surface text-primary text-body-lg px-sm font-mono" />
+        </div>
+                <div class="flex justify-between text-body-md text-secondary mt-[0.125rem] pr-[7.75rem]">
+          <span>512</span><span>4K</span><span>32K</span><span>256K</span>
         </div>
         <p class="text-body-md text-secondary mt-xs hidden" id="context-note"></p>
       </div>
@@ -149,6 +137,7 @@ const SYSTEM_RAM_OPTIONS = [8, 16, 32, 64, 128, 256];
     <div class="flex flex-col gap-sm">
       <div class="border border-border rounded-md bg-surface-elevated p-md">
         <p class="text-body-md text-primary font-bold m-0 mb-xs">Total required VRAM</p>
+        <p id="estimate-note" class="text-body-md text-accent-secondary m-0 mb-xs hidden"><strong>Rough estimate.</strong> <span id="estimate-note-text"></span></p>
         <dl class="grid grid-cols-2 gap-y-xs text-body-md">
           <dt class="text-secondary">Model weights</dt>
           <dd class="text-primary font-mono text-right" id="out-weights">—</dd>
@@ -288,10 +277,12 @@ const SYSTEM_RAM_OPTIONS = [8, 16, 32, 64, 128, 256];
 
   <p class="text-body-md text-secondary mt-md border-t border-border pt-sm">
     <strong class="text-primary">Generic estimate:</strong> weight size
-    is bits-per-weight × parameter count; KV cache uses a reference
-    architecture for the selected size bucket (7B/13B/70B: real published
-    models; 120B: extrapolated, no real model exists at that exact
-    size). <strong class="text-primary">Model-specific (HF-synced):</strong>
+    is bits-per-weight × parameter count; KV cache uses the reference
+    architecture nearest to the size you enter (7B/13B/32B/70B: real
+    published models; 120B: extrapolated, no real model exists at that
+    exact size). Sizes between those references are labeled Rough
+    estimate and assume a dense model, so use a model-specific page for
+    an exact figure. <strong class="text-primary">Model-specific (HF-synced):</strong>
     weight size is the exact <code>.gguf</code> file size fetched from
     Hugging Face — no estimation. KV cache is <em>still estimated</em>.
     For models whose published attention config is recorded on this site
@@ -330,7 +321,50 @@ const SYSTEM_RAM_OPTIONS = [8, 16, 32, 64, 128, 256];
     const BUCKET_DISTANCE_CAP_B = 5;
     const MOE_NAME_PATTERN = /\bmoe\b|mixtral|\d+x\d+b/i;
 
-    const CONTEXT_LENGTHS = [2048, 4096, 8192, 16384, 32768, 65536, 131072, 262144];
+    const CONTEXT_MIN = 512;
+    const CONTEXT_MAX = 262144;
+    const CONTEXT_SLIDER_MAX = 1000;
+    const PARAMS_MIN_B = 1;
+    const PARAMS_MAX_B = 120;
+
+    // The context slider is logarithmic (512 to 262,144 spans 9 doublings).
+    // Values within 2.5% of a power of two snap to it, so 4,096 and 32,768
+    // are reachable exactly from the slider.
+    function contextFromSlider(t) {
+      const raw = CONTEXT_MIN * Math.pow(CONTEXT_MAX / CONTEXT_MIN, t / CONTEXT_SLIDER_MAX);
+      const pow2 = Math.pow(2, Math.round(Math.log2(raw)));
+      const value = Math.abs(raw - pow2) / pow2 < 0.025 ? pow2 : Math.round(raw / 128) * 128;
+      return Math.min(CONTEXT_MAX, Math.max(CONTEXT_MIN, value));
+    }
+    function sliderFromContext(c) {
+      return Math.round(CONTEXT_SLIDER_MAX * Math.log(c / CONTEXT_MIN) / Math.log(CONTEXT_MAX / CONTEXT_MIN));
+    }
+    function clampContext(v) {
+      return Math.min(CONTEXT_MAX, Math.max(CONTEXT_MIN, Math.round(v)));
+    }
+    function clampParams(v) {
+      return Math.min(PARAMS_MAX_B, Math.max(PARAMS_MIN_B, v));
+    }
+    function formatParams(v) {
+      return String(Math.round(v * 10) / 10);
+    }
+
+    // Generic mode has no architecture of its own, so it borrows the
+    // nearest reference size (the larger one on a tie, which is the
+    // cautious choice). Anything that is not exactly a reference size is
+    // labeled "Rough estimate" in the result card.
+    function nearestReference(paramsB) {
+      let best = MODEL_SIZES[0];
+      let bestDiff = Infinity;
+      for (const bucket of MODEL_SIZES) {
+        const diff = Math.abs(bucket.params / 1e9 - paramsB);
+        if (diff <= bestDiff) {
+          bestDiff = diff;
+          best = bucket;
+        }
+      }
+      return best;
+    }
 
     // Every profile here is a single card someone can buy. The number-of-
     // GPUs dropdown multiplies them. group is the heading shown above it
@@ -433,6 +467,10 @@ const SYSTEM_RAM_OPTIONS = [8, 16, 32, 64, 128, 256];
     const modelMatchNote = document.getElementById('model-match-note');
 
     const modelSlider = document.getElementById('model-size');
+    const modelNum = document.getElementById('model-size-num');
+    const contextNum = document.getElementById('context-num');
+    const estimateNote = document.getElementById('estimate-note');
+    const estimateNoteText = document.getElementById('estimate-note-text');
     const modelLabel = document.getElementById('model-size-label');
     const contextSlider = document.getElementById('context');
     const contextLabel = document.getElementById('context-label');
@@ -460,6 +498,18 @@ const SYSTEM_RAM_OPTIONS = [8, 16, 32, 64, 128, 256];
     const changeLog = document.getElementById('change-log');
     const changeLogEmpty = document.getElementById('change-log-empty');
     const logEntries = [];
+
+    function readModelParamsB() {
+      const typed = Number(modelNum.value);
+      if (modelNum.value !== '' && isFinite(typed) && typed > 0) return clampParams(typed);
+      return clampParams(Number(modelSlider.value));
+    }
+
+    function readContext() {
+      const typed = Number(contextNum.value);
+      if (contextNum.value !== '' && isFinite(typed) && typed > 0) return clampContext(typed);
+      return contextFromSlider(Number(contextSlider.value));
+    }
 
     function currentEngine() {
       const checked = document.querySelector('input[name="engine"]:checked');
@@ -516,7 +566,7 @@ const SYSTEM_RAM_OPTIONS = [8, 16, 32, 64, 128, 256];
       const styles = {
         full: 'border-accent-tertiary text-accent-tertiary',
         offload: 'border-accent-secondary text-accent-secondary',
-                oom: 'bg-red-50 text-red-800 border-red-600 dark:bg-red-950 dark:text-red-200 dark:border-red-400',
+        oom: 'bg-red-50 text-red-800 border-red-600 dark:bg-red-950 dark:text-red-200 dark:border-red-400',
         unknown: 'border-border text-secondary',
       };
       fitStatusEls.forEach(function (el) {
@@ -621,9 +671,13 @@ const SYSTEM_RAM_OPTIONS = [8, 16, 32, 64, 128, 256];
       const isGeneric = sourceSelect.value === 'generic';
       // genericSizeRow also wraps the quantization, context and engine
       // controls (its closing tag is missing in the markup, and closing
-      // it would change the page layout), so hide only its own first
-      // three children: label, slider, tick labels.
-      Array.from(genericSizeRow.children).slice(0, 3).forEach((el) => el.classList.toggle('hidden', !isGeneric));
+      // it would change the page layout), so hide only its own children,
+      // which are every element before the quantization row: label,
+      // slider with number box, tick labels.
+      for (const el of Array.from(genericSizeRow.children)) {
+        if (el === genericQuantRow) break;
+        el.classList.toggle('hidden', !isGeneric);
+      }
       genericQuantRow.classList.toggle('hidden', !isGeneric);
       modelQuantRow.classList.toggle('hidden', isGeneric);
 
@@ -649,6 +703,7 @@ const SYSTEM_RAM_OPTIONS = [8, 16, 32, 64, 128, 256];
       outRequiredLabel.classList.add('hidden');
       outRequired.classList.add('hidden');
       renderFitStatus(null);
+      estimateNote.classList.add('hidden');
       outProfiles.innerHTML = '';
       const li = document.createElement('li');
       li.className = 'text-body-md text-secondary';
@@ -658,9 +713,9 @@ const SYSTEM_RAM_OPTIONS = [8, 16, 32, 64, 128, 256];
     }
 
     function compute() {
-      const context = CONTEXT_LENGTHS[Number(contextSlider.value)];
-      contextLabel.textContent = context.toLocaleString();
-      contextSlider.setAttribute('aria-valuetext', context.toLocaleString() + ' tokens');
+      const context = readContext();
+      contextLabel.textContent = context.toLocaleString('en-US');
+      contextSlider.setAttribute('aria-valuetext', context.toLocaleString('en-US') + ' tokens');
 
       const qty = Number(gpuQtySelect.value) || 1;
       gpuQtyNote.classList.toggle('hidden', qty === 1);
@@ -668,15 +723,18 @@ const SYSTEM_RAM_OPTIONS = [8, 16, 32, 64, 128, 256];
       let weightBytes;
       let arch;
       let maxContext = null;
+      let roughReference = null;
 
       if (sourceSelect.value === 'generic') {
-        const model = MODEL_SIZES[Number(modelSlider.value)];
+        const paramsB = readModelParamsB();
         const bpw = Number(quantSelect.value);
-        modelLabel.textContent = model.label;
-        modelSlider.setAttribute('aria-valuetext', model.label);
+        modelLabel.textContent = formatParams(paramsB) + 'B';
+        modelSlider.setAttribute('aria-valuetext', formatParams(paramsB) + 'B');
 
-        weightBytes = model.params * (bpw / 8);
-        arch = bucketToArch(model);
+        weightBytes = paramsB * 1e9 * (bpw / 8);
+        const reference = nearestReference(paramsB);
+        arch = bucketToArch(reference);
+        if (Math.abs(reference.params / 1e9 - paramsB) > 1e-9) roughReference = reference.label;
       } else {
         const index = Number(sourceSelect.value.split(':')[1]);
         const model = ingestedModels[index];
@@ -702,6 +760,15 @@ const SYSTEM_RAM_OPTIONS = [8, 16, 32, 64, 128, 256];
       if (!arch) {
         showNoEstimate(weightBytes);
         return;
+      }
+
+      if (roughReference) {
+        estimateNoteText.textContent =
+          'KV cache uses the nearest reference size (' + roughReference + '), and a dense model is assumed. ' +
+          'Real models of this size can differ a lot, so check a model-specific page for an exact figure.';
+        estimateNote.classList.remove('hidden');
+      } else {
+        estimateNote.classList.add('hidden');
       }
 
       const engine = currentEngine();
@@ -812,7 +879,9 @@ const SYSTEM_RAM_OPTIONS = [8, 16, 32, 64, 128, 256];
     }
 
     function logChange(message) {
-      logEntries.unshift(`${message} → Total: ${outTotal.textContent}`);
+            const entry = `${message} → Total: ${outTotal.textContent}`;
+      if (logEntries[0] === entry) return;
+      logEntries.unshift(entry);
       if (logEntries.length > MAX_LOG_ENTRIES) logEntries.length = MAX_LOG_ENTRIES;
 
       changeLog.innerHTML = '';
@@ -832,13 +901,43 @@ const SYSTEM_RAM_OPTIONS = [8, 16, 32, 64, 128, 256];
       logChange('Source → ' + sourceSelect.options[sourceSelect.selectedIndex].text);
     });
 
-    modelSlider.addEventListener('input', compute);
+    modelSlider.addEventListener('input', () => {
+      modelNum.value = modelSlider.value;
+      compute();
+    });
     modelSlider.addEventListener('change', () => {
       logChange('Model size → ' + modelLabel.textContent);
     });
+    modelNum.addEventListener('input', () => {
+      const typed = Number(modelNum.value);
+      if (modelNum.value !== '' && isFinite(typed) && typed > 0) {
+        modelSlider.value = String(Math.round(clampParams(typed)));
+      }
+      compute();
+    });
+    modelNum.addEventListener('change', () => {
+      modelNum.value = formatParams(readModelParamsB());
+      compute();
+      logChange('Model size → ' + modelLabel.textContent);
+    });
 
-    contextSlider.addEventListener('input', compute);
+    contextSlider.addEventListener('input', () => {
+      contextNum.value = String(contextFromSlider(Number(contextSlider.value)));
+      compute();
+    });
     contextSlider.addEventListener('change', () => {
+      logChange('Context → ' + contextLabel.textContent + ' tokens');
+    });
+    contextNum.addEventListener('input', () => {
+      const typed = Number(contextNum.value);
+      if (contextNum.value !== '' && isFinite(typed) && typed > 0) {
+        contextSlider.value = String(sliderFromContext(clampContext(typed)));
+      }
+      compute();
+    });
+    contextNum.addEventListener('change', () => {
+      contextNum.value = String(readContext());
+      compute();
       logChange('Context → ' + contextLabel.textContent + ' tokens');
     });
 
@@ -886,6 +985,8 @@ const SYSTEM_RAM_OPTIONS = [8, 16, 32, 64, 128, 256];
       });
     }
 
+    modelSlider.value = String(Math.round(readModelParamsB()));
+    contextSlider.value = String(sliderFromContext(readContext()));
     updateSourceVisibility();
     compute();
   })();
