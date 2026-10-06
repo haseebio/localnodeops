@@ -1,0 +1,220 @@
+---
+// Floating support assistant. It sends questions to /api/chat (a Vercel
+// Function that holds the Gemini key). Nothing is stored in the browser:
+// the conversation lives in memory until the page is closed.
+---
+
+<div id="site-chatbot" data-nosnippet class="fixed bottom-[1rem] right-[1rem] z-[60] flex flex-col items-end gap-xs">
+  <section
+    id="chatbot-panel"
+    class="hidden w-[calc(100vw-2rem)] max-w-[24rem] max-h-[75vh] flex-col rounded-md border border-border bg-surface shadow-[0_8px_24px_rgba(0,0,0,0.25)]"
+    role="dialog"
+    aria-modal="false"
+    aria-labelledby="chatbot-title"
+  >
+    <div class="flex items-start justify-between gap-md border-b border-border p-sm">
+      <div>
+        <p id="chatbot-title" class="text-body-lg font-semibold text-primary m-0">LocalNodeOps Support AI</p>
+        <p class="text-body-md text-secondary m-0">Local-LLM VRAM and hardware questions</p>
+      </div>
+      <button
+        type="button"
+        id="chatbot-close"
+        aria-label="Close chat"
+        class="text-secondary hover:text-primary text-headline-md leading-none cursor-pointer bg-transparent border-0 p-0"
+      >
+        ×
+      </button>
+    </div>
+
+    <div id="chatbot-messages" class="flex-1 min-h-[8rem] overflow-y-auto p-sm flex flex-col gap-xs" aria-live="polite"></div>
+
+    <form id="chatbot-form" class="border-t border-border p-sm flex flex-col gap-xs">
+      <label for="chatbot-input" class="sr-only">Your question</label>
+      <textarea
+        id="chatbot-input"
+        rows="2"
+        maxlength="500"
+        placeholder="e.g. Will a 32B model fit a 24GB GPU at 16K context?"
+        class="w-full resize-none rounded-md border border-border bg-surface text-primary text-body-md p-xs"
+      ></textarea>
+      <div class="flex items-center justify-between gap-xs">
+        <span id="chatbot-count" class="text-body-md text-secondary">0 / 500</span>
+        <button
+          type="submit"
+          id="chatbot-send"
+          class="inline-flex items-center justify-center min-h-touch-min rounded-full px-lg font-semibold text-body-md cursor-pointer bg-accent-primary-solid text-accent-on-primary"
+        >
+          Send
+        </button>
+      </div>
+    </form>
+
+    <p class="border-t border-border p-sm text-body-md text-secondary m-0">
+      Replies come from Google's Gemini API (free tier). Do not enter personal
+      or sensitive information. Answers can be wrong, so check the
+      <a href="/hardware" class="text-accent-primary hover:underline">calculator</a>
+      for exact figures. <a href="/privacy" class="text-accent-primary hover:underline">Privacy</a>
+    </p>
+  </section>
+
+  <button
+    type="button"
+    id="chatbot-toggle"
+    aria-expanded="false"
+    aria-controls="chatbot-panel"
+    class="inline-flex items-center justify-center min-h-touch-min rounded-full px-lg font-semibold text-body-md cursor-pointer bg-accent-primary-solid text-accent-on-primary shadow-[0_4px_12px_rgba(0,0,0,0.25)]"
+  >
+    Ask AI
+  </button>
+</div>
+
+<script is:inline>
+  (function () {
+    const MAX_CHARS = 500;
+    const MAX_HISTORY = 6;
+    const GREETING =
+      'Hi! Ask me about VRAM needs, quantization, context length, GPUs, Apple Silicon, or llama.cpp vs vLLM. For exact figures, use the calculator at /hardware.';
+
+    const toggle = document.getElementById('chatbot-toggle');
+    const panel = document.getElementById('chatbot-panel');
+    const closeBtn = document.getElementById('chatbot-close');
+    const messages = document.getElementById('chatbot-messages');
+    const form = document.getElementById('chatbot-form');
+    const input = document.getElementById('chatbot-input');
+    const count = document.getElementById('chatbot-count');
+    const send = document.getElementById('chatbot-send');
+    if (!toggle || !panel || !messages || !form || !input) return;
+
+    let history = [];
+    let busy = false;
+    let greeted = false;
+
+    // Only these site paths become links, so a reply can never inject markup.
+    const LINK_PATTERN = /(\/(?:hardware|calculator|methodology)(?![\w-]))/g;
+    const LINK_ONLY = /^\/(?:hardware|calculator|methodology)$/;
+
+    function setText(el, text) {
+      el.textContent = '';
+      text.split(LINK_PATTERN).forEach(function (part) {
+        if (!part) return;
+        if (LINK_ONLY.test(part)) {
+          const a = document.createElement('a');
+          a.href = part;
+          a.textContent = part;
+          a.className = 'text-accent-primary underline';
+          el.appendChild(a);
+        } else {
+          el.appendChild(document.createTextNode(part));
+        }
+      });
+    }
+
+    function addMessage(role, text) {
+      const el = document.createElement('div');
+      el.className =
+        'max-w-[85%] rounded-md p-xs text-body-md whitespace-pre-wrap ' +
+        (role === 'user'
+          ? 'self-end bg-accent-primary-solid text-accent-on-primary'
+          : 'self-start bg-surface-elevated text-primary');
+      setText(el, text);
+      messages.appendChild(el);
+      messages.scrollTop = messages.scrollHeight;
+      return el;
+    }
+
+    function openPanel() {
+      panel.classList.remove('hidden');
+      panel.classList.add('flex');
+      toggle.setAttribute('aria-expanded', 'true');
+      if (!greeted) {
+        addMessage('assistant', GREETING);
+        greeted = true;
+      }
+      input.focus();
+    }
+
+    function closePanel() {
+      panel.classList.add('hidden');
+      panel.classList.remove('flex');
+      toggle.setAttribute('aria-expanded', 'false');
+      toggle.focus();
+    }
+
+    function updateCount() {
+      count.textContent = input.value.length + ' / ' + MAX_CHARS;
+    }
+
+    async function sendMessage(text) {
+      busy = true;
+      send.disabled = true;
+      history.push({ role: 'user', content: text });
+      history = history.slice(-MAX_HISTORY);
+      while (history.length && history[0].role !== 'user') history.shift();
+      addMessage('user', text);
+      const pending = addMessage('assistant', 'Thinking…');
+
+      try {
+        const res = await fetch('/api/chat', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ messages: history }),
+        });
+        let data = null;
+        try {
+          data = await res.json();
+        } catch (e) {
+          data = null;
+        }
+        if (res.ok && data && data.reply) {
+          setText(pending, data.reply);
+          history.push({ role: 'assistant', content: data.reply });
+        } else {
+          const fallback = res.status === 429
+            ? 'Too many messages. Please wait a minute and try again.'
+            : 'The assistant is unavailable right now. You can still use the calculator at /hardware.';
+          setText(pending, (data && data.message) || fallback);
+          history.pop();
+          if (data && data.error === 'region') {
+            input.disabled = true;
+            send.disabled = true;
+            busy = false;
+            return;
+          }
+        }
+      } catch (e) {
+        setText(pending, 'Could not reach the assistant. Check your connection, or use the calculator at /hardware.');
+        history.pop();
+      }
+      messages.scrollTop = messages.scrollHeight;
+      busy = false;
+      send.disabled = false;
+      input.focus();
+    }
+
+    toggle.addEventListener('click', function () {
+      if (panel.classList.contains('hidden')) openPanel();
+      else closePanel();
+    });
+    closeBtn.addEventListener('click', closePanel);
+    document.addEventListener('keydown', function (e) {
+      if (e.key === 'Escape' && !panel.classList.contains('hidden')) closePanel();
+    });
+    input.addEventListener('input', updateCount);
+    input.addEventListener('keydown', function (e) {
+      if (e.key === 'Enter' && !e.shiftKey) {
+        e.preventDefault();
+        form.requestSubmit ? form.requestSubmit() : send.click();
+      }
+    });
+    form.addEventListener('submit', function (e) {
+      e.preventDefault();
+      if (busy) return;
+      const text = input.value.trim().slice(0, MAX_CHARS);
+      if (!text) return;
+      input.value = '';
+      updateCount();
+      sendMessage(text);
+    });
+  })();
+</script>
