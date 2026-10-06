@@ -4,77 +4,303 @@
 // the conversation lives in memory until the page is closed.
 ---
 
-<div id="site-chatbot" data-nosnippet class="fixed bottom-[1rem] right-[1rem] z-[60] flex flex-col items-end gap-xs">
+<div id="site-chatbot" data-nosnippet>
   <section
     id="chatbot-panel"
-    class="hidden w-[calc(100vw-2rem)] max-w-[24rem] max-h-[75vh] flex-col rounded-md border border-border bg-surface shadow-[0_8px_24px_rgba(0,0,0,0.25)]"
+    class="lno-panel border border-border bg-surface text-primary"
     role="dialog"
     aria-modal="false"
     aria-labelledby="chatbot-title"
   >
-    <div class="flex items-start justify-between gap-md border-b border-border p-sm">
-      <div>
-        <p id="chatbot-title" class="text-body-lg font-semibold text-primary m-0">LocalNodeOps Support AI</p>
-        <p class="text-body-md text-secondary m-0">Local-LLM VRAM and hardware questions</p>
+    <header class="lno-head bg-accent-primary-solid text-accent-on-primary">
+      <div class="lno-head-row">
+        <!-- Avatar: inline SVG so it needs no extra file. To use your own image,
+             replace the <svg> below with <img src="/your-image.png" alt="" class="lno-avatar-img" /> -->
+        <div class="lno-avatar bg-surface text-accent-primary">
+          <svg viewBox="0 0 40 40" width="28" height="28" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+            <rect x="8" y="14" width="24" height="18" rx="6"></rect>
+            <path d="M20 14V8"></path>
+            <circle cx="20" cy="6" r="2"></circle>
+            <path d="M4 22v4M36 22v4"></path>
+            <circle cx="15" cy="23" r="1.6" fill="currentColor" stroke="none"></circle>
+            <circle cx="25" cy="23" r="1.6" fill="currentColor" stroke="none"></circle>
+            <path d="M16 28.5c1.2 1 2.5 1.5 4 1.5s2.8-.5 4-1.5"></path>
+          </svg>
+          <span class="lno-status-dot bg-green-500 border-2 border-surface" aria-hidden="true"></span>
+        </div>
+        <div class="lno-head-text">
+          <p class="lno-eyebrow">Chat with</p>
+          <p id="chatbot-title" class="lno-name">LocalNodeOps AI</p>
+          <p class="lno-sub">Online · VRAM and hardware help</p>
+        </div>
+        <button type="button" id="chatbot-close" class="lno-icon-btn lno-head-btn" aria-label="Close chat">
+          <svg viewBox="0 0 24 24" width="24" height="24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m6 9 6 6 6-6"></path></svg>
+        </button>
       </div>
-      <button
-        type="button"
-        id="chatbot-close"
-        aria-label="Close chat"
-        class="text-secondary hover:text-primary text-headline-md leading-none cursor-pointer bg-transparent border-0 p-0"
-      >
-        ×
-      </button>
-    </div>
+      <svg class="lno-wave text-surface" viewBox="0 0 400 16" preserveAspectRatio="none" fill="currentColor" aria-hidden="true">
+        <path d="M0 8C60 16 120 0 200 7s140 9 200 1V16H0Z"></path>
+      </svg>
+    </header>
 
-    <div id="chatbot-messages" class="flex-1 min-h-[8rem] overflow-y-auto p-sm flex flex-col gap-xs" aria-live="polite"></div>
+    <div id="chatbot-messages" class="lno-messages" role="log" aria-live="polite" aria-label="Chat messages"></div>
 
-    <form id="chatbot-form" class="border-t border-border p-sm flex flex-col gap-xs">
+    <form id="chatbot-form" class="lno-form border-t border-border">
       <label for="chatbot-input" class="sr-only">Your question</label>
-      <textarea
-        id="chatbot-input"
-        rows="2"
-        maxlength="500"
-        placeholder="e.g. Will a 32B model fit a 24GB GPU at 16K context?"
-        class="w-full resize-none rounded-md border border-border bg-surface text-primary text-body-md p-xs"
-      ></textarea>
-      <div class="flex items-center justify-between gap-xs">
-        <span id="chatbot-count" class="text-body-md text-secondary">0 / 500</span>
+      <div class="lno-field border border-border bg-surface-elevated text-primary">
+        <textarea
+          id="chatbot-input"
+          rows="1"
+          maxlength="500"
+          placeholder="Ask about VRAM, GPUs, quantization…"
+        ></textarea>
         <button
           type="submit"
           id="chatbot-send"
-          class="inline-flex items-center justify-center min-h-touch-min rounded-full px-lg font-semibold text-body-md cursor-pointer bg-accent-primary-solid text-accent-on-primary"
+          class="lno-icon-btn bg-accent-primary-solid text-accent-on-primary"
+          aria-label="Send message"
         >
-          Send
+          <svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M22 2 11 13"></path><path d="M22 2 15 22l-4-9-9-4 20-7z"></path></svg>
         </button>
       </div>
+      <p id="chatbot-count" class="lno-count text-secondary hidden"></p>
     </form>
 
-    <p class="border-t border-border p-sm text-body-md text-secondary m-0">
+    <p class="lno-foot border-t border-border text-secondary">
       Replies come from Google's Gemini API (free tier). Do not enter personal
       or sensitive information. Answers can be wrong, so check the
-      <a href="/hardware" class="text-accent-primary hover:underline">calculator</a>
-      for exact figures. <a href="/privacy" class="text-accent-primary hover:underline">Privacy</a>
+      <a href="/hardware" class="text-accent-primary underline">calculator</a>
+      for exact figures. <a href="/privacy" class="text-accent-primary underline">Privacy</a>
     </p>
   </section>
 
   <button
     type="button"
     id="chatbot-toggle"
+    class="lno-launcher bg-accent-primary-solid text-accent-on-primary"
     aria-expanded="false"
     aria-controls="chatbot-panel"
-    class="inline-flex items-center justify-center min-h-touch-min rounded-full px-lg font-semibold text-body-md cursor-pointer bg-accent-primary-solid text-accent-on-primary shadow-[0_4px_12px_rgba(0,0,0,0.25)]"
+    aria-label="Open chat assistant"
   >
-    Ask AI
+    <svg id="chatbot-icon-open" viewBox="0 0 24 24" width="28" height="28" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M21 11.5a8.38 8.38 0 0 1-.9 3.8 8.5 8.5 0 0 1-7.6 4.7 8.38 8.38 0 0 1-3.8-.9L3 21l1.9-5.7a8.38 8.38 0 0 1-.9-3.8 8.5 8.5 0 0 1 4.7-7.6 8.38 8.38 0 0 1 3.8-.9h.5a8.48 8.48 0 0 1 8 8v.5z"></path></svg>
+    <svg id="chatbot-icon-close" class="hidden" viewBox="0 0 24 24" width="28" height="28" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m6 9 6 6 6-6"></path></svg>
   </button>
 </div>
+
+<style is:global>
+  #site-chatbot {
+    position: fixed;
+    z-index: 60;
+    right: max(1rem, env(safe-area-inset-right));
+    bottom: max(1rem, env(safe-area-inset-bottom));
+    display: flex;
+    flex-direction: column;
+    align-items: flex-end;
+    gap: 0.75rem;
+  }
+
+  /* Panel */
+  .lno-panel {
+    display: none;
+    flex-direction: column;
+    overflow: hidden;
+    width: min(24rem, calc(100vw - 2rem));
+    height: min(34rem, calc(100vh - 6.5rem));
+    height: min(34rem, calc(100dvh - 6.5rem));
+    border-radius: 1.25rem;
+    box-shadow: 0 16px 48px rgba(0, 0, 0, 0.28);
+    transform-origin: bottom right;
+  }
+  .lno-panel.lno-open {
+    display: flex;
+    animation: lno-pop 220ms ease-out;
+  }
+  @keyframes lno-pop {
+    from { opacity: 0; transform: translateY(12px) scale(0.98); }
+    to { opacity: 1; transform: none; }
+  }
+
+  /* Header */
+  .lno-head {
+    position: relative;
+    flex-shrink: 0;
+    padding: 1rem 1rem 1.75rem;
+    background-image: linear-gradient(135deg, rgba(255, 255, 255, 0.16) 0%, rgba(0, 0, 0, 0.14) 100%);
+  }
+  .lno-head-row { display: flex; align-items: center; gap: 0.75rem; }
+  .lno-head-text { flex: 1; min-width: 0; }
+  .lno-eyebrow { margin: 0; font-size: 0.8125rem; line-height: 1.3; }
+  .lno-name { margin: 0; font-size: 1.125rem; font-weight: 700; line-height: 1.2; }
+  .lno-sub { margin: 0.125rem 0 0; font-size: 0.8125rem; line-height: 1.3; }
+  .lno-wave { position: absolute; left: 0; right: 0; bottom: -1px; width: 100%; height: 1rem; display: block; }
+  .lno-avatar {
+    position: relative;
+    flex-shrink: 0;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 2.75rem;
+    height: 2.75rem;
+    border-radius: 9999px;
+  }
+  .lno-avatar-img { width: 100%; height: 100%; border-radius: 9999px; object-fit: cover; }
+  .lno-status-dot {
+    position: absolute;
+    right: -0.1rem;
+    bottom: -0.1rem;
+    width: 0.8rem;
+    height: 0.8rem;
+    border-radius: 9999px;
+  }
+
+  /* Buttons */
+  .lno-icon-btn {
+    flex-shrink: 0;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 2.75rem;
+    height: 2.75rem;
+    padding: 0;
+    border: 0;
+    border-radius: 9999px;
+    cursor: pointer;
+    touch-action: manipulation;
+    transition: background-color 150ms ease, opacity 150ms ease;
+  }
+  .lno-icon-btn:active { opacity: 0.8; }
+  .lno-icon-btn:disabled { opacity: 0.5; cursor: not-allowed; }
+  .lno-head-btn { background: transparent; color: inherit; }
+  .lno-head-btn:hover { background: rgba(255, 255, 255, 0.2); }
+  .lno-icon-btn:focus-visible,
+  .lno-launcher:focus-visible,
+  .lno-chip:focus-visible {
+    outline: 2px solid currentColor;
+    outline-offset: 2px;
+  }
+  .lno-launcher {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 3.5rem;
+    height: 3.5rem;
+    padding: 0;
+    border: 0;
+    border-radius: 9999px;
+    cursor: pointer;
+    touch-action: manipulation;
+    box-shadow: 0 6px 18px rgba(0, 0, 0, 0.3);
+    transition: opacity 150ms ease;
+  }
+  .lno-launcher:active { opacity: 0.85; }
+
+  /* Messages */
+  .lno-messages {
+    flex: 1;
+    min-height: 0;
+    overflow-y: auto;
+    overscroll-behavior: contain;
+    display: flex;
+    flex-direction: column;
+    gap: 0.5rem;
+    padding: 0.75rem 1rem 1rem;
+    scroll-behavior: smooth;
+  }
+  .lno-bubble {
+    max-width: 85%;
+    padding: 0.625rem 0.875rem;
+    border-radius: 1rem;
+    font-size: 1rem;
+    line-height: 1.5;
+    white-space: pre-wrap;
+    overflow-wrap: anywhere;
+  }
+  .lno-bubble-bot { align-self: flex-start; border-bottom-left-radius: 0.25rem; }
+  .lno-bubble-user { align-self: flex-end; border-bottom-right-radius: 0.25rem; }
+  .lno-dot {
+    display: inline-block;
+    width: 0.4rem;
+    height: 0.4rem;
+    border-radius: 9999px;
+    background: currentColor;
+    opacity: 0.4;
+    animation: lno-bounce 1s infinite ease-in-out;
+  }
+  .lno-dot + .lno-dot { margin-left: 0.25rem; }
+  .lno-dot:nth-child(3) { animation-delay: 0.15s; }
+  .lno-dot:nth-child(4) { animation-delay: 0.3s; }
+  @keyframes lno-bounce {
+    0%, 60%, 100% { transform: translateY(0); opacity: 0.4; }
+    30% { transform: translateY(-0.25rem); opacity: 1; }
+  }
+
+  /* Quick replies */
+  .lno-chips { display: flex; flex-wrap: wrap; justify-content: flex-end; gap: 0.5rem; margin-top: 0.25rem; }
+  .lno-chip {
+    min-height: 2.75rem;
+    padding: 0 1rem;
+    border: 1.5px solid currentColor;
+    border-radius: 9999px;
+    background: transparent;
+    font: inherit;
+    font-size: 0.9375rem;
+    font-weight: 600;
+    cursor: pointer;
+    touch-action: manipulation;
+    transition: background-color 150ms ease, color 150ms ease;
+  }
+
+  /* Input */
+  .lno-form { flex-shrink: 0; padding: 0.75rem 1rem 0.5rem; }
+  .lno-field {
+    display: flex;
+    align-items: flex-end;
+    gap: 0.5rem;
+    padding: 0.25rem 0.25rem 0.25rem 1rem;
+    border-radius: 1.5rem;
+  }
+  .lno-field:focus-within { outline: 2px solid currentColor; outline-offset: 2px; }
+  #site-chatbot textarea#chatbot-input,
+  #site-chatbot textarea#chatbot-input:focus {
+    flex: 1;
+    min-width: 0;
+    max-height: 7rem;
+    margin: 0;
+    padding: 0.625rem 0;
+    border: 0;
+    outline: none;
+    box-shadow: none;
+    background: transparent;
+    color: inherit;
+    font: inherit;
+    font-size: 1rem;
+    line-height: 1.4;
+    resize: none;
+  }
+  #site-chatbot textarea#chatbot-input::placeholder { color: inherit; opacity: 0.7; }
+  .lno-count { margin: 0.25rem 0.5rem 0 0; text-align: right; font-size: 0.75rem; }
+  .lno-foot { flex-shrink: 0; margin: 0; padding: 0.5rem 1rem 0.75rem; font-size: 0.75rem; line-height: 1.4; }
+
+  @media (prefers-reduced-motion: reduce) {
+    .lno-panel.lno-open { animation: none; }
+    .lno-dot { animation: none; opacity: 0.7; }
+    .lno-messages { scroll-behavior: auto; }
+    .lno-icon-btn, .lno-chip, .lno-launcher { transition: none; }
+  }
+</style>
 
 <script is:inline>
   (function () {
     const MAX_CHARS = 500;
     const MAX_HISTORY = 6;
+    const COUNT_SHOW_AT = 400;
     const GREETING =
       'Hi! Ask me about VRAM needs, quantization, context length, GPUs, Apple Silicon, or llama.cpp vs vLLM. For exact figures, use the calculator at /hardware.';
+    const SUGGESTIONS = [
+      { label: '32B on a 24GB GPU?', text: 'Will a 32B Q4_K_M model fit a 24GB GPU at 8K context?' },
+      { label: 'llama.cpp vs vLLM', text: 'What is the memory difference between llama.cpp and vLLM?' },
+      { label: 'Apple Silicon memory', text: 'How much unified memory can the GPU use on Apple Silicon?' },
+      { label: 'What is KV cache?', text: 'What is the KV cache and why does it use so much VRAM?' },
+    ];
 
     const toggle = document.getElementById('chatbot-toggle');
     const panel = document.getElementById('chatbot-panel');
@@ -84,17 +310,22 @@
     const input = document.getElementById('chatbot-input');
     const count = document.getElementById('chatbot-count');
     const send = document.getElementById('chatbot-send');
+    const iconOpen = document.getElementById('chatbot-icon-open');
+    const iconClose = document.getElementById('chatbot-icon-close');
     if (!toggle || !panel || !messages || !form || !input) return;
 
     let history = [];
     let busy = false;
     let greeted = false;
+    let chips = null;
 
     // Only these site paths become links, so a reply can never inject markup.
     const LINK_PATTERN = /(\/(?:hardware|calculator|methodology)(?![\w-]))/g;
     const LINK_ONLY = /^\/(?:hardware|calculator|methodology)$/;
+    const BOT_LINK = 'text-accent-primary underline';
+    const USER_LINK = 'underline';
 
-    function setText(el, text) {
+    function setText(el, text, linkClass) {
       el.textContent = '';
       text.split(LINK_PATTERN).forEach(function (part) {
         if (!part) return;
@@ -102,7 +333,7 @@
           const a = document.createElement('a');
           a.href = part;
           a.textContent = part;
-          a.className = 'text-accent-primary underline';
+          a.className = linkClass;
           el.appendChild(a);
         } else {
           el.appendChild(document.createTextNode(part));
@@ -110,49 +341,107 @@
       });
     }
 
+    function scrollDown() {
+      messages.scrollTop = messages.scrollHeight;
+    }
+
     function addMessage(role, text) {
       const el = document.createElement('div');
-      el.className =
-        'max-w-[85%] rounded-md p-xs text-body-md whitespace-pre-wrap ' +
-        (role === 'user'
-          ? 'self-end bg-accent-primary-solid text-accent-on-primary'
-          : 'self-start bg-surface-elevated text-primary');
-      setText(el, text);
+      const isUser = role === 'user';
+      el.className = isUser
+        ? 'lno-bubble lno-bubble-user bg-accent-primary-solid text-accent-on-primary'
+        : 'lno-bubble lno-bubble-bot bg-surface-elevated text-primary';
+      setText(el, text, isUser ? USER_LINK : BOT_LINK);
       messages.appendChild(el);
-      messages.scrollTop = messages.scrollHeight;
+      scrollDown();
       return el;
     }
 
+    function addTyping() {
+      const el = document.createElement('div');
+      el.className = 'lno-bubble lno-bubble-bot bg-surface-elevated text-primary';
+      const sr = document.createElement('span');
+      sr.className = 'sr-only';
+      sr.textContent = 'Assistant is typing';
+      el.appendChild(sr);
+      for (let i = 0; i < 3; i++) {
+        const dot = document.createElement('span');
+        dot.className = 'lno-dot';
+        dot.setAttribute('aria-hidden', 'true');
+        el.appendChild(dot);
+      }
+      messages.appendChild(el);
+      scrollDown();
+      return el;
+    }
+
+    function showChips() {
+      chips = document.createElement('div');
+      chips.className = 'lno-chips';
+      SUGGESTIONS.forEach(function (s) {
+        const b = document.createElement('button');
+        b.type = 'button';
+        b.className = 'lno-chip text-accent-primary hover:bg-accent-primary-solid hover:text-accent-on-primary';
+        b.textContent = s.label;
+        b.addEventListener('click', function () {
+          if (!busy) sendMessage(s.text);
+        });
+        chips.appendChild(b);
+      });
+      messages.appendChild(chips);
+      scrollDown();
+    }
+
     function openPanel() {
-      panel.classList.remove('hidden');
-      panel.classList.add('flex');
+      panel.classList.add('lno-open');
       toggle.setAttribute('aria-expanded', 'true');
+      toggle.setAttribute('aria-label', 'Close chat assistant');
+      iconOpen.classList.add('hidden');
+      iconClose.classList.remove('hidden');
       if (!greeted) {
         addMessage('assistant', GREETING);
+        showChips();
         greeted = true;
       }
       input.focus();
     }
 
     function closePanel() {
-      panel.classList.add('hidden');
-      panel.classList.remove('flex');
+      panel.classList.remove('lno-open');
       toggle.setAttribute('aria-expanded', 'false');
+      toggle.setAttribute('aria-label', 'Open chat assistant');
+      iconOpen.classList.remove('hidden');
+      iconClose.classList.add('hidden');
       toggle.focus();
     }
 
+    function autoGrow() {
+      input.style.height = 'auto';
+      input.style.height = Math.min(input.scrollHeight, 112) + 'px';
+    }
+
     function updateCount() {
-      count.textContent = input.value.length + ' / ' + MAX_CHARS;
+      const len = input.value.length;
+      if (len >= COUNT_SHOW_AT) {
+        count.textContent = len + ' / ' + MAX_CHARS;
+        count.classList.remove('hidden');
+      } else {
+        count.classList.add('hidden');
+      }
     }
 
     async function sendMessage(text) {
       busy = true;
       send.disabled = true;
+      if (chips) {
+        chips.remove();
+        chips = null;
+      }
       history.push({ role: 'user', content: text });
       history = history.slice(-MAX_HISTORY);
       while (history.length && history[0].role !== 'user') history.shift();
       addMessage('user', text);
-      const pending = addMessage('assistant', 'Thinking…');
+      const pending = addTyping();
 
       try {
         const res = await fetch('/api/chat', {
@@ -167,42 +456,46 @@
           data = null;
         }
         if (res.ok && data && data.reply) {
-          setText(pending, data.reply);
+          setText(pending, data.reply, BOT_LINK);
           history.push({ role: 'assistant', content: data.reply });
         } else {
           const fallback = res.status === 429
             ? 'Too many messages. Please wait a minute and try again.'
             : 'The assistant is unavailable right now. You can still use the calculator at /hardware.';
-          setText(pending, (data && data.message) || fallback);
+          setText(pending, (data && data.message) || fallback, BOT_LINK);
           history.pop();
           if (data && data.error === 'region') {
             input.disabled = true;
             send.disabled = true;
             busy = false;
+            scrollDown();
             return;
           }
         }
       } catch (e) {
-        setText(pending, 'Could not reach the assistant. Check your connection, or use the calculator at /hardware.');
+        setText(pending, 'Could not reach the assistant. Check your connection, or use the calculator at /hardware.', BOT_LINK);
         history.pop();
       }
-      messages.scrollTop = messages.scrollHeight;
+      scrollDown();
       busy = false;
       send.disabled = false;
       input.focus();
     }
 
     toggle.addEventListener('click', function () {
-      if (panel.classList.contains('hidden')) openPanel();
-      else closePanel();
+      if (panel.classList.contains('lno-open')) closePanel();
+      else openPanel();
     });
     closeBtn.addEventListener('click', closePanel);
     document.addEventListener('keydown', function (e) {
-      if (e.key === 'Escape' && !panel.classList.contains('hidden')) closePanel();
+      if (e.key === 'Escape' && panel.classList.contains('lno-open')) closePanel();
     });
-    input.addEventListener('input', updateCount);
+    input.addEventListener('input', function () {
+      updateCount();
+      autoGrow();
+    });
     input.addEventListener('keydown', function (e) {
-      if (e.key === 'Enter' && !e.shiftKey) {
+      if (e.key === 'Enter' && !e.shiftKey && !e.isComposing) {
         e.preventDefault();
         form.requestSubmit ? form.requestSubmit() : send.click();
       }
@@ -213,6 +506,7 @@
       const text = input.value.trim().slice(0, MAX_CHARS);
       if (!text) return;
       input.value = '';
+      input.style.height = '';
       updateCount();
       sendMessage(text);
     });
