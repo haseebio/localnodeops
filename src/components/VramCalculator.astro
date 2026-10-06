@@ -32,6 +32,67 @@ const preselectedIndex = preselectedModel
   : -1;
 
 const GPU_QUANTITIES = [1, 2, 3, 4, 5, 6, 7, 8];
+
+// "Your GPU" dropdown data. Each item is [name, VRAM in GB]; cards that
+// ship in more than one memory size are listed once per size. The 50-series,
+// RX 7000, 4060 Ti, 3060, 3080 and Arc A770 entries were checked against
+// vendor or press spec tables; the older cards use long-standing specs.
+// Apple Silicon is grouped by total unified memory: the GPU gets about 75%
+// of it by default and there is no separate system RAM to offload into.
+const APPLE_GPU_SHARE = 0.75;
+const slugify = (text: string) => text.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '');
+type GpuRow = [string, number];
+interface HardwareGroupSource {
+  label: string;
+  unified: boolean;
+  items: GpuRow[];
+}
+const HARDWARE_GROUP_SOURCES: HardwareGroupSource[] = [
+  {
+    label: 'Consumer NVIDIA',
+    unified: false,
+    items: [
+      ['RTX 5090', 32], ['RTX 5080', 16], ['RTX 5070 Ti', 16], ['RTX 5070', 12],
+      ['RTX 5060 Ti', 16], ['RTX 5060 Ti', 8], ['RTX 5060', 8],
+      ['RTX 4090', 24], ['RTX 4080 SUPER', 16], ['RTX 4080', 16], ['RTX 4070 Ti SUPER', 16],
+      ['RTX 4070 Ti', 12], ['RTX 4070 SUPER', 12], ['RTX 4070', 12],
+      ['RTX 4060 Ti', 16], ['RTX 4060 Ti', 8], ['RTX 4060', 8],
+      ['RTX 3090 Ti', 24], ['RTX 3090', 24], ['RTX 3080 Ti', 12], ['RTX 3080', 12], ['RTX 3080', 10],
+      ['RTX 3070 Ti', 8], ['RTX 3070', 8], ['RTX 3060 Ti', 8], ['RTX 3060', 12], ['RTX 3060', 8], ['RTX 3050', 8],
+      ['RTX 2080 Ti', 11], ['RTX 2080 SUPER', 8], ['RTX 2080', 8], ['RTX 2070 SUPER', 8], ['RTX 2070', 8],
+      ['RTX 2060 SUPER', 8], ['RTX 2060', 12], ['RTX 2060', 6],
+    ],
+  },
+  {
+    label: 'Consumer AMD & Intel',
+    unified: false,
+    items: [
+      ['AMD RX 7900 XTX', 24], ['AMD RX 7900 XT', 20], ['AMD RX 7900 GRE', 16], ['AMD RX 7800 XT', 16],
+      ['AMD RX 7700 XT', 12], ['AMD RX 7600 XT', 16], ['AMD RX 7600', 8],
+      ['AMD RX 6900 XT', 16], ['AMD RX 6800 XT', 16], ['AMD RX 6800', 16], ['AMD RX 6700 XT', 12], ['AMD RX 6600 XT', 8],
+      ['Intel Arc A770', 16], ['Intel Arc A770', 8],
+    ],
+  },
+  {
+    label: 'Workstation & Datacenter',
+    unified: false,
+    items: [['NVIDIA RTX 6000 Ada', 48], ['NVIDIA A100 PCIe', 80]],
+  },
+  {
+    label: 'Apple Silicon (unified memory)',
+    unified: true,
+    items: [16, 18, 24, 32, 36, 48, 64, 96, 128, 192].map((ram): GpuRow => [`Apple Silicon ${ram}GB unified`, ram]),
+  },
+];
+const HARDWARE_GROUPS = HARDWARE_GROUP_SOURCES.map((group) => ({
+  ...group,
+  items: group.items.map(([name, size]) => {
+    const ramGb = group.unified ? size : undefined;
+    const vramGb = group.unified ? Math.round(size * APPLE_GPU_SHARE * 10) / 10 : size;
+    const label = group.unified ? `${name} (~${vramGb} GB for the GPU)` : `${name} ${size}GB`;
+    return { id: slugify(`${name}-${size}`), label, vramGb, ramGb };
+  }),
+}));
 const GPU_VRAM_OPTIONS = [6, 8, 12, 16, 24, 32, 48];
 const SYSTEM_RAM_OPTIONS = [8, 16, 32, 64, 128, 256];
 ---
@@ -68,7 +129,7 @@ const SYSTEM_RAM_OPTIONS = [8, 16, 32, 64, 128, 256];
           <input type="range" id="model-size" min="1" max="120" step="1" value="7" class="w-full min-w-0 flex-1" aria-valuetext="7B" />
           <input type="number" id="model-size-num" min="1" max="120" step="0.1" value="7" inputmode="decimal" aria-label="Model size in billions of parameters" class="w-24 shrink-0 min-h-touch-min rounded-md border border-border bg-surface text-primary text-body-lg px-sm font-mono" />
         </div>
-                <div class="flex justify-between text-body-md text-secondary mt-[0.125rem] pr-[6.75rem]">
+        <div class="flex justify-between text-body-md text-secondary mt-[0.125rem] pr-[6.75rem]">
           <span>1B</span><span>30B</span><span>60B</span><span>90B</span><span>120B</span>
         </div>
 
@@ -106,7 +167,7 @@ const SYSTEM_RAM_OPTIONS = [8, 16, 32, 64, 128, 256];
           <input type="range" id="context" min="0" max="1000" step="1" value="333" class="w-full min-w-0 flex-1" aria-valuetext="4,096 tokens" />
           <input type="number" id="context-num" min="512" max="262144" step="1" value="4096" inputmode="numeric" aria-label="Context length in tokens" class="w-28 shrink-0 min-h-touch-min rounded-md border border-border bg-surface text-primary text-body-lg px-sm font-mono" />
         </div>
-                <div class="flex justify-between text-body-md text-secondary mt-[0.125rem] pr-[7.75rem]">
+        <div class="flex justify-between text-body-md text-secondary mt-[0.125rem] pr-[7.75rem]">
           <span>512</span><span>4K</span><span>32K</span><span>256K</span>
         </div>
         <p class="text-body-md text-secondary mt-xs hidden" id="context-note"></p>
@@ -196,7 +257,32 @@ const SYSTEM_RAM_OPTIONS = [8, 16, 32, 64, 128, 256];
       </button>
     </div>
 
-    <div>
+    <div id="gpu-profile-field">
+      <label for="gpu-profile" class="text-body-md text-primary block mb-xs">
+        Your GPU (optional)
+      </label>
+      <select
+        id="gpu-profile"
+        class="w-full min-h-touch-min rounded-md border border-border bg-surface text-primary text-body-lg px-sm font-mono"
+      >
+        <option value="" selected>Choose your GPU or pick a VRAM size below</option>
+        {HARDWARE_GROUPS.map((group) => (
+          <optgroup label={group.label}>
+            {group.items.map((item) => (
+              <option
+                value={item.id}
+                data-vram={String(item.vramGb)}
+                data-ram={item.ramGb !== undefined ? String(item.ramGb) : undefined}
+                data-unified={group.unified ? '1' : undefined}
+              >{item.label}</option>
+            ))}
+          </optgroup>
+        ))}
+      </select>
+      <p class="text-body-md text-secondary mt-xs hidden" id="gpu-profile-note"></p>
+    </div>
+
+    <div class="mt-sm" id="gpu-qty-field">
       <label for="gpu-qty" class="text-body-md text-primary block mb-xs">
         Number of GPUs (identical cards)
       </label>
@@ -220,7 +306,7 @@ const SYSTEM_RAM_OPTIONS = [8, 16, 32, 64, 128, 256];
     </div>
 
     <div class="mt-sm grid grid-cols-1 sm:grid-cols-2 gap-md">
-      <div>
+      <div id="gpu-vram-field">
         <label for="gpu-vram" class="text-body-md text-primary block mb-xs">
           VRAM per card
         </label>
@@ -234,7 +320,7 @@ const SYSTEM_RAM_OPTIONS = [8, 16, 32, 64, 128, 256];
           ))}
         </select>
       </div>
-      <div>
+      <div id="system-ram-field">
         <label for="system-ram" class="text-body-md text-primary block mb-xs">
           System RAM
         </label>
@@ -300,7 +386,10 @@ const SYSTEM_RAM_OPTIONS = [8, 16, 32, 64, 128, 256];
     overhead reuses the same 10% estimate, and it usually serves
     safetensors rather than GGUF. <strong class="text-primary">Fit status:</strong>
     offload assumes about 4 GB of system RAM stays with the operating
-    system. Treat all figures here as a starting estimate, not a guarantee. Full formula and known
+    system. <strong class="text-primary">Your GPU:</strong> choosing a
+    card uses its VRAM. For Apple Silicon the GPU can use about 75% of
+    unified memory by default, with no separate system RAM to offload
+    into. Treat all figures here as a starting estimate, not a guarantee. Full formula and known
     limitations: <a href="/methodology" class="text-accent-primary hover:underline">/methodology</a>.
   </p>
 </div>
@@ -479,6 +568,11 @@ const SYSTEM_RAM_OPTIONS = [8, 16, 32, 64, 128, 256];
     const gpuQtySelect = document.getElementById('gpu-qty');
     const gpuQtyNote = document.getElementById('gpu-qty-note');
     const gpuVramSelect = document.getElementById('gpu-vram');
+    const gpuProfileSelect = document.getElementById('gpu-profile');
+    const gpuProfileNote = document.getElementById('gpu-profile-note');
+    const gpuQtyField = document.getElementById('gpu-qty-field');
+    const gpuVramField = document.getElementById('gpu-vram-field');
+    const systemRamField = document.getElementById('system-ram-field');
     const systemRamSelect = document.getElementById('system-ram');
     const engineNote = document.getElementById('engine-note');
     const engineRadios = document.querySelectorAll('input[name="engine"]');
@@ -511,6 +605,64 @@ const SYSTEM_RAM_OPTIONS = [8, 16, 32, 64, 128, 256];
       return contextFromSlider(Number(contextSlider.value));
     }
 
+    // The hardware the person chose: a profile from the "Your GPU" list, or
+    // the plain "VRAM per card" setting. vramPerCard is the memory one GPU
+    // can use (for Apple Silicon: the default share of unified memory).
+    function readHardware() {
+      const opt = gpuProfileSelect.options[gpuProfileSelect.selectedIndex];
+      if (opt && opt.value) {
+        return {
+          vramPerCard: Number(opt.dataset.vram) || 0,
+          unified: opt.dataset.unified === '1',
+          ramGb: Number(opt.dataset.ram) || 0,
+          label: opt.textContent,
+        };
+      }
+      return { vramPerCard: Number(gpuVramSelect.value) || 0, unified: false, ramGb: 0, label: '' };
+    }
+
+    function updateHardwareControls() {
+      const hw = readHardware();
+      const hasProfile = gpuProfileSelect.value !== '';
+      gpuVramField.classList.toggle('hidden', hasProfile);
+      gpuQtyField.classList.toggle('hidden', hw.unified);
+      systemRamField.classList.toggle('hidden', hw.unified);
+      if (hw.unified) gpuQtySelect.value = '1';
+
+      if (!hasProfile) {
+        gpuProfileNote.classList.add('hidden');
+        gpuProfileNote.textContent = '';
+        return;
+      }
+      gpuProfileNote.classList.remove('hidden');
+      gpuProfileNote.textContent = hw.unified
+        ? 'Apple Silicon shares one pool of memory between the CPU and GPU. macOS lets the GPU use about 75% of it by default (' +
+          hw.vramPerCard + ' GB of ' + hw.ramGb + ' GB; the exact figure varies). To raise the limit on macOS 14 or later, run ' +
+          '"sudo sysctl iogpu.wired_limit_mb=<MB>" in Terminal and leave memory for macOS. Estimates assume llama.cpp with Metal.'
+        : hw.label + ': ' + hw.vramPerCard + ' GB of VRAM per card. This replaces the VRAM per card setting.';
+    }
+
+    // Apple Silicon: one shared pool, no system RAM to offload into, so the
+    // result is only ever "fits" or "out of memory". Engine overhead for
+    // vLLM is not modeled here.
+    function computeUnifiedFitStatus(totalGb, engine, hw) {
+      const modelNote = engine === 'vllm' ? ' vLLM is not modeled for Apple Silicon, so this is a llama.cpp estimate.' : '';
+      if (totalGb <= hw.vramPerCard) {
+        return {
+          tier: 'full',
+          title: 'Fits in GPU memory',
+          text: 'About ' + totalGb.toFixed(1) + ' GB fits in the ' + hw.vramPerCard + ' GB the GPU can use by default (75% of ' + hw.ramGb + ' GB).' + modelNote,
+        };
+      }
+      return {
+        tier: 'oom',
+        title: 'Out of memory',
+        text:
+          'Needs about ' + totalGb.toFixed(1) + ' GB, more than the ' + hw.vramPerCard + ' GB the GPU can use by default (75% of ' + hw.ramGb + ' GB). ' +
+          'Use a smaller quantization or a shorter context. Raising the limit with sysctl may help, but leave memory for macOS.' + modelNote,
+      };
+    }
+
     function currentEngine() {
       const checked = document.querySelector('input[name="engine"]:checked');
       return checked ? checked.value : 'llamacpp';
@@ -518,7 +670,9 @@ const SYSTEM_RAM_OPTIONS = [8, 16, 32, 64, 128, 256];
 
     // Three-tier fit status. Returns null until a GPU VRAM size is chosen.
     function computeFitStatus(totalGb, requiredGpuGb, engine, qty) {
-      const vramPerCard = Number(gpuVramSelect.value);
+      const hw = readHardware();
+      if (hw.unified) return computeUnifiedFitStatus(totalGb, engine, hw);
+      const vramPerCard = hw.vramPerCard;
       if (!vramPerCard) return null;
       const pooledGb = vramPerCard * qty;
       const ramGb = Number(systemRamSelect.value);
@@ -717,7 +871,7 @@ const SYSTEM_RAM_OPTIONS = [8, 16, 32, 64, 128, 256];
       contextLabel.textContent = context.toLocaleString('en-US');
       contextSlider.setAttribute('aria-valuetext', context.toLocaleString('en-US') + ' tokens');
 
-      const qty = Number(gpuQtySelect.value) || 1;
+      const qty = readHardware().unified ? 1 : Number(gpuQtySelect.value) || 1;
       gpuQtyNote.classList.toggle('hidden', qty === 1);
 
       let weightBytes;
@@ -879,7 +1033,7 @@ const SYSTEM_RAM_OPTIONS = [8, 16, 32, 64, 128, 256];
     }
 
     function logChange(message) {
-            const entry = `${message} → Total: ${outTotal.textContent}`;
+      const entry = `${message} → Total: ${outTotal.textContent}`;
       if (logEntries[0] === entry) return;
       logEntries.unshift(entry);
       if (logEntries.length > MAX_LOG_ENTRIES) logEntries.length = MAX_LOG_ENTRIES;
@@ -965,6 +1119,12 @@ const SYSTEM_RAM_OPTIONS = [8, 16, 32, 64, 128, 256];
 
     gpuVramSelect.addEventListener('change', compute);
     systemRamSelect.addEventListener('change', compute);
+    gpuProfileSelect.addEventListener('change', () => {
+      updateHardwareControls();
+      compute();
+      const hw = readHardware();
+      logChange('GPU → ' + (hw.label || 'not chosen'));
+    });
 
     // Dialog wiring. Escape-to-close and focus trapping are handled
     // natively by showModal() — nothing to write for those. Backdrop
@@ -988,6 +1148,7 @@ const SYSTEM_RAM_OPTIONS = [8, 16, 32, 64, 128, 256];
     modelSlider.value = String(Math.round(readModelParamsB()));
     contextSlider.value = String(sliderFromContext(readContext()));
     updateSourceVisibility();
+    updateHardwareControls();
     compute();
   })();
 </script>
