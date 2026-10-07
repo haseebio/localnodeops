@@ -19,21 +19,35 @@ interface ChatMessage {
   role: 'user' | 'assistant';
   content: string;
 }
+type Parsed = { messages: ChatMessage[] } | { error: 'input' | 'too_long' };
+interface Hit {
+  t: number;
+  ok: boolean;
+}
 
-const MODEL = process.env.GEMINI_MODEL || 'gemini-3.6-flash';
+const MODEL = process.env.GEMINI_MODEL || 'gemini-3.5-flash';
 const GEMINI_URL = 'https://generativelanguage.googleapis.com/v1beta/models/';
 
 const MAX_USER_CHARS = 500;
-const MAX_ASSISTANT_CHARS = 1500;
+const MAX_ASSISTANT_CHARS = 2000;
 const MAX_MESSAGES = 6;
 const MAX_OUTPUT_TOKENS = 1024;
-const REQUEST_TIMEOUT_MS = 20000;
 
-// Soft limits. Serverless instances keep this memory only for a while, so
-// treat it as a speed bump. A Vercel Firewall rate-limit rule is the hard stop.
-const PER_MINUTE = 6;
-const PER_HOUR = 40;
-const DAILY_CAP = 1000;
+// One question gets 60 s in total. A quick Google server error gets one retry,
+// but only when enough of the 60 s is left, so the worst case stays at 60 s.
+const TOTAL_TIMEOUT_MS = 60000;
+const RETRY_DELAY_MS = 1000;
+const MIN_TIME_FOR_RETRY_MS = 10000;
+const RETRYABLE_STATUSES = new Set([500, 502, 503, 504]);
+
+// Soft per-visitor allowance, tracked by IP in memory. Only answered questions
+// count towards it; failed tries have their own, higher cap. Serverless
+// instances keep this memory only for a while and do not share it, so treat it
+// as a speed bump. A Vercel Firewall rate-limit rule is the hard stop.
+const MAX_REPLIES = 5;
+const MAX_FAILURES = 15;
+const WINDOW_MS = 2 * 60 * 60 * 1000;
+const DAILY_CAP = 1000; // whole site, per instance
 const MAX_TRACKED_IPS = 5000;
 
 // Google's free tier may not be used to serve visitors in the EEA, the UK or
@@ -53,6 +67,7 @@ SCOPE AND SAFETY
 - Be concise: at most 150 words unless the user asks for steps. Use plain English and short bullets.
 
 HOW TO ANSWER
+- Write plain text. You may use **bold** for key numbers and start bullet lines with "- ". Do not use headings, tables or any other markdown.
 - Exact figures come from the LocalNodeOps calculator: /hardware for any model size, or /calculator for per-model pages. For a specific model, GPU or context length, give a quick estimate with the formula and send the user there to confirm.
 - Call anything you calculate an estimate. If you are not sure of a model's architecture, a GPU spec or a price, say you are not sure and point to the calculator or the vendor page. Never invent specs, prices, benchmarks, release dates or model names. Do not quote GPU prices or tokens-per-second figures.
 
@@ -68,7 +83,8 @@ FACTS YOU CAN RELY ON
 - CPU/RAM offload makes generation slower because part of the model runs from system RAM.
 - With several GPUs, pooled VRAM is an upper bound; vLLM tensor parallelism generally needs the GPU count to divide the attention heads.`;
 
-const hits = new Map<string, number[]>();
+const hits = new Map<string, Hit[]>();
+const inFlight = new Set<string>();
 let dayKey = '';
 let dayCount = 0;
 
@@ -86,20 +102,32 @@ function clientIp(req: ApiRequest): string {
   );
 }
 
-function isRateLimited(ip: string, now: number): boolean {
-  const recent = (hits.get(ip) || []).filter((t) => now - t < 3_600_000);
-  const lastMinute = recent.filter((t) => now - t < 60_000).length;
-  if (lastMinute >= PER_MINUTE || recent.length >= PER_HOUR) {
-    hits.set(ip, recent);
-    return true;
-  }
-  recent.push(now);
+function fail(res: ApiResponse, status: number, error: string, message: string, retry = false): void {
+  res.status(status).json({ error, message, retry });
+}
+
+function recentHits(ip: string, now: number): Hit[] {
+  const recent = (hits.get(ip) || []).filter((h) => now - h.t < WINDOW_MS);
+  hits.set(ip, recent);
+  return recent;
+}
+
+function limitReached(ip: string, now: number): boolean {
+  const recent = recentHits(ip, now);
+  return (
+    recent.filter((h) => h.ok).length >= MAX_REPLIES ||
+    recent.filter((h) => !h.ok).length >= MAX_FAILURES
+  );
+}
+
+function record(ip: string, now: number, ok: boolean): void {
+  const recent = recentHits(ip, now);
+  recent.push({ t: now, ok });
   hits.set(ip, recent);
   if (hits.size > MAX_TRACKED_IPS) {
     const oldest = hits.keys().next().value;
     if (oldest !== undefined) hits.delete(oldest);
   }
-  return false;
 }
 
 function dailyCapReached(now: number): boolean {
@@ -113,19 +141,20 @@ function dailyCapReached(now: number): boolean {
   return false;
 }
 
-function parseMessages(body: unknown): ChatMessage[] | null {
+function parseMessages(body: unknown): Parsed {
   const raw = body && typeof body === 'object' ? (body as { messages?: unknown }).messages : null;
-  if (!Array.isArray(raw) || raw.length === 0 || raw.length > MAX_MESSAGES) return null;
+  if (!Array.isArray(raw) || raw.length === 0 || raw.length > MAX_MESSAGES) return { error: 'input' };
   const messages: ChatMessage[] = [];
   for (const item of raw) {
-    if (!item || typeof item !== 'object') return null;
+    if (!item || typeof item !== 'object') return { error: 'input' };
     const { role, content } = item as { role?: unknown; content?: unknown };
-    if ((role !== 'user' && role !== 'assistant') || typeof content !== 'string') return null;
-    const text = content.trim().slice(0, role === 'user' ? MAX_USER_CHARS : MAX_ASSISTANT_CHARS);
-    if (!text) return null;
-    messages.push({ role, content: text });
+    if ((role !== 'user' && role !== 'assistant') || typeof content !== 'string') return { error: 'input' };
+    const text = content.trim();
+    if (!text) return { error: 'input' };
+    if (role === 'user' && text.length > MAX_USER_CHARS) return { error: 'too_long' };
+    messages.push({ role, content: role === 'assistant' ? text.slice(0, MAX_ASSISTANT_CHARS) : text });
   }
-  return messages[messages.length - 1].role === 'user' ? messages : null;
+  return messages[messages.length - 1].role === 'user' ? { messages } : { error: 'input' };
 }
 
 function extractReply(data: unknown): string {
@@ -135,12 +164,49 @@ function extractReply(data: unknown): string {
   return parts.map((part) => (typeof part.text === 'string' ? part.text : '')).join('').trim();
 }
 
+function wasBlocked(data: unknown): boolean {
+  const feedback = (data as { promptFeedback?: { blockReason?: string } } | null)?.promptFeedback;
+  return Boolean(feedback?.blockReason);
+}
+
+function sleep(ms: number): Promise<void> {
+  return new Promise((resolve) => setTimeout(resolve, ms));
+}
+
+async function callGemini(apiKey: string, messages: ChatMessage[], deadline: number) {
+  const url = `${GEMINI_URL}${encodeURIComponent(MODEL)}:generateContent`;
+  const body = JSON.stringify({
+    systemInstruction: { parts: [{ text: SYSTEM_PROMPT }] },
+    contents: messages.map((m) => ({
+      role: m.role === 'assistant' ? 'model' : 'user',
+      parts: [{ text: m.content }],
+    })),
+    generationConfig: { temperature: 0.3, maxOutputTokens: MAX_OUTPUT_TOKENS },
+  });
+  const send = () =>
+    fetch(url, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', 'x-goog-api-key': apiKey },
+      body,
+      signal: AbortSignal.timeout(Math.max(1000, deadline - Date.now())),
+    });
+
+  let response = await send();
+  if (RETRYABLE_STATUSES.has(response.status) && deadline - Date.now() > MIN_TIME_FOR_RETRY_MS) {
+    // Log the status only: never the key and never the visitor's text.
+    console.error(`chat: Gemini API returned ${response.status}, retrying once`);
+    await sleep(RETRY_DELAY_MS);
+    response = await send();
+  }
+  return response;
+}
+
 export default async function handler(req: ApiRequest, res: ApiResponse): Promise<void> {
   res.setHeader('Cache-Control', 'no-store');
 
   if (req.method !== 'POST') {
     res.setHeader('Allow', 'POST');
-    res.status(405).json({ error: 'method', message: 'Use POST.' });
+    fail(res, 405, 'method', 'Use POST.');
     return;
   }
 
@@ -154,7 +220,7 @@ export default async function handler(req: ApiRequest, res: ApiResponse): Promis
     sameOrigin = false;
   }
   if (!sameOrigin) {
-    res.status(403).json({ error: 'origin', message: 'Request not allowed.' });
+    fail(res, 403, 'origin', 'This request could not be completed. Please use the chat on localnodeops.com.');
     return;
   }
 
@@ -163,72 +229,86 @@ export default async function handler(req: ApiRequest, res: ApiResponse): Promis
   const country = header(req, 'x-vercel-ip-country').toUpperCase();
   const onVercel = Boolean(process.env.VERCEL);
   if (BLOCKED_COUNTRIES.has(country) || (onVercel && !country)) {
-    res.status(403).json({
-      error: 'region',
-      message: 'The AI assistant is not available in your region. The calculator at /hardware works everywhere.',
-    });
+    fail(
+      res,
+      403,
+      'region',
+      "The AI assistant isn't available in your region right now. The calculator at /hardware works everywhere.",
+    );
     return;
   }
 
   const apiKey = process.env.GEMINI_API_KEY;
   if (!apiKey) {
     console.error('chat: GEMINI_API_KEY is not set');
-    res.status(503).json({ error: 'unavailable', message: 'The assistant is unavailable right now.' });
+    fail(res, 503, 'offline', 'The assistant is temporarily offline. Please try again later, or use the calculator at /hardware.');
     return;
   }
 
-  const messages = parseMessages(req.body);
-  if (!messages) {
-    res.status(400).json({ error: 'input', message: `Send 1-${MAX_MESSAGES} messages of up to ${MAX_USER_CHARS} characters each.` });
+  const parsed = parseMessages(req.body);
+  if ('error' in parsed) {
+    if (parsed.error === 'too_long') {
+      fail(res, 400, 'too_long', `That message is a bit long. Please shorten it to ${MAX_USER_CHARS} characters or fewer.`);
+    } else {
+      fail(res, 400, 'input', 'Something went wrong with that message. Please try sending it again.', true);
+    }
     return;
   }
 
+  const ip = clientIp(req);
   const now = Date.now();
-  if (isRateLimited(clientIp(req), now)) {
-    res.status(429).json({ error: 'rate', message: 'Too many messages. Please wait a minute and try again.' });
+  if (limitReached(ip, now)) {
+    fail(res, 429, 'limit', "You've reached the chat limit for now. Please come back in about two hours to keep chatting.");
+    return;
+  }
+  if (inFlight.has(ip)) {
+    fail(res, 429, 'wait', "I'm still working on your last question. Please wait for the answer before sending another.");
     return;
   }
   if (dailyCapReached(now)) {
-    res.status(503).json({ error: 'busy', message: 'The assistant has reached its daily limit. Please try again tomorrow.' });
+    fail(res, 503, 'busy', 'The assistant is very busy today. Please try again tomorrow, or use the calculator at /hardware.');
     return;
   }
 
+  inFlight.add(ip);
+  let ok = false;
   try {
-    const upstream = await fetch(`${GEMINI_URL}${encodeURIComponent(MODEL)}:generateContent`, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json', 'x-goog-api-key': apiKey },
-      body: JSON.stringify({
-        systemInstruction: { parts: [{ text: SYSTEM_PROMPT }] },
-        contents: messages.map((m) => ({
-          role: m.role === 'assistant' ? 'model' : 'user',
-          parts: [{ text: m.content }],
-        })),
-        generationConfig: { temperature: 0.3, maxOutputTokens: MAX_OUTPUT_TOKENS },
-      }),
-      signal: AbortSignal.timeout(REQUEST_TIMEOUT_MS),
-    });
+    const upstream = await callGemini(apiKey, parsed.messages, Date.now() + TOTAL_TIMEOUT_MS);
 
     if (!upstream.ok) {
-      // Log the status only: never the key and never the visitor's text.
       console.error(`chat: Gemini API returned ${upstream.status}`);
-      const busy = upstream.status === 429;
-      res.status(busy ? 503 : 502).json({
-        error: busy ? 'busy' : 'unavailable',
-        message: busy
-          ? 'The assistant is busy right now. Please try again in a few minutes.'
-          : 'The assistant is unavailable right now.',
-      });
+      if (upstream.status === 429) {
+        fail(res, 503, 'busy', 'The assistant is getting a lot of questions right now. Please try again in a few minutes.', true);
+      } else if (upstream.status >= 500) {
+        fail(res, 502, 'unavailable', 'The AI service is temporarily busy. Please try again in a moment.', true);
+      } else {
+        fail(res, 502, 'offline', 'The assistant is temporarily offline. Please try again later, or use the calculator at /hardware.');
+      }
       return;
     }
 
-    const reply = extractReply(await upstream.json());
+    const data = await upstream.json();
+    const reply = extractReply(data);
     if (!reply) {
-      res.status(502).json({ error: 'empty', message: 'The assistant could not answer that. Try rephrasing, or use the calculator at /hardware.' });
+      if (wasBlocked(data)) {
+        fail(res, 422, 'blocked', "I can't answer that one. Try rephrasing your question about local-LLM memory or hardware.");
+      } else {
+        fail(res, 502, 'empty', "I couldn't come up with an answer. Try rephrasing your question, or use the calculator at /hardware.", true);
+      }
       return;
     }
+    ok = true;
     res.status(200).json({ reply });
   } catch (error) {
-    console.error('chat: request failed', error instanceof Error ? error.name : 'unknown');
-    res.status(502).json({ error: 'unavailable', message: 'The assistant is unavailable right now.' });
+    const name = error instanceof Error ? error.name : 'unknown';
+    console.error(`chat: request failed ${name}`);
+    if (name === 'TimeoutError' || name === 'AbortError') {
+      fail(res, 504, 'timeout', "That's taking longer than usual. Please try again.", true);
+    } else {
+      fail(res, 502, 'unavailable', 'Something went wrong on our side. Please try again in a moment.', true);
+    }
+  } finally {
+    record(ip, Date.now(), ok);
+    inFlight.delete(ip);
   }
 }
