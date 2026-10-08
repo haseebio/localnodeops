@@ -460,7 +460,7 @@ const SYSTEM_RAM_OPTIONS = [8, 16, 32, 64, 128, 256];
     // in the "Fits on" list, so profiles of one group must sit together.
     // amazonQuery is what the Amazon CTA searches for. runpodEquivalent
     // is optional: the closest REAL RunPod catalog card at equal-or-
-    // greater VRAM, with a rate checked against RunPod's own pricing page
+    // greater VRAM, with a rough Community Cloud rate (Secure costs about double; the 3080 Ti and 4080 SUPER rates are unverified; all rates change)
     // (RunPod does not offer the RTX 3060 or RTX 4060 Ti at all). Cards
     // with no verified RunPod rate omit it and the UI hides that line.
     // vllmNote is shown next to the card only when vLLM is selected. The
@@ -1023,7 +1023,7 @@ const SYSTEM_RAM_OPTIONS = [8, 16, 32, 64, 128, 256];
           const eqName = qty > 1 ? qty + '× ' + eq.name : eq.name;
           if (runpodTextEl) {
             runpodTextEl.textContent =
-              `Deploy closest cloud equivalent (${eqName}) instantly on RunPod for ~$${hourly}/hr`;
+                  `Rent the closest cloud equivalent (${eqName}) on RunPod from about $${hourly}/hr (estimate for the cheapest tier; prices change often)`;
           }
           if (runpodBtnEl) runpodBtnEl.setAttribute('aria-label', runpodTextEl ? runpodTextEl.textContent : '');
         } else if (runpodBox) {

@@ -30,8 +30,8 @@ const cloudProviders: Provider[] = [
   {
     name: 'RunPod',
     url: RUNPOD_URL,
-    blurb: 'On-demand GPU pods, billed by the second.',
-    cta: 'Deploy Instantly on RunPod',
+    blurb: 'On-demand GPU pods. Rates vary by card and cloud tier.',
+        cta: 'Rent a GPU on RunPod',
     umamiEvent: 'outbound-runpod',
     primary: true,
   },
@@ -131,7 +131,7 @@ const amazonProvider: Provider = {
     Cloud-equivalent budget line (CapEx vs OpEx comparison). Text and
     href set by VramCalculator.astro's compute(); hidden by default and
     only shown once a runpodEquivalent mapping exists for the recommended
-    tier. Rate is Community Cloud, checked August 2026 — labeled
+    tier. Rate is Community Cloud, not re-verified in October 2026 — labeled
     approximate in the text itself, same honesty pattern as the rest of
     this site, since even a verified rate drifts over time.
   -->
