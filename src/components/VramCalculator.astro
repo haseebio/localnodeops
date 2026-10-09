@@ -494,7 +494,18 @@ const SYSTEM_RAM_OPTIONS = [8, 16, 32, 64, 128, 256];
       {
         group: 'Consumer AMD & Intel',
         label: 'AMD RX 7900 XTX 24GB', vramGb: 24, amazonQuery: 'RX 7900 XTX 24GB',
-        vllmNote: 'needs ROCm 6.3 or newer',
+                vllmNote: 'needs ROCm 6.3 or newer',
+      },
+      // Cloud-only cards: shown in "Fits on" but never recommended for purchase.
+      {
+        group: 'Workstation & Datacenter',
+        label: 'NVIDIA RTX 6000 Ada 48GB', vramGb: 48,
+        cloudOnly: true,
+      },
+      {
+        group: 'Workstation & Datacenter',
+        label: 'NVIDIA A100 PCIe 80GB', vramGb: 80,
+        cloudOnly: true,
       },
     ];
 
@@ -975,7 +986,7 @@ const SYSTEM_RAM_OPTIONS = [8, 16, 32, 64, 128, 256];
         outProfiles.appendChild(li);
       });
 
-      const bestFit = PROFILES.find((p) => neededGb <= p.vramGb * qty) || null;
+            const bestFit = PROFILES.find((p) => !p.cloudOnly && neededGb <= p.vramGb * qty) || null;
       setCtaVisibility(!bestFit, !!bestFit);
 
       if (bestFit) {
