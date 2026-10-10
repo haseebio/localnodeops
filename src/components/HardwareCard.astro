@@ -35,11 +35,11 @@ const STATUS_STYLES: Record<string, string> = {
     hover:border-accent-primary hover:bg-surface-elevated"
   data-category={category}
 >
-  <div class="flex items-center justify-between gap-sm">
+  <div class="flex flex-wrap items-center justify-between gap-x-sm gap-y-xs">
     <span class="text-body-md text-secondary">{category}</span>
     <span
       class:list={[
-        'text-body-md rounded-full px-sm py-[0.125rem] whitespace-nowrap font-bold',
+        'text-body-md rounded-full px-sm py-[0.125rem] text-center font-bold',
         STATUS_STYLES[status],
       ]}
     >
