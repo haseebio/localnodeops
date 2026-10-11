@@ -16,6 +16,9 @@ export default defineConfig({
         if (path === '/') {
           item.priority = 1.0;
           item.changefreq = 'daily';
+                } else if (path === '/hardware' || path === '/hardware/') {
+          item.priority = 0.9;
+          item.changefreq = 'weekly';
         } else if (path.startsWith('/calculator/')) {
           item.priority = 0.9;
           item.changefreq = 'weekly';

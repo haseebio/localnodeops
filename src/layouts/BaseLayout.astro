@@ -42,7 +42,18 @@ const baseSchema = {
   url: Astro.site?.toString() ?? canonicalURL,
 };
 
-const allSchema = [baseSchema, ...jsonLd];
+const organizationSchema = {
+  '@context': 'https://schema.org',
+  '@type': 'Organization',
+  '@id': new URL('/#organization', Astro.site).toString(),
+  name: siteName,
+  url: Astro.site?.toString() ?? canonicalURL,
+  logo: new URL('/apple-touch-icon.png', Astro.site).toString(),
+  description:
+    'LocalNodeOps is a local-LLM planning site: a VRAM calculator, hardware benchmark estimates and troubleshooting guides for running language models on your own hardware.',
+};
+
+const allSchema = [baseSchema, organizationSchema, ...jsonLd];
 ---
 
 <!doctype html>
