@@ -2,7 +2,7 @@
 title: "Mac Mini M4 16GB"
 category: "GPU"
 metricLabel: "Tokens/sec ceiling (Llama 3.1 8B, Q4_K_M)"
-metricValue: "26"
+metricValue: "24"
 status: "estimated"
 summary: "16GB unified memory shared between CPU, GPU, and OS. By default macOS lets the GPU use about 75% of it (around 12GB), not the full 16GB."
 publishedAt: 2026-01-20
@@ -28,21 +28,21 @@ offload tier, because there is no separate system RAM.
 
 ## What actually fits
 
-An 8B model at Q4_K_M (the Llama 3.1 8B file is 4.58 GB) needs about 6.1 GB
-at 8K context by this site's formula, so it fits with room to spare. A 13B
-model at Q4 needs about 14.9 GB at 8K context by the generic estimate,
-which is more than the 12GB default limit, so it does not fit without a
-shorter context or a smaller quantization. Unified memory is also slower
-than the dedicated memory on a high-end discrete GPU, which affects speed
-as well as capacity.
+An 8B model at Q4_K_M (the Llama 3.1 8B file is about 4.9 GB, or 4.58 GiB)
+needs about 6.1 GB at 8K context by this site's formula, so it fits with
+room to spare. A 13B model at Q4 needs about 14.9 GB at 8K context by the
+generic estimate, which is more than the 12GB default limit, so it does not
+fit without a shorter context or a smaller quantization. Unified memory is
+also slower than the dedicated memory on a high-end discrete GPU, which
+affects speed as well as capacity.
 
-## Where the 26 tokens/sec comes from
+## Where the 24 tokens/sec comes from
 
 The figure is a theoretical ceiling, not a measurement. Generating each
 token reads the whole model from memory, so the maximum speed is roughly
 memory bandwidth divided by model size. The base M4 chip has 120 GB/s of
-memory bandwidth and the Llama 3.1 8B Q4_K_M file is 4.58 GB, so 120 / 4.58
-is about 26 tokens/sec. Real speeds are lower than the ceiling.
+memory bandwidth and the Llama 3.1 8B Q4_K_M file is about 4.9 GB (4.58 GiB),
+so 120 / 4.9 is about 24 tokens/sec. Real speeds are lower than the ceiling.
 
 ## Known limitation
 
