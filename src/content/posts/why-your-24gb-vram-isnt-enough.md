@@ -15,7 +15,7 @@ faq:
   - question: "Why does my GPU throw CUDA_OUT_OF_MEMORY if the model file is smaller than my VRAM?"
     answer: "Model file size only represents static weights stored on disk. During inference, your GPU also requires memory for CUDA runtime initialization, tensor activation overhead, and the Key-Value (KV) cache. The KV cache is reserved for your full context window when the model loads, so as you set larger context windows (e.g., 16k–128k tokens), the KV cache grows rapidly, pushing total VRAM usage past physical card limits even when the raw .gguf file appears to fit easily."
   - question: "How much generation speed do I lose when offloading layers to System RAM?"
-    answer: "A lot, even for a small share of layers. Layers that sit in system RAM run on the CPU at system-memory speed, and every token has to wait for them. Token generation is limited by memory bandwidth: a modern GPU's VRAM moves roughly 1,000 GB/s, while dual-channel DDR5 manages about 60–80 GB/s. As a worked example (arithmetic, not a benchmark), an 18.49 GB model has a bandwidth ceiling of about 54 tokens/sec fully in VRAM, about 22 with 10% of the weights in RAM, and about 7 with half in RAM, assuming 1,008 GB/s for VRAM and 65 GB/s for RAM. Real speeds are lower than these ceilings."
+    answer: "A lot, even for a small share of layers. Layers that sit in system RAM run on the CPU at system-memory speed, and every token has to wait for them. Token generation is limited by memory bandwidth: a modern GPU's VRAM moves roughly 1,000 GB/s, while dual-channel DDR5 manages about 60–80 GB/s. As a worked example (arithmetic, not a benchmark), an 18.49 GB model has a bandwidth ceiling of about 51 tokens/sec fully in VRAM, about 21 with 10% of the weights in RAM, and about 6 with half in RAM, assuming 1,008 GB/s for VRAM and 65 GB/s for RAM. Real speeds are lower than these ceilings."
 ---
 
 It is one of the most frustrating experiences in local AI inference: you buy a 24GB GPU like the RTX 3090 or 4090, download a 32B model such as DeepSeek-R1-Distill-Qwen-32B at Q4_K_M, see that the file is only 18.49 GB, set a 16K context window, hit `run`, and watch the loader throw a `CUDA_OUT_OF_MEMORY` error, or watch your generation speed collapse once layers spill into system RAM.
@@ -89,12 +89,12 @@ If a 32-layer model has 20 layers on the GPU and 12 layers in system RAM, those 
 
 Token generation is limited by memory bandwidth. Every token reads all of the weights once, so the time per token is the time to read the GPU's share at VRAM speed plus the time to read the RAM share at system-memory speed. The slow part dominates.
 
-**Worked example (arithmetic, not a benchmark).** Take the 18.49 GB 32B file, 1,008 GB/s for the RTX 4090's VRAM and 65 GB/s for DDR5-5600 system RAM. These are the best case for each setup:
+**Worked example (arithmetic, not a benchmark).** Take the 18.49 GB 32B file (about 19.9 GB in decimal units, the same units memory bandwidth is quoted in), 1,008 GB/s for the RTX 4090's VRAM and 65 GB/s for DDR5-5600 system RAM. These are the best case for each setup:
 
-* **All weights in VRAM:** about 54 tokens/sec at most.
-* **10% of the weights in RAM:** about 22 tokens/sec at most.
-* **50% of the weights in RAM:** about 7 tokens/sec at most.
-* **All weights in RAM (CPU only):** about 3.5 tokens/sec at most. [A llama.cpp user report](https://github.com/ggml-org/llama.cpp/issues/19480) measured about 3.5 tokens/sec for a dense 32B Q4_K_M model on DDR5-5600, which matches.
+* **All weights in VRAM:** about 51 tokens/sec at most.
+* **10% of the weights in RAM:** about 21 tokens/sec at most.
+* **50% of the weights in RAM:** about 6 tokens/sec at most.
+* **All weights in RAM (CPU only):** about 3.3 tokens/sec at most. [A llama.cpp user report](https://github.com/ggml-org/llama.cpp/issues/19480) measured about 3.5 tokens/sec for a dense 32B Q4_K_M model on DDR5-5600, which is in the same range.
 
 Real speeds are lower than these ceilings and vary with the CPU, the memory setup, the llama.cpp build and the context length.
 
