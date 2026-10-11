@@ -1,37 +1,36 @@
 ---
 title: "GGUF Q4_K_M"
 category: "Quantization"
-metricLabel: "Perplexity delta vs FP16"
-metricValue: "+0.31"
+metricLabel: "Perplexity delta vs FP16 (Llama 3 8B)"
+metricValue: "+0.18"
 status: "estimated"
-summary: "The sweet spot for most consumer GPUs — minimal quality loss, roughly 4x size reduction."
+summary: "A common default for consumer GPUs: about 3.3x smaller than FP16 on Llama 3 8B, for a small perplexity increase."
 publishedAt: 2026-07-15
 ---
 
-Q4_K_M uses ~4.83 bits per weight on average — not a flat 4 bits. The
-"K_M" suffix denotes k-quant medium: a mixed-precision scheme that
-allocates more bits to weights identified as more sensitive to
-quantization error (typically attention output projections and certain
-FFN layers) and fewer bits elsewhere, rather than quantizing uniformly.
-This is why Q4_K_M consistently outperforms naive 4-bit quantization at
-nearly the same file size.
+Q4_K_M averages about 4.9 bits per weight, not a flat 4 bits. llama.cpp
+measures 4.89 bits per weight for it on Llama 3.1 8B. The "K_M" suffix
+means k-quant medium: a mixed scheme where most tensors use 4-bit blocks and
+a subset of the more sensitive tensors are stored at a wider 6-bit type,
+rather than quantizing everything uniformly.
 
 ## Size math
 
-For a 7B parameter model: 7 × 10⁹ params × 4.83 bits ÷ 8 bits/byte ≈
-4.23 GB, before GGUF container overhead (typically a few hundred MB for
-tokenizer data and metadata). Compare against FP16 at 7 × 10⁹ × 2 bytes
-= 14 GB — roughly a 3.3x reduction, not a full 4x, because of the K_M
-scheme's mixed bit allocation pushing the average above 4 bits flat.
+File size is roughly parameters × bits per weight ÷ 8. For Llama 3.1 8B, the
+Q4_K_M file is 4.58 GiB, against about 15 GiB for FP16, so about 3.3x
+smaller, not 4x. The calculator's generic estimate uses 4.83 bits per weight,
+about 1% below that measurement, so generic sizes can run slightly low; model
+pages with synced file sizes use the exact numbers.
 
 ## When Q4_K_M is the wrong choice
 
-For models under ~7B parameters, quantization error compounds more
-noticeably relative to the model's total capacity — Q5_K_M or Q6_K is
-worth the extra VRAM cost on smaller models if quality is
-distinguishable in your use case. For models over 30B, Q4_K_M's error
-becomes proportionally less noticeable, and it's a reasonable default
-without needing to step up in precision.
+Stepping up costs some memory but cuts the quality loss a lot. llama.cpp's own
+quantize table for Llama 3 8B lists the perplexity increase over FP16 as
++0.1754 for Q4_K_M (4.58 GiB), +0.0569 for Q5_K_M (5.33 GiB) and +0.0217 for
+Q6_K (6.14 GiB). If you have the VRAM to spare and quality matters, Q5_K_M or
+Q6_K is worth considering, especially on smaller models. Larger models are
+generally reported to tolerate 4-bit quantization better, but test on your own
+workload.
 
 ## Verifying quantization quality yourself
 
@@ -41,8 +40,21 @@ without needing to step up in precision.
   -f ./wikitext-2-raw/wiki.test.raw
 ```
 
-Run this against both the FP16 source and the quantized GGUF to get a
-real perplexity delta for your specific model — published deltas for
-one model architecture don't transfer exactly to a different
-architecture or fine-tune, since quantization sensitivity varies by
-how weights are distributed after training.
+Run this against both the FP16 source and the quantized GGUF to get a real
+perplexity delta for your specific model. Published deltas for one model
+architecture don't transfer exactly to a different architecture or fine-tune.
+
+## Where the +0.18 comes from
+
+The figure is a third-party measurement, not a LocalNodeOps test. It is the
+Q4_K_M row of the table printed by `llama-quantize --help`, for Llama 3 8B,
+rounded from +0.1754. A separate llama.cpp measurement of the same model lists
+6.2331 for FP16 and 6.3830 for Q4_K_M, a difference of +0.15, so the exact
+delta depends on the run settings. These perplexity numbers are not directly
+comparable to the AWQ entry, which comes from a different test setup.
+
+## Known limitation
+
+The figure has not been reproduced on LocalNodeOps hardware, so this entry
+keeps the "estimated" label. See [/methodology](/methodology) for what that
+means on this site.
