@@ -37,7 +37,7 @@ should show meaningful allocation if GPU offload is active.
 ## Option 2: llama.cpp server (more control, more setup)
 
 ```bash
-git clone https://github.com/ggerganov/llama.cpp
+git clone https://github.com/ggml-org/llama.cpp
 cd llama.cpp
 cmake -B build -DGGML_CUDA=ON
 cmake --build build --config Release -j

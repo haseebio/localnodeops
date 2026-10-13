@@ -29,6 +29,8 @@ Every token in the conversation is stored in the KV cache. It grows in a straigh
 
 Add 10% of (weights + KV cache). Skipping it is a common reason a model that fits on paper still fails to start.
 
+That is the estimate for llama.cpp. vLLM reserves 90% of GPU memory by default, so with vLLM the GPU needs about the total divided by 0.90. The calculator's engine toggle applies this.
+
 ## Worked Example: 32B Model on a 24GB GPU
 
 DeepSeek-R1-Distill-Qwen-32B at Q4_K_M, 8K context:
@@ -62,4 +64,4 @@ gpt-oss 20b at Q4_K_M is a 10.83 GB file. It is a mixture-of-experts model with 
 
 ***
 
-*(The benchmarks and math formulas on this page are licensed under CC BY 4.0. The license covers benchmark and VRAM figures only. It excludes site code, branding, and the paid Docker Stack.)*
+*Disclosure: As an Amazon Associate, LocalNodeOps earns from qualifying purchases at no extra cost to you. We may also earn a commission from RunPod if you spin up an instance through our link, at no extra cost to you. This never affects the VRAM math above.**(The benchmarks and math formulas on this page are licensed under CC BY 4.0. The license covers benchmark and VRAM figures only. It excludes site code, branding, and the paid Docker Stack.)*
