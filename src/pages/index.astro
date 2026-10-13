@@ -29,7 +29,7 @@ const jsonLd = [
       '@type': 'ListItem',
       position: index + 1,
       name: entry.data.title,
-      url: `/hardware/${entry.slug}`,
+      url: new URL(`/hardware/${entry.slug}`, Astro.site).toString(),
     })),
   },
 ];
@@ -45,17 +45,19 @@ const jsonLd = [
       Know what your hardware can actually run.
     </h1>
     <p class="text-body-lg text-secondary max-w-reading mt-md">
-      LocalNodeOps tracks real inference benchmarks — tokens per second, VRAM
-      usage, and quantization trade-offs — across consumer and prosumer
-      hardware, so you can pick a setup before you buy it.
+      LocalNodeOps estimates what your hardware can actually run: VRAM needs,
+      tokens-per-second figures and quantization trade-offs for consumer and
+      prosumer hardware, with every figure labeled by where it comes from.
     </p>
   </section>
 
   <section class="max-w-shell mx-auto px-lg pb-xl">
     <h2 class="text-headline-lg text-primary">Hardware benchmarks</h2>
     <p class="text-body-md text-secondary max-w-reading mt-xs mb-md">
-      Tokens-per-second and memory bandwidth figures measured on real
-      consumer hardware, tagged verified, community-reported, or estimated.
+      Each card is tagged verified, community-reported, or estimated. Right
+      now every card is estimated: the figures come from third-party
+      measurements, published papers or bandwidth calculations, and each card
+      says which. None has been reproduced on LocalNodeOps hardware yet.
     </p>
 
     <div class="mb-md">

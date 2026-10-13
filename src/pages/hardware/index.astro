@@ -18,12 +18,12 @@ const calculatorFaq = [
   {
     question: 'How accurate is the VRAM calculator?',
     answer:
-      'It depends on the mode. In "Generic estimate" mode, both the model weight size and the KV cache figure are estimates based on a reference architecture for the selected size bucket. In "model-specific" mode, the weight size is exact — pulled directly from the real .gguf file size synced from Hugging Face — but the KV cache figure is still an estimate, for the reasons below.',
+      'It depends on the mode. In "Generic estimate" mode, both the model weight size and the KV cache figure are estimates based on a reference architecture for the selected size bucket. In "model-specific" mode, the weight size is exact (the real .gguf file size synced from Hugging Face). The KV cache is computed from the model\u2019s published attention settings when LocalNodeOps has them on record, and otherwise estimated from the nearest reference architecture. Either way the total assumes an fp16 cache, a batch size of 1 and a 10% runtime overhead, so treat it as an estimate.',
   },
   {
-    question: 'Why is KV cache always an estimate, even for synced models?',
+    question: 'Where does the KV cache figure come from for synced models?',
     answer:
-      'KV cache size depends on a model\u2019s layer count, attention head count, and head dimension. The Hugging Face data this calculator syncs (exact .gguf file sizes) does not include those architecture details, so the calculator matches each model to the nearest reference architecture bucket by parsing an approximate parameter count from its name. See /methodology for the exact formula and its limitations.',
+      'KV cache size depends on a model\u2019s layer count, KV head count, and head dimension. The Hugging Face data this calculator syncs gives exact .gguf file sizes but no architecture details. For some models LocalNodeOps records the published attention settings and computes the KV cache from them. For the others, the calculator matches the nearest reference architecture (7B, 13B, 32B, 70B or 120B) by parsing an approximate parameter count from the model name, only when the match is within 5B and the model is not a mixture-of-experts. Otherwise no total is shown. See /methodology for the exact formula and its limitations.',
   },
   {
     question: 'Does more VRAM always mean I can run a bigger model?',
@@ -33,7 +33,7 @@ const calculatorFaq = [
   {
     question: 'What does "Fits on" actually check?',
     answer:
-      'It compares the calculator\u2019s total estimated VRAM figure against the stated VRAM of a few common consumer GPU configurations. It does not account for VRAM already in use by your OS, other applications, or a second model already loaded.',
+      'It compares the estimated total VRAM (for vLLM, the total divided by 0.90) against the VRAM of the cards in the list, multiplied by the number of GPUs you choose. The list covers common consumer cards plus two workstation and datacenter cards (RTX 6000 Ada and A100) that are shown for reference only. It does not account for VRAM already in use by your OS, other applications, or a second model already loaded.',
   },
 ];
 
@@ -42,6 +42,18 @@ const jsonLd = [
     '@context': 'https://schema.org',
     '@type': 'CollectionPage',
     name: 'Hardware Benchmarks',
+  },
+  {
+    '@context': 'https://schema.org',
+    '@type': 'WebApplication',
+    name: 'LocalNodeOps VRAM Calculator',
+    url: new URL('/hardware', Astro.site).toString(),
+    description:
+      'Estimates the VRAM needed to run a local language model from model size, quantization, context length and inference engine, and checks the result against common GPUs.',
+    applicationCategory: 'DeveloperApplication',
+    operatingSystem: 'Any (runs in a web browser)',
+    offers: { '@type': 'Offer', price: '0', priceCurrency: 'USD' },
+    publisher: { '@id': new URL('/#organization', Astro.site).toString() },
   },
   {
     '@context': 'https://schema.org',
@@ -66,10 +78,11 @@ const jsonLd = [
   <section class="max-w-shell mx-auto px-lg pt-2xl pb-md">
     <h1 class="text-display-hero text-primary max-w-reading">Hardware benchmarks</h1>
     <p class="text-body-lg text-secondary max-w-reading mt-md">
-      Tokens-per-second, memory bandwidth, and quantization quality loss —
+      Tokens-per-second, memory bandwidth, and quantization quality loss,
       tagged verified, community-reported, or estimated. Right now every
-      entry is estimated, derived from published hardware specs and
-      architectural reasoning, not yet measured on physical hardware.
+      entry is estimated: the figures come from third-party measurements,
+      published papers or bandwidth calculations, and each entry says which.
+      None has been measured on LocalNodeOps hardware yet.
     </p>
   </section>
 
