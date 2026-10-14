@@ -64,4 +64,6 @@ gpt-oss 20b at Q4_K_M is a 10.83 GB file. It is a mixture-of-experts model with 
 
 ***
 
-*Disclosure: As an Amazon Associate, LocalNodeOps earns from qualifying purchases at no extra cost to you. We may also earn a commission from RunPod if you spin up an instance through our link, at no extra cost to you. This never affects the VRAM math above.**(The benchmarks and math formulas on this page are licensed under CC BY 4.0. The license covers benchmark and VRAM figures only. It excludes site code, branding, and the paid Docker Stack.)*
+*Disclosure: As an Amazon Associate I earn from qualifying purchases. This comes at no extra cost to you. We may also earn a commission from RunPod if you spin up an instance through our link, at no extra cost to you. This never affects the VRAM math above.*
+
+*(The benchmarks and math formulas on this page are licensed under CC BY 4.0. The license covers benchmark and VRAM figures only. It excludes site code, branding, and the paid Docker Stack.)*
