@@ -19,7 +19,7 @@ interface Props {
 
 const { entry } = Astro.props as Props;
 const { Content } = await entry.render();
-const { title, excerpt, category, pubDate, author, readingTime, faq } = entry.data;
+const { title, seoTitle, excerpt, category, pubDate, author, readingTime, faq } = entry.data;
 
 // tsconfig extends astro/tsconfigs/base (non-strict), so Zod infers faq items with
 // optional fields. The schema guarantees both are strings; assert that here so
@@ -68,7 +68,7 @@ if (faq && faq.length > 0) {
 }
 ---
 
-<BaseLayout title={title} description={excerpt} jsonLd={jsonLd}>
+<BaseLayout title={seoTitle ?? title} description={excerpt} jsonLd={jsonLd}>
   <div class="max-w-reading mx-auto px-lg py-xl">
     <nav class="breadcrumb" aria-label="Breadcrumb">
       <a href="/posts">Blog</a>

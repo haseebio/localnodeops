@@ -42,6 +42,7 @@ const posts = defineCollection({
   type: 'content',
   schema: z.object({
     title: z.string(),
+    seoTitle: z.string().max(45).optional(),
     excerpt: z.string().max(160),
     category: z.string(),
     pubDate: z.date(),

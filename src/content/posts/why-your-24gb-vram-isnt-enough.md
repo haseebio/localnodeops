@@ -1,5 +1,6 @@
 ---
 title: "Why Your 24GB VRAM Isn't Enough: Context Spillover and Layer Offloading Explained"
+seoTitle: "When 24GB VRAM Isn't Enough for a 32B Model"
 excerpt: "Why does an 18.49GB 32B GGUF crash a 24GB RTX 4090? A deep dive into KV cache scaling, CUDA context overhead, and layer offloading math."
 category: "Hardware"
 pubDate: 2026-09-18
