@@ -80,7 +80,7 @@ const amazonProvider: Provider = {
           id={provider.umamiEvent}
           data-umami-event={provider.umamiEvent}
           target="_blank"
-          rel="noopener noreferrer sponsored"
+          rel={provider.name === 'RunPod' ? 'noopener noreferrer sponsored' : 'noopener noreferrer'}
           class={provider.primary ? BTN_PRIMARY : BTN_SECONDARY}
         >
           {provider.cta}
@@ -90,9 +90,9 @@ const amazonProvider: Provider = {
   </div>
 
   <p class="text-body-md text-secondary mt-md border-t border-border pt-sm m-0">
-    Disclosure: We may earn a commission from cloud providers if you spin
-    up an instance through these links, at no extra cost to you. This
-    never affects the VRAM math above — see
+    Disclosure: We may earn a commission if you rent an instance through the RunPod
+    link, at no extra cost to you. The Lambda Labs link is not an
+    affiliate link. This never affects the VRAM math above — see
     <a href="/methodology" class="text-accent-primary hover:underline">/methodology</a>.
   </p>
 </div>
@@ -153,6 +153,7 @@ const amazonProvider: Provider = {
 
   <p class="text-body-md text-secondary mt-md border-t border-border pt-sm m-0">
     Disclosure: As an Amazon Associate I earn from qualifying purchases. This comes at no extra cost to you.
+    This never affects the VRAM math above — see
     <a href="/methodology" class="text-accent-primary hover:underline">/methodology</a>.
   </p>
 </div>
