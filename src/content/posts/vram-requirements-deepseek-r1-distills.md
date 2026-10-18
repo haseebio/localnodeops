@@ -17,7 +17,7 @@ DeepSeek's R1 distills have completely changed the landscape for local reasoning
 
 But reasoning models require careful memory management, especially when accounting for larger context windows required for complex system prompts.
 
-Before diving into the manual math below, you can plug your exact hardware specs into the **[LocalNodeOps VRAM Calculator](/calculator)** to see exactly which DeepSeek R1 model fits your machine without CUDA out-of-memory errors.
+Before diving into the manual math below, you can plug your exact hardware specs into the **[LocalNodeOps VRAM Calculator](/hardware)** to see exactly which DeepSeek R1 model fits your machine without CUDA out-of-memory errors.
 
 ## The Q4_K_M Standard
 

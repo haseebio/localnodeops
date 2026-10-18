@@ -30,7 +30,7 @@ The tradeoff is direct access to llama.cpp's full flag surface. Running `llama-s
 - `--cache-type-k` / `--cache-type-v` — KV cache quantization, which can meaningfully reduce KV cache VRAM at some quality cost (see [/methodology](/methodology) for how this site's KV cache formula assumes FP16 by default, since that's the common baseline)
 - `--ctx-size` — precise context length control, versus Ollama's per-model defaults
 
-If you're tuning a production deployment against a specific VRAM budget — the kind of exercise this site's [VRAM calculator](/calculator) is built for — direct `llama-server` control usually wins, because you can align the server's actual flags with the numbers you calculated, rather than trusting Ollama's automatic defaults to land in the same place.
+If you're tuning a production deployment against a specific VRAM budget — the kind of exercise this site's [VRAM calculator](/hardware) is built for — direct `llama-server` control usually wins, because you can align the server's actual flags with the numbers you calculated, rather than trusting Ollama's automatic defaults to land in the same place.
 
 ## Where each one actually makes sense
 

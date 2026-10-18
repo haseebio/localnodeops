@@ -46,4 +46,4 @@ This is why "the file is 42GB and my card has 48GB" doesn't leave nearly as much
 
 ## The practical takeaway
 
-For a 70B model specifically, decide your quantization level first, then check whether the resulting weight size plus a realistic KV cache estimate actually fits your card — don't reason from "my card has X GB" backward. Use the [VRAM calculator](/calculator) with your target model and context length before committing to a download; a 70B GGUF at the wrong quantization is a multi-hour download you may not be able to use.
+For a 70B model specifically, decide your quantization level first, then check whether the resulting weight size plus a realistic KV cache estimate actually fits your card — don't reason from "my card has X GB" backward. Use the [VRAM calculator](/hardware) with your target model and context length before committing to a download; a 70B GGUF at the wrong quantization is a multi-hour download you may not be able to use.

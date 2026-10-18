@@ -30,7 +30,7 @@ VRAM you assumed was free.
 
 - Check actual free VRAM before loading: `nvidia-smi` — don't assume the
   card's full VRAM is available if anything else is running.
-- Use this site's [VRAM calculator](/calculator) to check whether your
+- Use this site's [VRAM calculator](/hardware) to check whether your
   model, quantization, and context length combination fits your card
   before loading — see [/methodology](/methodology) for what the
   estimate does and doesn't account for.
