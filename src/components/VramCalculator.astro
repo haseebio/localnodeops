@@ -337,6 +337,17 @@ const SYSTEM_RAM_OPTIONS = [8, 16, 32, 64, 128, 256];
     </div>
     <div id="fit-status-modal" class="mt-sm text-body-md hidden" role="status"></div>
 
+    <div id="headroom-card" class="mt-sm rounded-md border border-border bg-surface-elevated p-md hidden">
+      <p class="text-body-md text-primary font-bold m-0">System headroom</p>
+      <p id="headroom-summary" class="text-body-md text-primary m-0 mt-xs"></p>
+      <div id="headroom-bars"></div>
+      <p id="headroom-breakdown" class="text-body-md text-secondary m-0 mt-sm font-mono"></p>
+      <p id="headroom-disk" class="text-body-md text-secondary m-0 mt-xs"></p>
+      <p class="text-body-md text-secondary m-0 mt-xs">
+        Estimates only. The bars use the same numbers as the fit status above. Your browser, editor and other programs use memory too, and how much varies by system.
+      </p>
+    </div>
+
     <div class="mt-sm">
       <p class="text-body-md text-primary mb-xs">Fits on:</p>
       <ul class="flex flex-col gap-[0.125rem]" id="out-profiles"></ul>
@@ -593,6 +604,11 @@ const SYSTEM_RAM_OPTIONS = [8, 16, 32, 64, 128, 256];
       document.getElementById('fit-status'),
       document.getElementById('fit-status-modal'),
     ];
+    const headroomCard = document.getElementById('headroom-card');
+    const headroomSummary = document.getElementById('headroom-summary');
+    const headroomBars = document.getElementById('headroom-bars');
+    const headroomBreakdown = document.getElementById('headroom-breakdown');
+    const headroomDisk = document.getElementById('headroom-disk');
 
     const outWeights = document.getElementById('out-weights');
     const outKv = document.getElementById('out-kv');
@@ -754,6 +770,189 @@ const SYSTEM_RAM_OPTIONS = [8, 16, 32, 64, 128, 256];
       });
     }
 
+    // Headroom card. Display only: it reuses the numbers compute() already
+    // produced and the status from computeFitStatus(), so the bars can never
+    // disagree with the fit badge. No new memory math, no extra overhead.
+    const HEADROOM_VRAM_TIGHT_PCT = 80;
+    const HEADROOM_RAM_TIGHT_PCT = 70;
+    const HEADROOM_RAM_BAD_PCT = 90;
+    const HEADROOM_FILL = {
+      ok: 'bg-green-600',
+      tight: 'bg-amber-500',
+      bad: 'bg-red-600',
+    };
+    const HEADROOM_LEVEL_LABEL = { ok: 'Good', tight: 'Tight', bad: 'Not enough' };
+
+    function makeHeadroomBar(title, pct, level, valueText, noteText) {
+      const wrap = document.createElement('div');
+      wrap.className = 'mt-sm';
+
+      const head = document.createElement('div');
+      head.className = 'flex flex-wrap justify-between gap-x-sm text-body-md';
+      const t = document.createElement('span');
+      t.className = 'text-primary font-bold';
+      t.textContent = title + ': ' + HEADROOM_LEVEL_LABEL[level];
+      const v = document.createElement('span');
+      v.className = 'text-primary font-mono';
+      v.textContent = valueText;
+      head.appendChild(t);
+      head.appendChild(v);
+
+      const shown = Math.min(100, Math.max(0, pct));
+      const track = document.createElement('div');
+      track.className = 'mt-xs h-3 w-full rounded-full bg-border overflow-hidden';
+      track.setAttribute('role', 'progressbar');
+      track.setAttribute('aria-label', title);
+      track.setAttribute('aria-valuemin', '0');
+      track.setAttribute('aria-valuemax', '100');
+      track.setAttribute('aria-valuenow', String(Math.round(shown)));
+      track.setAttribute('aria-valuetext', valueText);
+      const fill = document.createElement('div');
+      fill.className = 'h-full rounded-full ' + HEADROOM_FILL[level];
+      fill.style.width = shown.toFixed(1) + '%';
+      track.appendChild(fill);
+
+      const note = document.createElement('p');
+      note.className = 'text-body-md text-secondary m-0 mt-xs';
+      note.textContent = noteText;
+
+      wrap.appendChild(head);
+      wrap.appendChild(track);
+      wrap.appendChild(note);
+      return wrap;
+    }
+
+    function worstHeadroomLevel(levels) {
+      if (levels.indexOf('bad') !== -1) return 'bad';
+      if (levels.indexOf('tight') !== -1) return 'tight';
+      return 'ok';
+    }
+
+    // status: result of computeFitStatus() (null when no GPU memory is set).
+    // d: numbers from compute(), in bytes except neededGb/totalGb (GB).
+    function renderHeadroom(status, d) {
+      headroomBars.replaceChildren();
+      if (!status || !d) {
+        headroomCard.classList.add('hidden');
+        return;
+      }
+      const hw = readHardware();
+      const levels = [];
+      const bars = [];
+
+      if (hw.unified) {
+        const pool = hw.vramPerCard;
+        const pct = (d.totalGb / pool) * 100;
+        const free = Math.max(0, pool - d.totalGb);
+        const level = pct > 100 ? 'bad' : pct >= HEADROOM_VRAM_TIGHT_PCT ? 'tight' : 'ok';
+        levels.push(level);
+        const note =
+          level === 'bad'
+            ? 'Needs about ' + d.totalGb.toFixed(1) + ' GB, more than the ' + pool + ' GB the GPU can use by default.'
+            : 'About ' + free.toFixed(1) + ' GB of the GPU limit stays free.' +
+              (level === 'tight' ? ' Other programs that use the GPU may compete for it.' : '') +
+              ' The other ' + Math.max(0, hw.ramGb - pool) + ' GB of the ' + hw.ramGb + ' GB is left for macOS and your apps (default 75% limit).';
+        bars.push(
+          makeHeadroomBar(
+            'GPU memory (shared pool)',
+            pct,
+            level,
+            d.totalGb.toFixed(1) + ' of ' + pool + ' GB (' + Math.round(pct) + '%)',
+            note
+          )
+        );
+      } else {
+        const pooled = hw.vramPerCard * d.qty;
+        const pct = (d.neededGb / pooled) * 100;
+        const free = Math.max(0, pooled - d.neededGb);
+        let level;
+        let valueText;
+        let note;
+        if (status.tier === 'full') {
+          level = pct >= HEADROOM_VRAM_TIGHT_PCT ? 'tight' : 'ok';
+          valueText = d.neededGb.toFixed(1) + ' of ' + pooled + ' GB (' + Math.round(pct) + '%)';
+          note =
+            'About ' + free.toFixed(1) + ' GB of VRAM stays free.' +
+            (level === 'tight' ? ' Other programs that use the GPU may compete for it.' : '') +
+            ' No system RAM offload is needed by this estimate.';
+        } else if (status.tier === 'offload') {
+          level = 'tight';
+          valueText = 'needs ' + d.neededGb.toFixed(1) + ', has ' + pooled + ' GB';
+          note = 'VRAM is full. The rest of the model runs from system RAM.';
+        } else {
+          level = 'bad';
+          valueText = 'needs ' + d.neededGb.toFixed(1) + ', has ' + pooled + ' GB';
+          note =
+            status.tier === 'unknown'
+              ? 'The model does not fit in VRAM. Set your system RAM above to check CPU offload.'
+              : 'The model does not fit in VRAM plus usable system RAM.';
+        }
+        levels.push(level);
+        bars.push(
+          makeHeadroomBar(
+            'GPU VRAM' + (d.qty > 1 ? ' (' + d.qty + ' cards pooled)' : ''),
+            pct,
+            level,
+            valueText,
+            note
+          )
+        );
+
+        const ramGb = Number(systemRamSelect.value);
+        if ((status.tier === 'offload' || status.tier === 'oom') && ramGb) {
+          const gpuUsable = d.engine === 'vllm' ? pooled * VLLM_GPU_UTILIZATION : pooled;
+          const spill = Math.max(0, d.totalGb - gpuUsable);
+          const used = spill + OS_RESERVED_RAM_GB;
+          const ramPct = (used / ramGb) * 100;
+          const ramLevel =
+            ramPct >= HEADROOM_RAM_BAD_PCT ? 'bad' : ramPct >= HEADROOM_RAM_TIGHT_PCT ? 'tight' : 'ok';
+          levels.push(ramLevel);
+          const usable = Math.max(0, ramGb - OS_RESERVED_RAM_GB);
+          const ramNote =
+            ramPct > 100
+              ? 'Needs about ' + spill.toFixed(1) + ' GB in RAM, but only ' + usable + ' GB is usable.'
+              : spill.toFixed(1) + ' GB of the model plus ' + OS_RESERVED_RAM_GB +
+                ' GB kept for the operating system. About ' + Math.max(0, ramGb - used).toFixed(1) + ' GB stays free.' +
+                (ramLevel === 'bad' ? ' The system may start swapping to disk.' : '');
+          bars.push(
+            makeHeadroomBar(
+              'System RAM',
+              ramPct,
+              ramLevel,
+              used.toFixed(1) + ' of ' + ramGb + ' GB (' + Math.round(ramPct) + '%)',
+              ramNote
+            )
+          );
+        }
+      }
+
+      const worst = worstHeadroomLevel(levels);
+      headroomSummary.textContent =
+        worst === 'bad'
+          ? 'Not enough memory for this setup.'
+          : status.tier === 'offload'
+            ? 'Runs with part of the model in system RAM, so generation is slower. Close heavy programs first.'
+            : worst === 'tight'
+              ? 'Tight: close heavy programs before loading this model.'
+              : 'Good headroom: memory is left over for other work after this model.';
+      bars.forEach(function (b) {
+        headroomBars.appendChild(b);
+      });
+
+      const weightsGb = d.weightBytes / GB;
+      const kvGb = d.kvBytes / GB;
+      const overheadGb = d.overheadBytes / GB;
+      headroomBreakdown.textContent =
+        'Weights ' + weightsGb.toFixed(2) + ' GB + KV cache ' + kvGb.toFixed(2) +
+        ' GB + 10% overhead ' + overheadGb.toFixed(2) + ' GB = ' + d.totalGb.toFixed(2) + ' GB' +
+        (d.engine === 'vllm' ? '. vLLM needs total ÷ 0.90 = ' + d.neededGb.toFixed(2) + ' GB of GPU memory.' : '.');
+      headroomDisk.textContent = d.isGeneric
+        ? 'Disk space: about ' + weightsGb.toFixed(1) + ' GB for the model file (estimated from parameters and bits per weight).'
+        : 'Disk space: ' + weightsGb.toFixed(1) + ' GB for the model file.';
+
+      headroomCard.classList.remove('hidden');
+    }
+
     function formatGb(bytes) {
       return (bytes / GB).toFixed(2) + ' GB';
     }
@@ -868,6 +1067,7 @@ const SYSTEM_RAM_OPTIONS = [8, 16, 32, 64, 128, 256];
       outRequiredLabel.classList.add('hidden');
       outRequired.classList.add('hidden');
       renderFitStatus(null);
+      renderHeadroom(null, null);
       estimateNote.classList.add('hidden');
       outProfiles.innerHTML = '';
       const li = document.createElement('li');
@@ -955,7 +1155,18 @@ const SYSTEM_RAM_OPTIONS = [8, 16, 32, 64, 128, 256];
       // because of its 0.90 utilization ceiling.
       const neededGb = est.requiredGpuBytes / GB;
 
-      renderFitStatus(computeFitStatus(totalGb, neededGb, engine, qty));
+      const fitStatus = computeFitStatus(totalGb, neededGb, engine, qty);
+      renderFitStatus(fitStatus);
+      renderHeadroom(fitStatus, {
+        totalGb: totalGb,
+        neededGb: neededGb,
+        weightBytes: weightBytes,
+        kvBytes: est.kvBytes,
+        overheadBytes: est.overheadBytes,
+        engine: engine,
+        qty: qty,
+        isGeneric: sourceSelect.value === 'generic',
+      });
 
       outProfiles.innerHTML = '';
       let lastGroup = null;
