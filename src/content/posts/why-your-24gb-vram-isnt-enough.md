@@ -19,9 +19,9 @@ faq:
     answer: "A lot, even for a small share of layers. Layers that sit in system RAM run on the CPU at system-memory speed, and every token has to wait for them. Token generation is limited by memory bandwidth: a modern GPU's VRAM moves roughly 1,000 GB/s, while dual-channel DDR5 manages about 60–80 GB/s. As a worked example (arithmetic, not a benchmark), an 18.49 GB model has a bandwidth ceiling of about 51 tokens/sec fully in VRAM, about 21 with 10% of the weights in RAM, and about 6 with half in RAM, assuming 1,008 GB/s for VRAM and 65 GB/s for RAM. Real speeds are lower than these ceilings."
 ---
 
-It is one of the most frustrating experiences in local AI inference: you buy a 24GB GPU like the RTX 3090 or 4090, download a 32B model such as DeepSeek-R1-Distill-Qwen-32B at Q4_K_M, see that the file is only 18.49 GB, set a 16K context window, hit `run`, and watch the loader throw a `CUDA_OUT_OF_MEMORY` error, or watch your generation speed collapse once layers spill into system RAM.
+It is one of the most frustrating experiences in local AI inference: you buy a 24GB GPU like the RTX 3090 or 4090, download a 32B model such as DeepSeek-R1-Distill-Qwen-32B at Q4_K_M, see that the file is only 18.49 GB, set a 16K context window, hit `run`, and can end up with a `CUDA_OUT_OF_MEMORY` error, or see your generation speed collapse once layers spill into system RAM.
 
-On paper, 18.49 GB fits inside 24 GB with 5.5 GB to spare. In practice, the weights are only the baseline cost of running a local LLM. At a 16K context window, the KV cache alone reserves about 4 GB, and the runtime adds roughly 10% on top, for a total of about 24.7 GB. That is past the card's limit. At 8K context the same model needs about 22.5 GB and just fits.
+On paper, 18.49 GB fits inside 24 GB with 5.5 GB to spare. In practice, the weights are only the baseline cost of running a local LLM. At a 16K context window, the KV cache alone reserves about 4 GB, and the runtime adds roughly 10% on top, for a total of about 24.7 GB. By this site's formula that is just over the card's 24 GB, so it is likely to be too tight. At 8K context the same model needs about 22.5 GB and just fits.
 
 If you want to size local hardware accurately—or prevent system RAM spillover—you need to calculate the hidden VRAM consumers: **CUDA runtime context**, **KV cache scaling**, and **layer offloading math**.
 
@@ -58,7 +58,7 @@ For a dense 70B parameter model (e.g., Llama 3 70B with 80 layers, 8 key-value h
 * **At 32k context (FP16 KV cache):** Needs about 10 GB of extra VRAM.
 * **At 128k context (FP16 KV cache):** Needs about 40 GB of extra VRAM **just for context memory**.
 
-This is why an 18.49 GB 32B model that loads on a 24GB card at 8k context fails to load at 16k: the weights (18.49 GB) + KV cache (4.0 GB) + 10% runtime overhead (2.25 GB) come to about 24.7 GB, past the card's physical limit of 24 GB.
+By this site's formula, an 18.49 GB 32B model that fits a 24GB card at 8K context needs about 24.7 GB at 16K: the weights (18.49 GB) + KV cache (4.0 GB) + 10% runtime overhead (2.25 GB). That is just over 24 GB, so it is likely to be too tight. The 10% overhead is a conservative estimate, so real runs can differ.
 
 ### Mitigating KV Cache Bloat
 

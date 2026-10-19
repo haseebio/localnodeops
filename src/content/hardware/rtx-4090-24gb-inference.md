@@ -26,7 +26,7 @@ is much slower. The offload speed math is in
 
 What fits entirely in 24GB is the 30B class. By this site's formula, a 32B
 model with an 18.49 GB Q4_K_M file needs about 22.5 GB at 8K context (FP16
-KV cache), so it fits, but it needs about 24.7 GB at 16K, which does not.
+KV cache), so it fits, but it needs about 24.7 GB at 16K, which is just over 24 GB and likely too tight.
 8B to 13B models fit with much more room. As context grows, the KV cache
 is what uses up the remaining headroom; see the
 [VRAM calculator](/hardware) for exact figures.
