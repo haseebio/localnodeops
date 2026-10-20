@@ -75,6 +75,10 @@ async function fetchArchitecture(repoId) {
 function extractQuantizations(treeItems) {
   const rawEntries = treeItems
     .filter((item) => item.type === 'file' && item.path.toLowerCase().endsWith('.gguf'))
+    // Vision projector (mmproj) and importance-matrix files are not model
+    // weights. Left in, they showed up as fake "F16"/"F32" quantizations and
+    // were merged into the real F16 entry's size.
+    .filter((item) => !/mmproj|imatrix/i.test(item.path))
     .map((item) => {
       const bytes = item.lfs?.size ?? item.size ?? 0;
       return {
