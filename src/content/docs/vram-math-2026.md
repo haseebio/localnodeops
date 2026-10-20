@@ -59,8 +59,8 @@ gpt-oss 20b at Q4_K_M is a 10.83 GB file. It is a mixture-of-experts model with 
 
 1. **Cut the context window.** This is the fastest fix and costs nothing.
 2. **Use a smaller quantization.** A lower-bit file shrinks the weights.
-3. **Rent a cloud GPU.** For heavy models, you can [spin up a RunPod instance](https://www.runpod.io/?ref=localnodeops) by the hour instead of buying hardware.
-4. **Upgrade locally.** Browse [24GB graphics cards on Amazon](https://www.amazon.com/s?k=RTX+4090+24GB&tag=localnodeops-20).
+3. **Rent a cloud GPU.** For heavy models, you can <a href="https://www.runpod.io/?ref=localnodeops" rel="sponsored noopener">spin up a RunPod instance</a> by the hour instead of buying hardware.
+4. **Upgrade locally.** Browse <a href="https://www.amazon.com/s?k=RTX+4090+24GB&amp;tag=localnodeops-20" rel="sponsored noopener">24GB graphics cards on Amazon</a>.
 
 ***
 

@@ -42,7 +42,7 @@ Assuming a standard **8k context window** using GGUF Q4_K_M quantization, here i
 ## Hardware Recommendations
 
 If your current rig falls short of these requirements, you have two primary routes:
-1.  **Cloud Scaling:** Don't let hardware limits stall your development. Spin up a dedicated cloud instance with sufficient VRAM instantly via **[RunPod (affiliate link)](https://www.runpod.io/?ref=localnodeops)**.
-2.  **Hardware Upgrade:** If you want local zero-latency execution for 30B-class models, you need a 24GB workstation baseline. Check out 24GB graphics cards on **[Amazon (affiliate link)](https://www.amazon.com/s?k=RTX+4090+24GB&tag=localnodeops-20)**.
+1.  **Cloud Scaling:** Don't let hardware limits stall your development. Spin up a dedicated cloud instance with sufficient VRAM instantly via <strong><a href="https://www.runpod.io/?ref=localnodeops" rel="sponsored noopener">RunPod (affiliate link)</a></strong>.
+2.  **Hardware Upgrade:** If you want local zero-latency execution for 30B-class models, you need a 24GB workstation baseline. Check out 24GB graphics cards on <strong><a href="https://www.amazon.com/s?k=RTX+4090+24GB&amp;tag=localnodeops-20" rel="sponsored noopener">Amazon (affiliate link)</a></strong>.
 
 Need help fine-tuning your memory allocation or resolving memory crashes? Check our guide on [diagnosing CUDA OOM errors](/posts/diagnosing-cuda-oom-errors). For production deployments, streamline your server setup using our pre-configured [Docker Stack](/docker-stack).
