@@ -348,6 +348,13 @@ const SYSTEM_RAM_OPTIONS = [8, 16, 32, 64, 128, 256];
       </p>
     </div>
 
+    <div id="matchmaker-card" class="mt-sm rounded-md border border-border bg-surface-elevated p-md hidden">
+      <p class="text-body-md text-primary font-bold m-0">What can this hardware run?</p>
+      <p id="matchmaker-summary" class="text-body-md text-primary m-0 mt-xs"></p>
+      <div id="matchmaker-groups"></div>
+      <p id="matchmaker-note" class="text-body-md text-secondary m-0 mt-sm"></p>
+    </div>
+
     <div class="mt-sm">
       <p class="text-body-md text-primary mb-xs">Fits on:</p>
       <ul class="flex flex-col gap-[0.125rem]" id="out-profiles"></ul>
@@ -609,6 +616,10 @@ const SYSTEM_RAM_OPTIONS = [8, 16, 32, 64, 128, 256];
     const headroomBars = document.getElementById('headroom-bars');
     const headroomBreakdown = document.getElementById('headroom-breakdown');
     const headroomDisk = document.getElementById('headroom-disk');
+    const matchCard = document.getElementById('matchmaker-card');
+    const matchSummary = document.getElementById('matchmaker-summary');
+    const matchGroups = document.getElementById('matchmaker-groups');
+    const matchNote = document.getElementById('matchmaker-note');
 
     const outWeights = document.getElementById('out-weights');
     const outKv = document.getElementById('out-kv');
@@ -953,6 +964,180 @@ const SYSTEM_RAM_OPTIONS = [8, 16, 32, 64, 128, 256];
       headroomCard.classList.remove('hidden');
     }
 
+    // "What can this hardware run?" (reverse matcher). Display only: it runs
+    // every synced model through the same engineEstimate() and
+    // computeFitStatus() used above, at the current context length, engine,
+    // GPU and RAM, so it can never disagree with the fit badge.
+    // Same floor as src/pages/hardware/[slug].astro: quantizations below
+    // 3 bits are skipped as too lossy to recommend. Keep in sync.
+    const MATCH_MIN_BITS = 3;
+    // A fit that uses 95% or more of GPU memory is marked "very tight".
+    const MATCH_TIGHT_RATIO = 0.95;
+
+    function matchUsableQuant(type) {
+      // Vision projectors and importance-matrix files are not model weights.
+      if (/mmproj|imatrix/i.test(String(type))) return false;
+      const m = String(type).match(/I?Q(\d)/i);
+      if (!m) return true; // unknown naming (F16, BF16) is not excluded here
+      return parseInt(m[1], 10) >= MATCH_MIN_BITS;
+    }
+
+    // Largest usable quantization that fits fully on the GPU. If none does,
+    // the smallest usable one (the least offload) decides the tier.
+    function matchPickForModel(model, arch, context, engine, qty) {
+      const candidates = model.quantizations.filter(function (q) { return matchUsableQuant(q.type); });
+      // A full-precision file (F16, BF16, F32) is never smaller than a
+      // quantized file of the same model. If one is, it is a different file
+      // (for example a vision projector with its prefix cut off), so skip it.
+      const smallestNamed = candidates
+        .filter(function (q) { return /I?Q\d/i.test(q.type); })
+        .reduce(function (min, q) { return Math.min(min, q.size_gb); }, Infinity);
+      const usable = candidates
+        .filter(function (q) { return /I?Q\d/i.test(q.type) || q.size_gb >= smallestNamed; })
+        .slice()
+        .sort(function (a, b) { return b.size_gb - a.size_gb; });
+      if (usable.length === 0) return null;
+
+      function evaluate(q) {
+        const est = engineEstimate(q.size_gb * GB, arch, context, engine);
+        const totalGb = est.totalBytes / GB;
+        const status = computeFitStatus(totalGb, est.requiredGpuBytes / GB, engine, qty);
+        return { status: status, totalGb: totalGb, neededGb: est.requiredGpuBytes / GB, quant: q.type };
+      }
+
+      for (let i = 0; i < usable.length; i++) {
+        const r = evaluate(usable[i]);
+        if (r.status && r.status.tier === 'full') {
+          return { tier: 'full', quant: r.quant, totalGb: r.totalGb, neededGb: r.neededGb };
+        }
+      }
+      const smallest = evaluate(usable[usable.length - 1]);
+      const tier = smallest.status && smallest.status.tier === 'offload' ? 'offload' : 'none';
+      return { tier: tier, quant: smallest.quant, totalGb: smallest.totalGb, neededGb: smallest.neededGb };
+    }
+
+    function makeMatchGroup(key, title, items, open) {
+      const d = document.createElement('details');
+      d.className = 'mt-sm';
+      d.dataset.key = key;
+      d.open = open;
+      const s = document.createElement('summary');
+      s.className = 'text-body-md text-primary font-bold cursor-pointer';
+      s.textContent = title + ' (' + items.length + ')';
+      d.appendChild(s);
+      const ul = document.createElement('ul');
+      ul.className = 'flex flex-col gap-xs mt-xs m-0 p-0 list-none';
+      items.forEach(function (it) {
+        const li = document.createElement('li');
+        li.className = 'text-body-md';
+        const a = document.createElement('a');
+        a.href = '/calculator/' + encodeURIComponent(it.slug);
+        a.className = 'text-accent-primary hover:underline';
+        a.textContent = it.title;
+        const span = document.createElement('span');
+        span.className = 'text-secondary font-mono';
+        span.textContent =
+          ' ' + it.quant + ', about ' + it.totalGb.toFixed(1) + ' GB' + (it.tight ? ' (very tight)' : '');
+        li.appendChild(a);
+        li.appendChild(span);
+        ul.appendChild(li);
+      });
+      d.appendChild(ul);
+      return d;
+    }
+
+    function renderMatchmaker(context, engine, qty) {
+      const wasOpen = {};
+      matchGroups.querySelectorAll('details').forEach(function (d) {
+        wasOpen[d.dataset.key] = d.open;
+      });
+      matchGroups.replaceChildren();
+
+      const hw = readHardware();
+      if (!hw.unified && !hw.vramPerCard) {
+        matchCard.classList.add('hidden');
+        return;
+      }
+
+      const pooledGb = hw.unified ? hw.vramPerCard : hw.vramPerCard * qty;
+      const full = [];
+      const offload = [];
+      const none = [];
+      let noEstimate = 0;
+      let beyondContext = 0;
+
+      ingestedModels.forEach(function (model) {
+        const arch = archForModel(model);
+        if (!arch || !model.quantizations || model.quantizations.length === 0) {
+          noEstimate++;
+          return;
+        }
+        if (model.arch && model.arch.maxContext && context > model.arch.maxContext) {
+          beyondContext++;
+          return;
+        }
+        const pick = matchPickForModel(model, arch, context, engine, qty);
+        if (!pick) {
+          noEstimate++;
+          return;
+        }
+        const item = {
+          slug: model.slug,
+          title: model.title,
+          quant: pick.quant,
+          totalGb: pick.totalGb,
+          tight: pick.tier === 'full' && pooledGb > 0 && pick.neededGb / pooledGb >= MATCH_TIGHT_RATIO,
+        };
+        if (pick.tier === 'full') full.push(item);
+        else if (pick.tier === 'offload') offload.push(item);
+        else none.push(item);
+      });
+
+      const bySize = function (a, b) { return b.totalGb - a.totalGb; };
+      full.sort(bySize);
+      offload.sort(bySize);
+      none.sort(bySize);
+
+      const listed = full.length + offload.length + none.length;
+      matchSummary.textContent =
+        'At ' + context.toLocaleString('en-US') + ' tokens of context with ' +
+        (engine === 'vllm' ? 'vLLM' : 'llama.cpp') + ', out of ' + listed + ' models: ' +
+        'fits fully ' + full.length +
+        (hw.unified ? '' : ', needs CPU offload ' + offload.length) +
+        ', does not fit ' + none.length + '.';
+      if (context > 32768) {
+        matchSummary.textContent +=
+          ' Native context limits are known for only some models, so check each model before relying on this.';
+      }
+
+      const groups = [
+        ['full', 'Fits fully on the GPU', full, true],
+        ['offload', 'Needs CPU offload (slower)', offload, false],
+        ['none', 'Does not fit', none, false],
+      ];
+      groups.forEach(function (g) {
+        if (g[2].length === 0) return;
+        const open = Object.prototype.hasOwnProperty.call(wasOpen, g[0]) ? wasOpen[g[0]] : g[3];
+        matchGroups.appendChild(makeMatchGroup(g[0], g[1], g[2], open));
+      });
+
+      let note =
+        'Each model uses the largest quantization (3-bit or above) that fits fully on the GPU. If none does, the smallest one decides the tier. Same formula as the result above.';
+      if (!hw.unified && !Number(systemRamSelect.value)) {
+        note += ' Set your system RAM to check which models could run with CPU offload.';
+      }
+      if (engine === 'vllm') {
+        note += ' vLLM usually serves other formats than GGUF, so sizes here are GGUF-based estimates.';
+      }
+      const left = [];
+      if (noEstimate > 0) left.push(noEstimate + ' without a reliable architecture estimate');
+      if (beyondContext > 0) left.push(beyondContext + ' with a native context shorter than this setting');
+      if (left.length > 0) note += ' Left out: ' + left.join(' and ') + '.';
+      matchNote.textContent = note;
+
+      matchCard.classList.remove('hidden');
+    }
+
     function formatGb(bytes) {
       return (bytes / GB).toFixed(2) + ' GB';
     }
@@ -1084,6 +1269,7 @@ const SYSTEM_RAM_OPTIONS = [8, 16, 32, 64, 128, 256];
 
       const qty = readHardware().unified ? 1 : Number(gpuQtySelect.value) || 1;
       gpuQtyNote.classList.toggle('hidden', qty === 1);
+      renderMatchmaker(context, currentEngine(), qty);
 
       let weightBytes;
       let arch;
