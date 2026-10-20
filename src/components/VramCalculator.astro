@@ -957,9 +957,8 @@ const SYSTEM_RAM_OPTIONS = [8, 16, 32, 64, 128, 256];
         'Weights ' + weightsGb.toFixed(2) + ' GB + KV cache ' + kvGb.toFixed(2) +
         ' GB + 10% overhead ' + overheadGb.toFixed(2) + ' GB = ' + d.totalGb.toFixed(2) + ' GB' +
         (d.engine === 'vllm' ? '. vLLM needs total ÷ 0.90 = ' + d.neededGb.toFixed(2) + ' GB of GPU memory.' : '.');
-      headroomDisk.textContent = d.isGeneric
-        ? 'Disk space: about ' + weightsGb.toFixed(1) + ' GB for the model file (estimated from parameters and bits per weight).'
-        : 'Disk space: ' + weightsGb.toFixed(1) + ' GB for the model file.';
+      headroomDisk.textContent =
+        'Disk needed: ' + weightsGb.toFixed(1) + ' GB (model file)' + (d.isGeneric ? ' (approximate)' : '');
 
       headroomCard.classList.remove('hidden');
     }
@@ -1099,21 +1098,25 @@ const SYSTEM_RAM_OPTIONS = [8, 16, 32, 64, 128, 256];
       none.sort(bySize);
 
       const listed = full.length + offload.length + none.length;
+      // Same words as the fit badge. With no system RAM set, "out of memory"
+      // would overstate it: the model only fails to fit in VRAM.
+      const ramNotSet = !hw.unified && !Number(systemRamSelect.value);
+      const noneTitle = ramNotSet ? 'Does not fit in VRAM' : 'Out of memory';
       matchSummary.textContent =
         'At ' + context.toLocaleString('en-US') + ' tokens of context with ' +
         (engine === 'vllm' ? 'vLLM' : 'llama.cpp') + ', out of ' + listed + ' models: ' +
-        'fits fully ' + full.length +
-        (hw.unified ? '' : ', needs CPU offload ' + offload.length) +
-        ', does not fit ' + none.length + '.';
+        'full GPU fit ' + full.length +
+        (hw.unified ? '' : ', offload required ' + offload.length) +
+        ', ' + (ramNotSet ? 'does not fit in VRAM' : 'out of memory') + ' ' + none.length + '.';
       if (context > 32768) {
         matchSummary.textContent +=
           ' Native context limits are known for only some models, so check each model before relying on this.';
       }
 
       const groups = [
-        ['full', 'Fits fully on the GPU', full, true],
-        ['offload', 'Needs CPU offload (slower)', offload, false],
-        ['none', 'Does not fit', none, false],
+        ['full', 'Full GPU fit', full, true],
+        ['offload', 'Offload required', offload, false],
+        ['none', noneTitle, none, false],
       ];
       groups.forEach(function (g) {
         if (g[2].length === 0) return;
