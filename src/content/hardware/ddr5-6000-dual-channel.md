@@ -1,5 +1,6 @@
 ---
 title: "DDR5-6000 Dual Channel"
+seoTitle: "DDR5-6000 Dual Channel Bandwidth: 96 GB/s"
 category: "Memory"
 metricLabel: "Theoretical peak bandwidth"
 metricValue: "96 GB/s"

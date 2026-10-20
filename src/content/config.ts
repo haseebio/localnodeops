@@ -4,6 +4,10 @@ const hardware = defineCollection({
   type: 'content',
   schema: z.object({
     title: z.string(),
+    // Optional shorter title for <title>/og:title only (max 45 so the
+    // " · LocalNodeOps" suffix keeps the tag at 60). Heading and schema
+    // headline keep the normal title.
+    seoTitle: z.string().max(45).optional(),
     category: z.enum(['GPU', 'CPU', 'Memory', 'Quantization']),
     metricLabel: z.string(),
     metricValue: z.string(),

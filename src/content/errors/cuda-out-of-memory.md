@@ -2,7 +2,7 @@
 module: "CUDA"
 errorCode: "CUDA_ERROR_OUT_OF_MEMORY"
 title: "CUDA out of memory"
-summary: "The model, context, or batch size requested more VRAM than the GPU has available."
+summary: "CUDA_ERROR_OUT_OF_MEMORY means an allocation exceeded free VRAM. Check what else holds VRAM, then lower the context size or use a smaller quantization."
 severity: "critical"
 faq:
   - question: "Is this the same error as Ollama's \"CUDA error: out of memory\"?"

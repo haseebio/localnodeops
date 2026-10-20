@@ -1,5 +1,6 @@
 ---
 title: "Mac Mini M4 16GB"
+seoTitle: "Mac Mini M4 Unified Memory for Local LLMs"
 category: "GPU"
 metricLabel: "Tokens/sec ceiling (Llama 3.1 8B, Q4_K_M)"
 metricValue: "24"
