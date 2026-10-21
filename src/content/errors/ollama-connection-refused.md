@@ -36,3 +36,7 @@ running inside a separate Docker container — is trying to reach
 - If connecting from outside the host machine, confirm `OLLAMA_HOST` is
   set to bind beyond `127.0.0.1` (e.g. `0.0.0.0`) — the default only
   accepts local connections.
+
+## Sources
+
+- [Ollama FAQ](https://docs.ollama.com/faq) (the default bind address `127.0.0.1:11434` and the `OLLAMA_HOST` setting)
