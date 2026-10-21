@@ -33,3 +33,7 @@ starting the vLLM server.
 - If context length is correct but VRAM is the real constraint, lowering
   `--max-model-len` reduces reserved KV cache memory, which may resolve
   this alongside CUDA OOM errors on the same server.
+
+## Sources
+
+- [vLLM docs: Conserving Memory](https://docs.vllm.ai/en/latest/configuration/conserving_memory/) (limiting `max_model_len` and `max_num_seqs` reduces memory use)
