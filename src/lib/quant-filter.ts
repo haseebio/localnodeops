@@ -12,6 +12,7 @@ export interface QuantLike {
 }
 
 const isNamedQuant = (type: string) => /I?Q\d/i.test(type);
+const is32Bit = (type: string) => /(f32|fp32)(\.gguf)?$/i.test(type.split('/').pop() ?? type);
 
 export function usableQuants<T extends QuantLike>(quants: T[]): T[] {
   // Vision projectors and importance-matrix files are not model weights.
@@ -25,8 +26,14 @@ export function usableQuants<T extends QuantLike>(quants: T[]): T[] {
   // A full-precision file (F16, BF16, F32) is never smaller than a
   // quantized file of the same model. If one is, it is a different file.
   const smallestNamed = named.reduce((min, q) => Math.min(min, q.size_gb), Infinity);
+  // 32-bit files are skipped: nobody runs F32 for local inference, and the
+  // 16-bit file of the same model always fits whenever the F32 one does, so
+  // this never changes which tier a model lands in.
   const full = weights.filter(
-    (q) => !isNamedQuant(q.type) && (!Number.isFinite(smallestNamed) || q.size_gb >= smallestNamed)
+    (q) =>
+      !isNamedQuant(q.type) &&
+      !is32Bit(q.type) &&
+      (!Number.isFinite(smallestNamed) || q.size_gb >= smallestNamed)
   );
   return [...named, ...full];
 }
