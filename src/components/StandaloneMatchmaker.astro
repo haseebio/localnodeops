@@ -1,0 +1,302 @@
+---
+import { getCollection } from 'astro:content';
+import { getModelArch, nearestBucket, parseParamsB } from '../lib/vram-math';
+import { estimateForEngine } from '../lib/engine-math';
+import { usableQuants } from '../lib/quant-filter';
+
+// Context lengths offered by the toggle. 128K is 128 x 1024 tokens.
+const CONTEXTS = [4096, 8192, 16384, 32768, 131072];
+const CONTEXT_LABELS = ['4K', '8K', '16K', '32K', '128K'];
+const VRAM_PRESETS = [8, 12, 16, 24, 32, 48, 80];
+const RAM_PRESETS = [16, 32, 64, 128, 256];
+
+// All memory math happens here, at build time, with the same shared
+// functions the calculator pages use. The browser script below only
+// compares these numbers with the VRAM and RAM the visitor picks, so there
+// is no second copy of the formula to keep in sync.
+const entries = await getCollection('models');
+let noEstimate = 0;
+const models: {
+  slug: string;
+  title: string;
+  paramsB: number | null;
+  maxContext: number | null;
+  quants: { type: string; sizeGb: number; totals: number[] }[];
+}[] = [];
+
+for (const entry of entries) {
+  const arch =
+    getModelArch(entry.slug) ?? nearestBucket(parseParamsB(entry.data.title), entry.data.title);
+  // Keep only complete entries, so the helper always gets a type and a size.
+  const complete = entry.data.quantizations.flatMap((q) =>
+    typeof q.type === 'string' && typeof q.size_gb === 'number'
+      ? [{ type: q.type, size_gb: q.size_gb }]
+      : []
+  );
+  const quants = usableQuants(complete);
+  if (!arch || quants.length === 0) {
+    noEstimate++;
+    continue;
+  }
+  models.push({
+    slug: entry.slug,
+    title: entry.data.title,
+    paramsB: parseParamsB(entry.data.title),
+    maxContext: arch.maxContext ?? null,
+    quants: quants.map((q) => ({
+      type: q.type,
+      sizeGb: q.size_gb,
+      totals: CONTEXTS.map((c) =>
+        Number(estimateForEngine(q.size_gb, arch, c, 'llamacpp').totalGb.toFixed(3))
+      ),
+    })),
+  });
+}
+
+const data = { contexts: CONTEXTS, labels: CONTEXT_LABELS, osReservedRamGb: 4, noEstimate, models };
+
+const BTN =
+  'inline-flex items-center justify-center min-h-touch-min rounded-full px-md border border-border text-body-md text-primary cursor-pointer bg-surface hover:bg-accent-primary-container';
+---
+
+<div id="matchmaker" class="flex flex-col gap-md">
+  <div class="grid gap-md md:grid-cols-2">
+    <div class="border border-border rounded-md bg-surface p-md">
+      <label for="mm-vram" class="text-body-md text-primary font-bold">
+        GPU VRAM: <span id="mm-vram-label">24</span> GB
+      </label>
+      <input id="mm-vram" type="range" min="2" max="192" step="1" value="24" class="w-full mt-xs" />
+      <div class="flex flex-wrap gap-xs mt-xs" role="group" aria-label="VRAM presets">
+        {VRAM_PRESETS.map((v) => (
+          <button type="button" class={BTN} data-preset="vram" data-value={v}>{v} GB</button>
+        ))}
+      </div>
+    </div>
+
+    <div class="border border-border rounded-md bg-surface p-md">
+      <label for="mm-ram" class="text-body-md text-primary font-bold">
+        System RAM: <span id="mm-ram-label">32</span> GB
+      </label>
+      <input id="mm-ram" type="range" min="8" max="256" step="1" value="32" class="w-full mt-xs" />
+      <div class="flex flex-wrap gap-xs mt-xs" role="group" aria-label="RAM presets">
+        {RAM_PRESETS.map((v) => (
+          <button type="button" class={BTN} data-preset="ram" data-value={v}>{v} GB</button>
+        ))}
+      </div>
+    </div>
+  </div>
+
+  <fieldset class="border border-border rounded-md bg-surface p-md m-0">
+    <legend class="text-body-md text-primary font-bold px-xs">Context length</legend>
+    <div class="flex flex-wrap gap-xs" role="radiogroup">
+      {CONTEXT_LABELS.map((label, i) => (
+        <label class="inline-flex items-center gap-xs min-h-touch-min px-md rounded-full border border-border text-body-md text-primary cursor-pointer bg-surface">
+          <input type="radio" name="mm-ctx" value={i} checked={i === 1} />
+          {label}
+        </label>
+      ))}
+    </div>
+  </fieldset>
+
+  <div class="flex flex-wrap items-center gap-sm">
+    <label for="mm-search" class="text-body-md text-primary font-bold">Find a model</label>
+    <input
+      id="mm-search"
+      type="search"
+      placeholder="Search by name, e.g. qwen"
+      class="flex-1 min-w-[12rem] min-h-touch-min rounded-md border border-border bg-surface text-primary px-md"
+    />
+  </div>
+
+  <div id="mm-tabs" class="flex flex-wrap gap-xs" role="group" aria-label="Filter by fit">
+    <button type="button" class={BTN} data-tab="all" aria-pressed="true">All</button>
+    <button type="button" class={BTN} data-tab="full" aria-pressed="false">Full GPU fit</button>
+    <button type="button" class={BTN} data-tab="offload" aria-pressed="false">Offload required</button>
+    <button type="button" class={BTN} data-tab="none" aria-pressed="false">Out of memory</button>
+  </div>
+
+  <p id="mm-summary" class="text-body-md text-primary m-0" role="status"></p>
+  <div id="mm-list" class="grid gap-md sm:grid-cols-2 lg:grid-cols-3"></div>
+  <p id="mm-note" class="text-body-md text-secondary m-0"></p>
+</div>
+
+<script is:inline type="application/json" id="mm-data" set:html={JSON.stringify(data)} />
+
+<script is:inline>
+  (function () {
+    const root = document.getElementById('matchmaker');
+    if (!root) return;
+    const data = JSON.parse(document.getElementById('mm-data').textContent);
+
+    const vramInput = document.getElementById('mm-vram');
+    const ramInput = document.getElementById('mm-ram');
+    const vramLabel = document.getElementById('mm-vram-label');
+    const ramLabel = document.getElementById('mm-ram-label');
+    const searchInput = document.getElementById('mm-search');
+    const summary = document.getElementById('mm-summary');
+    const list = document.getElementById('mm-list');
+    const note = document.getElementById('mm-note');
+    const tabButtons = Array.prototype.slice.call(document.querySelectorAll('#mm-tabs [data-tab]'));
+
+    const TIGHT_RATIO = 0.95; // 95% or more of VRAM is marked "very tight"
+    const BADGE = {
+      full: { text: 'Full GPU fit', cls: 'bg-green-600 text-white' },
+      offload: { text: 'Offload required', cls: 'bg-amber-500 text-black' },
+      none: { text: 'Out of memory', cls: 'bg-red-600 text-white' },
+    };
+
+    const state = { tab: 'all' };
+
+    function ctxIndex() {
+      const checked = document.querySelector('input[name="mm-ctx"]:checked');
+      return checked ? Number(checked.value) : 1;
+    }
+
+    // Largest usable quantization that fits fully in VRAM. If none does, the
+    // smallest one decides the tier. Totals come precomputed from the shared
+    // build-time math, so this only compares numbers.
+    function pick(model, ci, vram, ram) {
+      const quants = model.quants.slice().sort(function (a, b) { return b.sizeGb - a.sizeGb; });
+      for (let i = 0; i < quants.length; i++) {
+        if (quants[i].totals[ci] <= vram) {
+          return { tier: 'full', quant: quants[i], total: quants[i].totals[ci] };
+        }
+      }
+      const smallest = quants[quants.length - 1];
+      const usableRam = Math.max(0, ram - data.osReservedRamGb);
+      const total = smallest.totals[ci];
+      return { tier: total <= vram + usableRam ? 'offload' : 'none', quant: smallest, total: total };
+    }
+
+    // Full-precision files are synced with long path-like names, for example
+    // "BF16/Model-BF16". Show just the format. Clean names (Q6_K_L, Q8_0-F16)
+    // are left as they are.
+    function shortQuant(type) {
+      const last = String(type).split('/').pop();
+      if (/^I?Q\d[A-Za-z0-9_-]*$/i.test(last)) return last;
+      const full = last.match(/(bf16|f16|f32|fp16|fp32)$/i);
+      if (full) return full[1].toUpperCase();
+      const tail = last.match(/-([A-Za-z0-9_]+)$/);
+      return tail ? tail[1] : last;
+    }
+
+    function makeCard(item, vram) {
+      const card = document.createElement('div');
+      card.className = 'border border-border rounded-md bg-surface p-md flex flex-col gap-xs';
+
+      const title = document.createElement('a');
+      title.href = '/calculator/' + encodeURIComponent(item.model.slug);
+      title.className = 'text-body-lg font-bold text-accent-primary hover:underline';
+      title.textContent = item.model.title;
+
+      const params = document.createElement('p');
+      params.className = 'text-body-md text-secondary m-0';
+      params.textContent = item.model.paramsB
+        ? 'About ' + item.model.paramsB + 'B parameters (read from the model name)'
+        : 'Parameter count is not in the model name';
+
+      const file = document.createElement('p');
+      file.className = 'text-body-md text-primary m-0';
+      file.textContent = 'GGUF file: ' + shortQuant(item.pick.quant.type) + ', ' + item.pick.quant.sizeGb.toFixed(1) + ' GB';
+
+      const need = document.createElement('p');
+      need.className = 'text-body-md text-primary m-0';
+      need.textContent = 'Memory needed: ' + item.pick.total.toFixed(1) + ' GB';
+
+      const badge = document.createElement('span');
+      const b = BADGE[item.pick.tier];
+      badge.className = 'inline-block self-start rounded-full px-md py-xs text-body-md font-bold ' + b.cls;
+      badge.textContent = b.text + (item.pick.tier === 'full' && item.pick.total / vram >= TIGHT_RATIO ? ' (very tight)' : '');
+
+      card.appendChild(title);
+      card.appendChild(params);
+      card.appendChild(file);
+      card.appendChild(need);
+      card.appendChild(badge);
+      return card;
+    }
+
+    function render() {
+      const vram = Number(vramInput.value);
+      const ram = Number(ramInput.value);
+      const ci = ctxIndex();
+      vramLabel.textContent = String(vram);
+      ramLabel.textContent = String(ram);
+
+      const items = [];
+      let beyondContext = 0;
+      data.models.forEach(function (model) {
+        if (model.maxContext && data.contexts[ci] > model.maxContext) {
+          beyondContext++;
+          return;
+        }
+        items.push({ model: model, pick: pick(model, ci, vram, ram) });
+      });
+
+      const counts = { full: 0, offload: 0, none: 0 };
+      items.forEach(function (it) { counts[it.pick.tier]++; });
+
+      const order = { full: 0, offload: 1, none: 2 };
+      items.sort(function (a, b) {
+        return order[a.pick.tier] - order[b.pick.tier] || b.pick.total - a.pick.total;
+      });
+
+      const q = searchInput.value.trim().toLowerCase();
+      const shown = items.filter(function (it) {
+        return (state.tab === 'all' || it.pick.tier === state.tab) &&
+          (q === '' || it.model.title.toLowerCase().indexOf(q) !== -1);
+      });
+
+      list.replaceChildren();
+      shown.forEach(function (it) { list.appendChild(makeCard(it, vram)); });
+      if (shown.length === 0) {
+        const empty = document.createElement('p');
+        empty.className = 'text-body-md text-secondary m-0';
+        empty.textContent = 'No models match this filter.';
+        list.appendChild(empty);
+      }
+
+      summary.textContent =
+        'At ' + data.labels[ci] + ' context with ' + vram + ' GB of VRAM and ' + ram + ' GB of RAM, out of ' +
+        items.length + ' models: Full GPU fit ' + counts.full + ', Offload required ' + counts.offload +
+        ', Out of memory ' + counts.none + '.';
+
+      let text =
+        'Estimates for llama.cpp on a single discrete GPU. Each model uses the largest quantization (3-bit or above) that fits fully in VRAM. If none does, the smallest one decides the tier. Offload counts system RAM minus ' +
+        data.osReservedRamGb + ' GB kept for the operating system.';
+      if (data.contexts[ci] > 32768) {
+        text += ' Native context limits are known for only some models, so check each model before relying on this.';
+      }
+      const left = [];
+      if (data.noEstimate > 0) left.push(data.noEstimate + ' without a reliable architecture estimate');
+      if (beyondContext > 0) left.push(beyondContext + ' with a native context shorter than this setting');
+      if (left.length > 0) text += ' Left out: ' + left.join(' and ') + '.';
+      note.textContent = text;
+    }
+
+    vramInput.addEventListener('input', render);
+    ramInput.addEventListener('input', render);
+    searchInput.addEventListener('input', render);
+    document.querySelectorAll('input[name="mm-ctx"]').forEach(function (r) {
+      r.addEventListener('change', render);
+    });
+    document.querySelectorAll('[data-preset]').forEach(function (btn) {
+      btn.addEventListener('click', function () {
+        const target = btn.getAttribute('data-preset') === 'vram' ? vramInput : ramInput;
+        target.value = btn.getAttribute('data-value');
+        render();
+      });
+    });
+    tabButtons.forEach(function (btn) {
+      btn.addEventListener('click', function () {
+        state.tab = btn.getAttribute('data-tab');
+        tabButtons.forEach(function (b) {
+          b.setAttribute('aria-pressed', String(b === btn));
+        });
+        render();
+      });
+    });
+
+    render();
+  })();
+</script>

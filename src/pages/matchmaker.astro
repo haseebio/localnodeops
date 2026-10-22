@@ -1,0 +1,34 @@
+---
+import BaseLayout from '../layouts/BaseLayout.astro';
+import StandaloneMatchmaker from '../components/StandaloneMatchmaker.astro';
+---
+
+<BaseLayout
+  title="What Can Your GPU Run? Local LLM Matchmaker"
+  description="Pick your GPU memory, system RAM and context length to see which local LLMs fit fully on the GPU, need CPU offload or do not fit."
+>
+  <section class="max-w-shell mx-auto px-lg pt-2xl pb-md">
+    <h1 class="text-display-hero text-primary max-w-reading">What can your GPU run?</h1>
+    <p class="text-body-lg text-secondary max-w-reading mt-md">
+      Set your GPU memory, system RAM and context length. The list sorts every synced
+      model into Full GPU fit, Offload required or Out of memory, using the same formula as
+      the VRAM calculator: (weights + KV cache) × 1.10.
+    </p>
+  </section>
+
+  <section class="max-w-shell mx-auto px-lg pb-xl">
+    <StandaloneMatchmaker />
+  </section>
+
+  <section class="max-w-shell mx-auto px-lg pb-2xl">
+    <h2 class="text-headline-md text-primary">How these numbers are made</h2>
+    <p class="text-body-md text-secondary max-w-reading mt-sm">
+      Model file sizes come from the synced GGUF files. The KV cache is computed from each
+      model's attention layout at the context length you pick, then 10% is added for runtime
+      overhead. Everything is an estimate, not a measurement. See the
+      <a href="/methodology" class="text-accent-primary hover:underline">methodology</a> for the full
+      formula, or open the <a href="/hardware" class="text-accent-primary hover:underline">VRAM calculator</a>
+      to check one model, an Apple Silicon Mac or several GPUs.
+    </p>
+  </section>
+</BaseLayout>
