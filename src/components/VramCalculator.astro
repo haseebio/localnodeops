@@ -981,6 +981,24 @@ const SYSTEM_RAM_OPTIONS = [8, 16, 32, 64, 128, 256];
       return parseInt(m[1], 10) >= MATCH_MIN_BITS;
     }
 
+    // The two helpers below match src/lib/quant-filter.ts (server side) and the
+    // script in src/components/StandaloneMatchmaker.astro. Keep them in sync.
+    function matchIs32Bit(type) {
+      return /(f32|fp32)(\.gguf)?$/i.test(String(type).split('/').pop());
+    }
+
+    // Full-precision files are synced with long path-like names, for example
+    // "BF16/Model-BF16". Show just the format. Clean names (Q6_K_L, Q8_0-F16)
+    // are left as they are.
+    function shortQuant(type) {
+      const last = String(type).split('/').pop();
+      if (/^I?Q\d[A-Za-z0-9_-]*$/i.test(last)) return last;
+      const full = last.match(/(bf16|f16|f32|fp16|fp32)$/i);
+      if (full) return full[1].toUpperCase();
+      const tail = last.match(/-([A-Za-z0-9_]+)$/);
+      return tail ? tail[1] : last;
+    }
+
     // Largest usable quantization that fits fully on the GPU. If none does,
     // the smallest usable one (the least offload) decides the tier.
     function matchPickForModel(model, arch, context, engine, qty) {
@@ -991,8 +1009,14 @@ const SYSTEM_RAM_OPTIONS = [8, 16, 32, 64, 128, 256];
       const smallestNamed = candidates
         .filter(function (q) { return /I?Q\d/i.test(q.type); })
         .reduce(function (min, q) { return Math.min(min, q.size_gb); }, Infinity);
+      // 32-bit files are skipped, as on the /matchmaker page: nobody runs F32
+      // locally, and the 16-bit file always fits whenever the F32 one does.
       const usable = candidates
-        .filter(function (q) { return /I?Q\d/i.test(q.type) || q.size_gb >= smallestNamed; })
+        .filter(function (q) {
+          if (/I?Q\d/i.test(q.type)) return true;
+          if (matchIs32Bit(q.type)) return false;
+          return !isFinite(smallestNamed) || q.size_gb >= smallestNamed;
+        })
         .slice()
         .sort(function (a, b) { return b.size_gb - a.size_gb; });
       if (usable.length === 0) return null;
@@ -1036,7 +1060,7 @@ const SYSTEM_RAM_OPTIONS = [8, 16, 32, 64, 128, 256];
         const span = document.createElement('span');
         span.className = 'text-secondary font-mono';
         span.textContent =
-          ' ' + it.quant + ', about ' + it.totalGb.toFixed(1) + ' GB' + (it.tight ? ' (very tight)' : '');
+          ' ' + shortQuant(it.quant) + ', about ' + it.totalGb.toFixed(1) + ' GB' + (it.tight ? ' (very tight)' : '');
         li.appendChild(a);
         li.appendChild(span);
         ul.appendChild(li);
