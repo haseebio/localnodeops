@@ -114,7 +114,7 @@ const jsonLd = [
 ---
 
 <BaseLayout
-  title={`VRAM Requirements for ${title}`}
+  title={`${title.replace(/-GGUF$/i, '')} VRAM ${title.replace(/-GGUF$/i, '').length <= 27 ? 'Requirements' : 'Needs'}`}
   description={`Exact GGUF file sizes${hasEstimate ? ` and estimated VRAM requirements` : ''} for ${title} across ${quantizations.length} quantization${quantizations.length === 1 ? '' : 's'}.`}
   jsonLd={jsonLd}
 >
