@@ -355,6 +355,22 @@ const SYSTEM_RAM_OPTIONS = [8, 16, 32, 64, 128, 256];
       <p id="matchmaker-note" class="text-body-md text-secondary m-0 mt-sm"></p>
     </div>
 
+    <div id="multi-card" class="mt-sm rounded-md border border-border bg-surface-elevated p-md hidden">
+      <p class="text-body-md text-primary font-bold m-0">Run more than one model at once</p>
+      <p id="multi-intro" class="text-body-md text-secondary m-0 mt-xs"></p>
+      <div id="multi-body">
+        <div id="multi-rows" class="flex flex-col gap-sm mt-sm"></div>
+        <div class="flex flex-wrap items-center gap-sm mt-sm">
+          <button type="button" id="multi-add" class="inline-flex items-center justify-center min-h-touch-min rounded-full px-md border border-border text-body-md text-primary cursor-pointer bg-surface">Add another model</button>
+          <label for="multi-extra" class="text-body-md text-primary">Other memory in use (GB)</label>
+          <input id="multi-extra" type="number" min="0" max="512" step="0.5" value="0" class="w-24 min-h-touch-min rounded-md border border-border bg-surface text-primary px-sm" />
+        </div>
+        <p id="multi-result" class="text-body-md text-primary m-0 mt-sm" role="status"></p>
+        <span id="multi-badge" class="hidden"></span>
+        <p id="multi-note" class="text-body-md text-secondary m-0 mt-xs"></p>
+      </div>
+    </div>
+
     <div class="mt-sm">
       <p class="text-body-md text-primary mb-xs">Fits on:</p>
       <ul class="flex flex-col gap-[0.125rem]" id="out-profiles"></ul>
@@ -620,6 +636,15 @@ const SYSTEM_RAM_OPTIONS = [8, 16, 32, 64, 128, 256];
     const matchSummary = document.getElementById('matchmaker-summary');
     const matchGroups = document.getElementById('matchmaker-groups');
     const matchNote = document.getElementById('matchmaker-note');
+    const multiCard = document.getElementById('multi-card');
+    const multiIntro = document.getElementById('multi-intro');
+    const multiBody = document.getElementById('multi-body');
+    const multiRowsEl = document.getElementById('multi-rows');
+    const multiAdd = document.getElementById('multi-add');
+    const multiExtra = document.getElementById('multi-extra');
+    const multiResult = document.getElementById('multi-result');
+    const multiBadge = document.getElementById('multi-badge');
+    const multiNote = document.getElementById('multi-note');
 
     const outWeights = document.getElementById('out-weights');
     const outKv = document.getElementById('out-kv');
@@ -999,10 +1024,10 @@ const SYSTEM_RAM_OPTIONS = [8, 16, 32, 64, 128, 256];
       return tail ? tail[1] : last;
     }
 
-    // Largest usable quantization that fits fully on the GPU. If none does,
-    // the smallest usable one (the least offload) decides the tier.
-    function matchPickForModel(model, arch, context, engine, qty) {
-      const candidates = model.quantizations.filter(function (q) { return matchUsableQuant(q.type); });
+    // Usable quantizations of one model, largest first. Used by the hardware
+    // list and by the multi-model card.
+    function matchUsableList(quantizations) {
+      const candidates = quantizations.filter(function (q) { return matchUsableQuant(q.type); });
       // A full-precision file (F16, BF16, F32) is never smaller than a
       // quantized file of the same model. If one is, it is a different file
       // (for example a vision projector with its prefix cut off), so skip it.
@@ -1019,6 +1044,13 @@ const SYSTEM_RAM_OPTIONS = [8, 16, 32, 64, 128, 256];
         })
         .slice()
         .sort(function (a, b) { return b.size_gb - a.size_gb; });
+      return usable;
+    }
+
+    // Largest usable quantization that fits fully on the GPU. If none does,
+    // the smallest usable one (the least offload) decides the tier.
+    function matchPickForModel(model, arch, context, engine, qty) {
+      const usable = matchUsableList(model.quantizations);
       if (usable.length === 0) return null;
 
       function evaluate(q) {
@@ -1165,6 +1197,193 @@ const SYSTEM_RAM_OPTIONS = [8, 16, 32, 64, 128, 256];
       matchCard.classList.remove('hidden');
     }
 
+    // "Run more than one model at once". Adds up (weights + KV cache) x 1.10
+    // for each model with the same engineEstimate() used everywhere above, at
+    // the context length chosen above. llama.cpp only: vLLM reserves a share
+    // of GPU memory per server, so a plain sum would be wrong there.
+    const MULTI_MAX_EXTRA_MODELS = 2;
+    const MULTI_SELECT_CLASS =
+      'min-h-touch-min rounded-md border border-border bg-surface text-primary px-sm max-w-full';
+    const MULTI_BADGE = {
+      full: { text: 'Full GPU fit', cls: 'bg-green-600 text-white' },
+      offload: { text: 'Offload required', cls: 'bg-amber-500 text-black' },
+      none: { text: 'Out of memory', cls: 'bg-red-600 text-white' },
+    };
+    const multiRows = []; // { row, modelSel, quantSel }
+    let lastSingle = null; // total GB of the model chosen in the calculator above
+    let multiModelList = null;
+
+    function multiModels() {
+      if (multiModelList === null) {
+        multiModelList = ingestedModels.filter(function (m) {
+          return archForModel(m) && matchUsableList(m.quantizations).length > 0;
+        });
+      }
+      return multiModelList;
+    }
+
+    function multiDefaultQuant(list) {
+      for (let i = 0; i < list.length; i++) {
+        if (/^Q4_K_M$/i.test(shortQuant(list[i].type))) return i;
+      }
+      return Math.floor(list.length / 2);
+    }
+
+    function multiName(model) {
+      return model.title.replace(/-GGUF$/i, '');
+    }
+
+    function addMultiRow() {
+      if (multiRows.length >= MULTI_MAX_EXTRA_MODELS) return;
+      const models = multiModels();
+      if (models.length === 0) return;
+
+      const row = document.createElement('div');
+      row.className = 'flex flex-wrap items-center gap-xs';
+
+      const modelSel = document.createElement('select');
+      modelSel.className = MULTI_SELECT_CLASS;
+      modelSel.setAttribute('aria-label', 'Model');
+      models.forEach(function (m, i) {
+        const o = document.createElement('option');
+        o.value = String(i);
+        o.textContent = multiName(m);
+        modelSel.appendChild(o);
+      });
+
+      const quantSel = document.createElement('select');
+      quantSel.className = MULTI_SELECT_CLASS;
+      quantSel.setAttribute('aria-label', 'Quantization');
+
+      const remove = document.createElement('button');
+      remove.type = 'button';
+      remove.className =
+        'inline-flex items-center justify-center min-h-touch-min rounded-full px-md border border-border text-body-md text-primary cursor-pointer bg-surface';
+      remove.textContent = 'Remove';
+
+      const entry = { row: row, modelSel: modelSel, quantSel: quantSel };
+
+      function fillQuants() {
+        quantSel.replaceChildren();
+        const list = matchUsableList(models[Number(modelSel.value)].quantizations);
+        list.forEach(function (q, i) {
+          const o = document.createElement('option');
+          o.value = String(i);
+          o.textContent = shortQuant(q.type) + ', ' + q.size_gb.toFixed(1) + ' GB';
+          quantSel.appendChild(o);
+        });
+        quantSel.value = String(multiDefaultQuant(list));
+      }
+
+      modelSel.addEventListener('change', function () {
+        fillQuants();
+        renderMulti();
+      });
+      quantSel.addEventListener('change', renderMulti);
+      remove.addEventListener('click', function () {
+        multiRows.splice(multiRows.indexOf(entry), 1);
+        multiRowsEl.removeChild(row);
+        renderMulti();
+      });
+
+      row.appendChild(modelSel);
+      row.appendChild(quantSel);
+      row.appendChild(remove);
+      fillQuants();
+      multiRows.push(entry);
+      multiRowsEl.appendChild(row);
+      renderMulti();
+    }
+
+    function renderMulti() {
+      const hw = readHardware();
+      if (!hw.unified && !hw.vramPerCard) {
+        multiCard.classList.add('hidden');
+        return;
+      }
+      multiCard.classList.remove('hidden');
+      const engine = currentEngine();
+      multiBody.classList.toggle('hidden', engine === 'vllm');
+      if (engine === 'vllm') {
+        multiIntro.textContent =
+          'This sum is for llama.cpp. vLLM reserves a share of GPU memory for each server, so memory is not simply added up. Switch the engine to llama.cpp to use it.';
+        return;
+      }
+      multiIntro.textContent =
+        'Add up to ' + MULTI_MAX_EXTRA_MODELS +
+        ' more models next to the one chosen above. Each gets its own KV cache at the same context length.';
+      multiAdd.disabled = multiRows.length >= MULTI_MAX_EXTRA_MODELS;
+
+      const context = readContext();
+      const qty = hw.unified ? 1 : Number(gpuQtySelect.value) || 1;
+      const models = multiModels();
+      const labels = [];
+      const warnings = [];
+      let sum = 0;
+      if (lastSingle) {
+        labels.push('model above ' + lastSingle.totalGb.toFixed(1) + ' GB');
+        sum += lastSingle.totalGb;
+      }
+      multiRows.forEach(function (entry) {
+        const model = models[Number(entry.modelSel.value)];
+        const q = matchUsableList(model.quantizations)[Number(entry.quantSel.value)];
+        const est = engineEstimate(q.size_gb * GB, archForModel(model), context, 'llamacpp');
+        const gb = est.totalBytes / GB;
+        labels.push(multiName(model) + ' ' + shortQuant(q.type) + ' ' + gb.toFixed(1) + ' GB');
+        sum += gb;
+        if (model.arch && model.arch.maxContext && context > model.arch.maxContext) {
+          warnings.push(multiName(model));
+        }
+      });
+      const extra = Math.max(0, Number(multiExtra.value) || 0);
+      if (extra > 0) {
+        labels.push('other ' + extra.toFixed(1) + ' GB');
+        sum += extra;
+      }
+
+      let note =
+        'Memory only. Models running together share the GPU, so each one runs slower. Embedding and speech models are not in the synced list: enter their memory in "Other memory in use". It is added as entered, without the 10% overhead.';
+      if (warnings.length > 0) {
+        note += ' Beyond native context: ' + warnings.join(', ') + '.';
+      }
+      if (context > 32768) {
+        note += ' Native context limits are known for only some models, so check each model before relying on this.';
+      }
+      multiNote.textContent = note;
+
+      if (labels.length === 0 || (multiRows.length === 0 && extra === 0)) {
+        multiResult.textContent = lastSingle
+          ? 'Add another model to see the combined memory.'
+          : 'Choose a model above, or add models here, to see the combined memory.';
+        multiBadge.className = 'hidden';
+        return;
+      }
+
+      const status = computeFitStatus(sum, sum, 'llamacpp', qty);
+      const pooled = hw.unified ? hw.vramPerCard : hw.vramPerCard * qty;
+      let tier = 'none';
+      let sentence = '';
+      if (status && status.tier === 'full') {
+        tier = 'full';
+        sentence = 'About ' + Math.max(0, pooled - sum).toFixed(1) + ' GB of GPU memory stays free.';
+      } else if (status && status.tier === 'offload') {
+        tier = 'offload';
+        sentence = 'About ' + Math.max(0, sum - pooled).toFixed(1) + ' GB would run from system RAM, which is slower.';
+      } else if (status && status.tier === 'unknown') {
+        sentence = 'This does not fit in VRAM. Set your system RAM above to check CPU offload.';
+      } else {
+        sentence = 'This does not fit in GPU memory plus usable system RAM.';
+      }
+      multiResult.textContent = 'Combined memory: ' + labels.join(' + ') + ' = ' + sum.toFixed(1) + ' GB. ' + sentence;
+      const b = MULTI_BADGE[tier];
+      multiBadge.className = 'inline-block mt-xs rounded-full px-md py-xs text-body-md font-bold ' + b.cls;
+      multiBadge.textContent =
+        b.text + (tier === 'full' && pooled > 0 && sum / pooled >= MATCH_TIGHT_RATIO ? ' (very tight)' : '');
+    }
+
+    multiAdd.addEventListener('click', addMultiRow);
+    multiExtra.addEventListener('input', renderMulti);
+
     function formatGb(bytes) {
       return (bytes / GB).toFixed(2) + ' GB';
     }
@@ -1280,6 +1499,7 @@ const SYSTEM_RAM_OPTIONS = [8, 16, 32, 64, 128, 256];
       outRequired.classList.add('hidden');
       renderFitStatus(null);
       renderHeadroom(null, null);
+      renderMulti();
       estimateNote.classList.add('hidden');
       outProfiles.innerHTML = '';
       const li = document.createElement('li');
@@ -1290,6 +1510,7 @@ const SYSTEM_RAM_OPTIONS = [8, 16, 32, 64, 128, 256];
     }
 
     function compute() {
+      lastSingle = null;
       const context = readContext();
       contextLabel.textContent = context.toLocaleString('en-US');
       contextSlider.setAttribute('aria-valuetext', context.toLocaleString('en-US') + ' tokens');
@@ -1316,7 +1537,10 @@ const SYSTEM_RAM_OPTIONS = [8, 16, 32, 64, 128, 256];
       } else {
         const index = Number(sourceSelect.value.split(':')[1]);
         const model = ingestedModels[index];
-        if (!model || model.quantizations.length === 0) return;
+        if (!model || model.quantizations.length === 0) {
+          renderMulti();
+          return;
+        }
 
         const quantIndex = Number(modelQuantSelect.value || 0);
         const quant = model.quantizations[quantIndex];
@@ -1380,6 +1604,8 @@ const SYSTEM_RAM_OPTIONS = [8, 16, 32, 64, 128, 256];
         qty: qty,
         isGeneric: sourceSelect.value === 'generic',
       });
+      lastSingle = { totalGb: totalGb };
+      renderMulti();
 
       outProfiles.innerHTML = '';
       let lastGroup = null;

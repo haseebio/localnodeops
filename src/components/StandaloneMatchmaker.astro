@@ -118,6 +118,31 @@ const BTN =
   <p id="mm-summary" class="text-body-md text-primary m-0" role="status"></p>
   <div id="mm-list" class="grid gap-md sm:grid-cols-2 lg:grid-cols-3"></div>
   <p id="mm-note" class="text-body-md text-secondary m-0"></p>
+
+  <section id="mm-multi" class="border border-border rounded-md bg-surface p-md flex flex-col gap-sm">
+    <h2 class="text-body-lg text-primary font-bold m-0">Run more than one model at once</h2>
+    <p class="text-body-md text-secondary m-0">
+      Pick up to three models. Their memory is added together at the context length above, then
+      compared with your VRAM and RAM.
+    </p>
+    <div id="mm-multi-rows" class="flex flex-col gap-sm"></div>
+    <div class="flex flex-wrap items-center gap-sm">
+      <button type="button" id="mm-multi-add" class={BTN}>Add a model</button>
+      <label for="mm-multi-extra" class="text-body-md text-primary">Other memory in use (GB)</label>
+      <input
+        id="mm-multi-extra"
+        type="number"
+        min="0"
+        max="512"
+        step="0.5"
+        value="0"
+        class="w-24 min-h-touch-min rounded-md border border-border bg-surface text-primary px-sm"
+      />
+    </div>
+    <p id="mm-multi-result" class="text-body-md text-primary m-0" role="status"></p>
+    <span id="mm-multi-badge" class="hidden"></span>
+    <p id="mm-multi-note" class="text-body-md text-secondary m-0"></p>
+  </section>
 </div>
 
 <script is:inline type="application/json" id="mm-data" set:html={JSON.stringify(data)} />
@@ -146,6 +171,17 @@ const BTN =
     };
 
     const state = { tab: 'all' };
+
+    const multiRowsEl = document.getElementById('mm-multi-rows');
+    const multiAdd = document.getElementById('mm-multi-add');
+    const multiExtra = document.getElementById('mm-multi-extra');
+    const multiResult = document.getElementById('mm-multi-result');
+    const multiBadge = document.getElementById('mm-multi-badge');
+    const multiNote = document.getElementById('mm-multi-note');
+    const MULTI_MAX = 3;
+    const MULTI_SELECT_CLASS =
+      'min-h-touch-min rounded-md border border-border bg-surface text-primary px-sm max-w-full';
+    const multiRows = []; // { row, modelSel, quantSel }
 
     function ctxIndex() {
       const checked = document.querySelector('input[name="mm-ctx"]:checked');
@@ -216,6 +252,135 @@ const BTN =
       return card;
     }
 
+    // "Run more than one model at once". Each quantization already carries its
+    // memory total (weights + KV cache + 10%) for every context length, so the
+    // sum is plain addition of build-time numbers.
+    function sortedQuants(model) {
+      return model.quants.slice().sort(function (a, b) { return b.sizeGb - a.sizeGb; });
+    }
+
+    function multiName(model) {
+      return model.title.replace(/-GGUF$/i, '');
+    }
+
+    function defaultQuantIndex(list) {
+      for (let i = 0; i < list.length; i++) {
+        if (/^Q4_K_M$/i.test(shortQuant(list[i].type))) return i;
+      }
+      return Math.floor(list.length / 2);
+    }
+
+    function addRow(modelIndex) {
+      if (multiRows.length >= MULTI_MAX) return;
+      const row = document.createElement('div');
+      row.className = 'flex flex-wrap items-center gap-xs';
+
+      const modelSel = document.createElement('select');
+      modelSel.className = MULTI_SELECT_CLASS;
+      modelSel.setAttribute('aria-label', 'Model');
+      data.models.forEach(function (m, i) {
+        const o = document.createElement('option');
+        o.value = String(i);
+        o.textContent = multiName(m);
+        modelSel.appendChild(o);
+      });
+      modelSel.value = String(modelIndex);
+
+      const quantSel = document.createElement('select');
+      quantSel.className = MULTI_SELECT_CLASS;
+      quantSel.setAttribute('aria-label', 'Quantization');
+
+      const remove = document.createElement('button');
+      remove.type = 'button';
+      remove.className =
+        'inline-flex items-center justify-center min-h-touch-min rounded-full px-md border border-border text-body-md text-primary cursor-pointer bg-surface';
+      remove.textContent = 'Remove';
+
+      const entry = { row: row, modelSel: modelSel, quantSel: quantSel };
+
+      function fillQuants() {
+        quantSel.replaceChildren();
+        const list = sortedQuants(data.models[Number(modelSel.value)]);
+        list.forEach(function (q, i) {
+          const o = document.createElement('option');
+          o.value = String(i);
+          o.textContent = shortQuant(q.type) + ', ' + q.sizeGb.toFixed(1) + ' GB';
+          quantSel.appendChild(o);
+        });
+        quantSel.value = String(defaultQuantIndex(list));
+      }
+
+      modelSel.addEventListener('change', function () {
+        fillQuants();
+        renderMulti();
+      });
+      quantSel.addEventListener('change', renderMulti);
+      remove.addEventListener('click', function () {
+        multiRows.splice(multiRows.indexOf(entry), 1);
+        multiRowsEl.removeChild(row);
+        renderMulti();
+      });
+
+      row.appendChild(modelSel);
+      row.appendChild(quantSel);
+      row.appendChild(remove);
+      fillQuants();
+      multiRows.push(entry);
+      multiRowsEl.appendChild(row);
+      renderMulti();
+    }
+
+    function renderMulti() {
+      const vram = Number(vramInput.value);
+      const ram = Number(ramInput.value);
+      const ci = ctxIndex();
+      multiAdd.disabled = multiRows.length >= MULTI_MAX;
+
+      const labels = [];
+      const warnings = [];
+      let sum = 0;
+      multiRows.forEach(function (entry) {
+        const model = data.models[Number(entry.modelSel.value)];
+        const q = sortedQuants(model)[Number(entry.quantSel.value)];
+        const gb = q.totals[ci];
+        labels.push(multiName(model) + ' ' + shortQuant(q.type) + ' ' + gb.toFixed(1) + ' GB');
+        sum += gb;
+        if (model.maxContext && data.contexts[ci] > model.maxContext) warnings.push(multiName(model));
+      });
+      const extra = Math.max(0, Number(multiExtra.value) || 0);
+      if (extra > 0) {
+        labels.push('other ' + extra.toFixed(1) + ' GB');
+        sum += extra;
+      }
+
+      let note =
+        'Memory only. Models running together share the GPU, so each one runs slower. Embedding and speech models are not in the synced list: enter their memory in "Other memory in use". It is added as entered, without the 10% overhead.';
+      if (warnings.length > 0) note += ' Beyond native context: ' + warnings.join(', ') + '.';
+      if (data.contexts[ci] > 32768) {
+        note += ' Native context limits are known for only some models, so check each model before relying on this.';
+      }
+      multiNote.textContent = note;
+
+      if (labels.length === 0) {
+        multiResult.textContent = 'Add a model to see the combined memory.';
+        multiBadge.className = 'hidden';
+        return;
+      }
+
+      const usableRam = Math.max(0, ram - data.osReservedRamGb);
+      const tier = sum <= vram ? 'full' : sum <= vram + usableRam ? 'offload' : 'none';
+      const sentence =
+        tier === 'full'
+          ? 'About ' + Math.max(0, vram - sum).toFixed(1) + ' GB of VRAM stays free.'
+          : tier === 'offload'
+            ? 'About ' + (sum - vram).toFixed(1) + ' GB would run from system RAM, which is slower.'
+            : 'This does not fit in VRAM plus usable system RAM.';
+      multiResult.textContent = 'Combined memory: ' + labels.join(' + ') + ' = ' + sum.toFixed(1) + ' GB. ' + sentence;
+      const b = BADGE[tier];
+      multiBadge.className = 'inline-block self-start rounded-full px-md py-xs text-body-md font-bold ' + b.cls;
+      multiBadge.textContent = b.text + (tier === 'full' && sum / vram >= TIGHT_RATIO ? ' (very tight)' : '');
+    }
+
     function render() {
       const vram = Number(vramInput.value);
       const ram = Number(ramInput.value);
@@ -272,6 +437,7 @@ const BTN =
       if (beyondContext > 0) left.push(beyondContext + ' with a native context shorter than this setting');
       if (left.length > 0) text += ' Left out: ' + left.join(' and ') + '.';
       note.textContent = text;
+      renderMulti();
     }
 
     vramInput.addEventListener('input', render);
@@ -296,6 +462,21 @@ const BTN =
         render();
       });
     });
+
+    multiAdd.addEventListener('click', function () {
+      addRow(0);
+    });
+    multiExtra.addEventListener('input', renderMulti);
+
+    // Start with the two models that have the smallest files, so the sum is
+    // visible straight away.
+    const smallestFirst = data.models
+      .map(function (m, i) {
+        return { i: i, size: Math.min.apply(null, m.quants.map(function (q) { return q.sizeGb; })) };
+      })
+      .sort(function (a, b) { return a.size - b.size; });
+    if (smallestFirst.length > 0) addRow(smallestFirst[0].i);
+    if (smallestFirst.length > 1) addRow(smallestFirst[1].i);
 
     render();
   })();
