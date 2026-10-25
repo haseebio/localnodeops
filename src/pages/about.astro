@@ -38,10 +38,31 @@ const methodology = [
     'Affiliate links (RunPod and Amazon Associates) appear in two kinds of places: a labeled suggestion in the calculator (a cloud GPU when a configuration exceeds local hardware, an Amazon link or a rental line when it fits) and inside some posts and docs, with a disclosure. They never change the VRAM math itself, which is computed identically with or without an affiliate relationship.',
 ];
 
+// The numbers the calculator actually uses. Each line matches the code.
+const mathRules = [
+  {
+    rule: 'Total VRAM = (Weights + KV Cache) × 1.10',
+    note: 'The extra 10% is an estimate of runtime overhead, not a measurement.',
+  },
+  {
+    rule: 'Q4_K_M quantization = 4.83 bits per weight',
+    note: 'Used for generic estimates. When you pick a synced model, its real file size is used instead, and real files vary by model.',
+  },
+  {
+    rule: 'macOS Metal GPU allocation cap = about 75% of system RAM',
+    note: 'The usual default on Apple Silicon. It varies by macOS version and can be raised.',
+  },
+  {
+    rule: 'System RAM kept for the operating system = 4 GB',
+    note: 'Subtracted before counting RAM for CPU offload.',
+  },
+];
+
 const jsonLd = [
   {
     '@context': 'https://schema.org',
     '@type': 'Person',
+    '@id': new URL('/#person', Astro.site).toString(),
     name: author.name,
     description: author.tagline,
     address: {
@@ -61,7 +82,7 @@ const jsonLd = [
 ---
 
 <BaseLayout
-  title="About LocalNodeOps"
+  title="About LocalNodeOps & VRAM Math Methodology"
   description="Who runs LocalNodeOps, how figures are sourced and labeled, and the editorial standards behind every guide."
   jsonLd={jsonLd}
 >
@@ -92,6 +113,9 @@ const jsonLd = [
         <h2 class="text-headline-lg text-primary m-0">{author.name}</h2>
         <p class="text-body-md text-secondary mt-[0.125rem] mb-xs">{author.location}</p>
         <p class="text-body-lg text-secondary m-0">{author.tagline}</p>
+        <p class="text-body-lg text-primary mt-sm m-0">
+          Built and maintained by {author.name} (<a href="https://github.com/haseebio" rel="me" class="text-accent-primary hover:underline">@haseebio</a>), a Full-Stack &amp; AI Engineer.
+        </p>
 
         <div class="flex flex-wrap items-center gap-sm mt-md">
           {author.sameAs.map((s) => (
@@ -129,6 +153,25 @@ const jsonLd = [
       <ul class="flex flex-col gap-sm m-0 pl-lg text-body-lg text-secondary">
         {methodology.map((item) => <li>{item}</li>)}
       </ul>
+    </div>
+  </section>
+
+  <!-- VRAM math rules -->
+  <section class="max-w-shell mx-auto px-lg pb-xl">
+    <h2 class="text-headline-lg text-primary mb-md">How the VRAM math works</h2>
+    <div class="border border-border rounded-md bg-surface p-md max-w-reading">
+      <ul class="flex flex-col gap-md m-0 pl-lg text-body-lg text-secondary">
+        {mathRules.map((r) => (
+          <li>
+            <code class="font-mono text-primary">{r.rule}</code>
+            <span class="block text-body-md mt-xs">{r.note}</span>
+          </li>
+        ))}
+      </ul>
+      <p class="text-body-md text-secondary mt-md m-0">
+        Not included: the calculator does not subtract memory used by your desktop or display
+        from VRAM. If the same GPU drives your screen, leave some VRAM free.
+      </p>
     </div>
   </section>
 

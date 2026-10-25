@@ -53,7 +53,22 @@ const organizationSchema = {
     'LocalNodeOps is a local-LLM planning site: a VRAM calculator, hardware benchmark estimates and troubleshooting guides for running language models on your own hardware.',
 };
 
-const allSchema = [baseSchema, organizationSchema, ...jsonLd];
+// The site author. Profile links are the ones already published on the About
+// page. The same @id is used there, so both describe one entity.
+const personSchema = {
+  '@context': 'https://schema.org',
+  '@type': 'Person',
+  '@id': new URL('/#person', Astro.site).toString(),
+  name: 'Muhammad Haseeb Ur Rehman',
+  url: Astro.site?.toString() ?? canonicalURL,
+  sameAs: [
+    'https://github.com/haseebio',
+    'https://www.linkedin.com/in/haseebio',
+    'https://haseebio-portfolio.netlify.app',
+  ],
+};
+
+const allSchema = [baseSchema, organizationSchema, personSchema, ...jsonLd];
 ---
 
 <!doctype html>

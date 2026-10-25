@@ -12,14 +12,62 @@ const jsonLd = [
 
 <BaseLayout
   title="Contact LocalNodeOps"
-  description="Reach LocalNodeOps for secure vulnerability disclosures via PGP-encrypted contact."
+  description="Contact LocalNodeOps by email for general questions, or use the PGP-encrypted channel for security disclosures."
   jsonLd={jsonLd}
 >
   <section class="max-w-reading mx-auto px-lg pt-2xl pb-xl">
     <h1 class="text-display-hero text-primary">Contact</h1>
     <p class="text-body-lg text-secondary mt-md">
-      For security disclosures, use the encrypted channel below.
+      For general questions, use the email card below. For security
+      disclosures, use the encrypted channel further down.
     </p>
+  </section>
+
+  <section class="max-w-reading mx-auto px-lg pb-xl">
+    <div class="border border-border rounded-lg bg-surface-elevated p-lg flex flex-col gap-md">
+      <div class="flex items-center gap-sm">
+        <svg
+          class="w-8 h-8 shrink-0 text-accent-primary"
+          xmlns="http://www.w3.org/2000/svg"
+          viewBox="0 0 24 24"
+          fill="none"
+          stroke="currentColor"
+          stroke-width="1.75"
+          stroke-linecap="round"
+          stroke-linejoin="round"
+          aria-hidden="true"
+        >
+          <rect x="3" y="5" width="18" height="14" rx="2"></rect>
+          <path d="m3 7 9 6 9-6"></path>
+        </svg>
+        <h2 class="text-headline-lg text-primary m-0">General questions</h2>
+      </div>
+      <p class="text-body-lg text-secondary m-0">
+        Corrections, benchmark requests and general questions:
+        <span class="font-mono text-primary">hello@localnodeops.com</span>
+      </p>
+      <div class="flex flex-wrap gap-sm">
+        <button
+          type="button"
+          id="copy-email"
+          data-email="hello@localnodeops.com"
+          class="inline-flex items-center justify-center min-h-touch-min px-md rounded-md
+            bg-accent-primary-solid text-accent-on-primary text-body-md cursor-pointer
+            hover:opacity-90 transition-opacity"
+        >
+          Copy email address
+        </button>
+        <a
+          href="mailto:hello@localnodeops.com"
+          class="inline-flex items-center justify-center min-h-touch-min px-md rounded-md
+            border border-border text-body-md text-primary no-underline cursor-pointer
+            hover:border-accent-primary hover:bg-accent-primary-container transition-colors"
+        >
+          Open in email client
+        </a>
+      </div>
+      <p id="copy-status" class="sr-only" role="status"></p>
+    </div>
   </section>
 
   <section class="max-w-reading mx-auto px-lg pb-2xl">
@@ -48,3 +96,35 @@ HeDuFpH0+pgBAO9gJJoWPsOqryxbMz7uQZfjuV3SIk5A0awPxnBRqvoB
     </div>
   </section>
 </BaseLayout>
+
+<script is:inline>
+  (function () {
+    const button = document.getElementById('copy-email');
+    const status = document.getElementById('copy-status');
+    if (!button) return;
+    const original = button.textContent;
+    let timer = null;
+
+    function flash(text) {
+      button.textContent = text;
+      status.textContent = text;
+      if (timer) clearTimeout(timer);
+      timer = setTimeout(function () {
+        button.textContent = original;
+        status.textContent = '';
+      }, 2000);
+    }
+
+    button.addEventListener('click', function () {
+      const email = button.getAttribute('data-email');
+      if (!navigator.clipboard || !navigator.clipboard.writeText) {
+        flash('Copy not available. Use the email link.');
+        return;
+      }
+      navigator.clipboard.writeText(email).then(
+        function () { flash('Copied!'); },
+        function () { flash('Copy blocked. Use the email link.'); }
+      );
+    });
+  })();
+</script>
