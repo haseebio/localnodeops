@@ -16,7 +16,7 @@ faq:
   - question: "Why does my GPU throw CUDA_OUT_OF_MEMORY if the model file is smaller than my VRAM?"
     answer: "Model file size only represents static weights stored on disk. During inference, your GPU also requires memory for CUDA runtime initialization, tensor activation overhead, and the Key-Value (KV) cache. The KV cache is reserved for your full context window when the model loads, so as you set larger context windows (e.g., 16k–128k tokens), the KV cache grows rapidly, pushing total VRAM usage past physical card limits even when the raw .gguf file appears to fit easily."
   - question: "How much generation speed do I lose when offloading layers to System RAM?"
-    answer: "A lot, even for a small share of layers. Layers that sit in system RAM run on the CPU at system-memory speed, and every token has to wait for them. Token generation is limited by memory bandwidth: a modern GPU's VRAM moves roughly 1,000 GB/s, while dual-channel DDR5 manages about 60–80 GB/s. As a worked example (arithmetic, not a benchmark), an 18.49 GB model has a bandwidth ceiling of about 51 tokens/sec fully in VRAM, about 21 with 10% of the weights in RAM, and about 6 with half in RAM, assuming 1,008 GB/s for VRAM and 65 GB/s for RAM. Real speeds are lower than these ceilings."
+    answer: "A lot, even for a small share of layers. Layers that sit in system RAM run on the CPU at system-memory speed, and every token has to wait for them. Token generation is limited by memory bandwidth: a modern GPU's VRAM moves roughly 1,000 GB/s, while dual-channel DDR5 measures roughly 55–90 GB/s in synthetic benchmarks, depending on the kit and the test. As a worked example (arithmetic, not a benchmark), an 18.49 GB model has a bandwidth ceiling of about 51 tokens/sec fully in VRAM, about 21 with 10% of the weights in RAM, and about 6 with half in RAM, assuming 1,008 GB/s for VRAM and 65 GB/s for RAM. Real speeds are lower than these ceilings."
 ---
 
 It is one of the most frustrating experiences in local AI inference: you buy a 24GB GPU like the RTX 3090 or 4090, download a 32B model such as DeepSeek-R1-Distill-Qwen-32B at Q4_K_M, see that the file is only 18.49 GB, set a 16K context window, hit `run`, and can end up with a `CUDA_OUT_OF_MEMORY` error, or see your generation speed collapse once layers spill into system RAM.
@@ -62,10 +62,10 @@ By this site's formula, an 18.49 GB 32B model that fits a 24GB card at 8K contex
 
 ### Mitigating KV Cache Bloat
 
-If you run high-context workflows on consumer hardware, you have two primary levers:
+If you run high-context workflows on consumer hardware, two llama.cpp settings are worth knowing:
 
-1. **FlashAttention (`--flash-attn`):** Compresses memory access patterns and avoids storing redundant intermediate attention matrices.
-2. **KV Cache Quantization (`--cache-type-k q8_0 --cache-type-v q8_0`):** Reduces KV cache precision from FP16 down to Q8 or Q4 in `llama.cpp` or Ollama, cutting memory footprint by 50% to 75% with minimal perplexity loss.
+1. **FlashAttention (`--flash-attn on`, or `-fa on`):** Computes exact attention in tiles, so the large attention matrix is never written out to GPU memory ([FlashAttention paper](https://arxiv.org/abs/2205.14135)). It does not shrink the KV cache itself. In current llama.cpp builds the default is `auto`, and a quantized V cache needs it ([llama.cpp issue #21450](https://github.com/ggml-org/llama.cpp/issues/21450)).
+2. **KV Cache Quantization (`--cache-type-k q8_0 --cache-type-v q8_0`):** Stores the KV cache at 8.5 bits per value (`q8_0`) or 4.5 bits (`q4_0`) instead of 16 for `f16`, which makes it about 47% or 72% smaller. In llama.cpp's own tests on one model, a `q8_0` K cache with a `q5_0` V cache raised perplexity by only about 0.01. A `q4_0` K cache raised it by about 0.19, roughly what quantizing the weights to Q4_K_M costs (about 0.18), and the K cache was much more sensitive than the V cache ([llama.cpp pull request #7412](https://github.com/ggerganov/llama.cpp/pull/7412)). Test your own workload before relying on `q4_0`.
 
 ---
 
@@ -82,7 +82,7 @@ If a 32-layer model has 20 layers on the GPU and 12 layers in system RAM, those 
 +-------------------------------------------------------------+
                               ||
 +-------------------------------------------------------------+
-| System RAM (DDR5 dual-channel, about 60-80 GB/s)            |
+| System RAM (DDR5 dual-channel, about 55-90 GB/s)            |
 | [ Layer 20 ] [ Layer 21 ] ... [ Layer 31 ]                  |
 +-------------------------------------------------------------+
 
@@ -129,3 +129,11 @@ Before downloading a model, do not look solely at the raw file size. Calculate y
 This matches the exact formula this site's own [VRAM calculator](/hardware) and [methodology](/methodology) use — overhead scales with model size rather than being a fixed number, since CUDA context and activation memory needs grow with larger models too.
 
 You can calculate precise VRAM requirements for any GGUF quantization level, context length, and GPU configuration directly on our [Interactive VRAM Calculator](/hardware).
+
+## Sources
+
+- [FlashAttention paper (Dao et al., 2022)](https://arxiv.org/abs/2205.14135): tiling keeps the attention matrix out of GPU memory, and the result is exact attention.
+- [llama-server manual page](https://manpages.debian.org/unstable/llama.cpp-tools/llama-server.1.en.html): the `--flash-attn`, `--cache-type-k` and `--cache-type-v` options and their defaults.
+- [llama.cpp issue #21450](https://github.com/ggml-org/llama.cpp/issues/21450): the error llama.cpp reports when a quantized V cache is used without Flash Attention.
+- [llama.cpp pull request #7412](https://github.com/ggerganov/llama.cpp/pull/7412): perplexity measured for quantized K and V caches.
+- DDR5-6000 measurements: [Funkykit's Lexar ARES review](https://www.funkykit.com/reviews/memory/lexar-ares-rgb-ddr5-6000-32gb-memory-kit-review/5/) (about 89 GB/s read in AIDA64) and [OCinside's Crucial Pro review](https://www.ocinside.de/review/crucial_pro_overclocking_2x16gb_ddr5_6000_white/4/) (about 55 GB/s in SiSoft Sandra).
