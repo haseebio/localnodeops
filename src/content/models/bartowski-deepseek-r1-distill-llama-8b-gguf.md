@@ -1,6 +1,6 @@
 ---
 title: "DeepSeek-R1-Distill-Llama-8B-GGUF"
-last_synced: "2026-09-18T10:40:13.315Z"
+last_synced: "2026-10-29T15:35:10.435Z"
 architecture: "unknown"
 quantizations:
   - type: "IQ2_M"

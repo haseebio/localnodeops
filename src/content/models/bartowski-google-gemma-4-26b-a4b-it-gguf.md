@@ -1,6 +1,6 @@
 ---
 title: "google_gemma-4-26B-A4B-it-GGUF"
-last_synced: "2026-10-01T03:43:41.291Z"
+last_synced: "2026-10-29T15:35:36.571Z"
 architecture: "unknown"
 quantizations:
   - type: "IQ2_M"
@@ -57,12 +57,6 @@ quantizations:
     size_gb: 25.45
   - type: "google_gemma-4-26B-A4B-it-bf16/google_gemma-4-26B-A4B-it-bf16"
     size_gb: 47.03
-  - type: "google_gemma-4-26B-A4B-it-imatrix"
-    size_gb: 0.05
-  - type: "mmproj-google_gemma-4-26B-A4B-it-bf16"
-    size_gb: 1.11
-  - type: "F16"
-    size_gb: 1.11
 ---
 
 Synced from Hugging Face. Do not edit quantizations by hand — re-run

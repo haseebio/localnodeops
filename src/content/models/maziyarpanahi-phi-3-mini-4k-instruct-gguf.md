@@ -1,6 +1,6 @@
 ---
 title: "Phi-3-mini-4k-instruct-GGUF"
-last_synced: "2026-09-18T10:40:12.085Z"
+last_synced: "2026-10-29T15:35:04.787Z"
 architecture: "mistral"
 quantizations:
   - type: "Q5_K_M"

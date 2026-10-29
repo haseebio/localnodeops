@@ -1,6 +1,6 @@
 ---
 title: "GLM-4.7-Flash-GGUF"
-last_synced: "2026-10-01T03:43:41.594Z"
+last_synced: "2026-10-29T15:35:36.861Z"
 architecture: "unknown"
 quantizations:
   - type: "BF16/GLM-4.7-Flash-BF16"

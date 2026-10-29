@@ -1,6 +1,6 @@
 ---
 title: "gpt-oss-20b-GGUF"
-last_synced: "2026-10-01T03:43:40.986Z"
+last_synced: "2026-10-29T15:35:36.290Z"
 architecture: "gpt_oss"
 quantizations:
   - type: "F16"

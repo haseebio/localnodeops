@@ -1,6 +1,6 @@
 ---
 title: "Devstral-Small-2507-GGUF"
-last_synced: "2026-10-01T03:43:40.673Z"
+last_synced: "2026-10-29T15:35:35.978Z"
 architecture: "mistral3"
 quantizations:
   - type: "Devstral-Small-2507-BF16"
@@ -55,10 +55,6 @@ quantizations:
     size_gb: 19.36
   - type: "Q8_K_XL"
     size_gb: 27
-  - type: "F16"
-    size_gb: 0.82
-  - type: "F32"
-    size_gb: 1.64
 ---
 
 Synced from Hugging Face. Do not edit quantizations by hand — re-run

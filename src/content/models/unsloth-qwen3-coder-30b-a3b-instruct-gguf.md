@@ -1,6 +1,6 @@
 ---
 title: "Qwen3-Coder-30B-A3B-Instruct-GGUF"
-last_synced: "2026-10-01T03:43:40.064Z"
+last_synced: "2026-10-29T15:35:34.630Z"
 architecture: "unknown"
 quantizations:
   - type: "BF16/Qwen3-Coder-30B-A3B-Instruct-BF16"

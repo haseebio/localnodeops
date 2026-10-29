@@ -1,6 +1,6 @@
 ---
 title: "Qwen3.8-27B-GGUF"
-last_synced: "2026-09-18T10:40:14.499Z"
+last_synced: "2026-10-29T15:35:34.109Z"
 architecture: "unknown"
 quantizations:
   - type: "IQ2_M"
@@ -59,12 +59,6 @@ quantizations:
     size_gb: 27.12
   - type: "Qwen3.8-27B-bf16/Qwen3.8-27B-bf16"
     size_gb: 50.91
-  - type: "Qwen3.8-27B-imatrix"
-    size_gb: 0.01
-  - type: "mmproj-Qwen3.8-27B-bf16"
-    size_gb: 0.87
-  - type: "F16"
-    size_gb: 0.86
 ---
 
 Synced from Hugging Face. Do not edit quantizations by hand — re-run

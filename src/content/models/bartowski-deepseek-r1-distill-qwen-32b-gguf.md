@@ -1,6 +1,6 @@
 ---
 title: "DeepSeek-R1-Distill-Qwen-32B-GGUF"
-last_synced: "2026-09-18T10:40:13.927Z"
+last_synced: "2026-10-29T15:35:10.993Z"
 architecture: "unknown"
 quantizations:
   - type: "IQ2_M"
