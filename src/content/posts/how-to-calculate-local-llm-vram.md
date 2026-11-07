@@ -1,96 +1,112 @@
 ---
 title: "How to Calculate Local LLM VRAM: Formulas for Weights, KV Cache, and Quantization"
-description: "Master local LLM hardware planning. Calculate exact GPU VRAM requirements using formulas for model weights, quantization overhead, and KV cache context scaling."
+seoTitle: "How to Calculate Local LLM VRAM (Formulas)"
 excerpt: "Learn how to calculate exact local LLM VRAM requirements including model weights, GQA KV cache scaling, quantization overhead, and CPU offloading bottlenecks."
 category: "Hardware"
 pubDate: 2026-10-29
 readingTime: 6
 author: "Haseeb"
 tags: ["LLM", "VRAM", "GPU", "Quantization", "Local AI"]
-canonicalUrl: "https://localnodeops.com/blog/how-to-calculate-local-llm-vram"
 ---
 
-# How to Calculate Local LLM VRAM: Formulas for Weights, KV Cache, and Quantization
+Running large language models locally often presents a frustrating challenge: developers spend hours downloading tens of gigabytes of model weights, only to face an immediate Out-Of-Memory (OOM) error upon execution. This typically happens because many users look only at the size of the model file on disk. However, true hardware planning requires accounting for dynamic memory allocations like Key-Value (KV) cache scaling and runtime overhead.
 
-Running large language models locally often presents a frustrating challenge: developers spend hours downloading tens of gigabytes of model weights, only to face an immediate Out-Of-Memory (OOM) error upon execution. This typically happens because many users calculate only the static size of the model file on disk. However, true hardware planning requires accounting for dynamic memory allocations like Key-Value (KV) cache scaling, activation overhead, and CUDA context allocation.
+To estimate GPU VRAM requirements and avoid these crashes, add up three things: the model weights, the KV cache, and an allowance for runtime overhead. This site uses a 10% allowance:
 
-To determine exact GPU VRAM requirements and avoid these crashes, one must evaluate three distinct memory pools:
+```text
+Total VRAM = (Weights + KV cache) x 1.10
+```
 
-$$\text{Total VRAM (GB)} = \text{Model Weights Memory} + \text{KV Cache Memory} + \text{Activation \& Context Overhead}$$
+The 10% is an estimate, not a measurement. The [methodology page](/methodology) explains how the numbers are made.
 
 ---
 
 ## 1. Calculating Model Weight Memory
 
-The baseline VRAM requirement is dictated by the parameter count ($P$) and the quantization precision ($b$, measured in bits per weight). Unquantized models run at 16-bit floating point ($\text{FP16}$), requiring roughly two bytes per parameter. To run on consumer hardware, quantized formats like $\text{GGUF}$, $\text{EXL2}$, and $\text{AWQ}$ compress these weights down to 8, 4, or even 2 bits per weight.
+The baseline VRAM requirement is set by the parameter count and the quantization precision, measured in bits per weight. Unquantized models run at 16-bit floating point (FP16), which takes two bytes per parameter. Quantized GGUF formats such as Q8_0 and Q4_K_M compress the weights to about 8.5 or 4.9 bits per weight.
 
-The baseline formula for a model's weight memory footprint is:
+```text
+Weights (bytes) = parameters x bits per weight / 8
+```
 
-$$\text{Memory}_{\text{weights}} (\text{GB}) = \frac{P \times b}{8 \times 10^9}$$
+For example, an 8 billion parameter model at 4.89 bits per weight is about 8 x 10^9 x 4.89 / 8, or roughly 4.9 GB (decimal), which is about 4.6 GiB. That is close to the real Llama 3.1 8B Q4_K_M file of 4.58 GiB.
 
-Where:
-- $P$ = Total parameter count (e.g., $8 \times 10^9$ for an 8B model).
-- $b$ = Average bits per weight (e.g., $16$ for $\text{FP16}$, $4.8$ for $\text{Q4\_K\_M}$, $8.5$ for $\text{Q8\_0}$).
+### Bits per Weight in Practice
 
-### Quantization Overhead Factor
+Quantized files store a scale value with each block of weights, so the real bits per weight sit above the nominal tier. These are the figures in [llama.cpp's quantization table](https://github.com/ggml-org/llama.cpp/blob/master/tools/quantize/README.md) for Llama 3.1 8B:
 
-It is important to remember that quantized files carry metadata overhead for block quantization scales and tensor headers. Because of this, the effective bits per weight usually sit slightly above the nominal quantization tier:
+- **FP16 (16-bit):** 16.00 bits, 2.00 bytes per parameter
+- **Q8_0 (8-bit):** 8.50 bits, about 1.06 bytes per parameter
+- **Q4_K_M (4-bit Medium):** 4.89 bits, about 0.61 bytes per parameter
 
-- **$\text{FP16}$ (16-bit):** $2.00 \text{ bytes/param}$
-- **$\text{Q8\_0}$ (8-bit):** $\approx 1.08 \text{ bytes/param}$
-- **$\text{Q4\_K\_M}$ (4-bit Medium):** $\approx 0.58 \text{ bytes/param}$
-- **$\text{EXL2}$ (4.5 bit):** $\approx 0.56 \text{ bytes/param}$
+The calculator uses 4.83 bits for generic Q4_K_M estimates, because the real value varies from model to model. When you pick a synced model, the calculator uses its real file size instead.
 
 ---
 
-## 2. Context Window VRAM Usage & K/V Cache Overhead
+## 2. Context Window VRAM Usage and the KV Cache
 
-The primary cause of unexpected CUDA OOM crashes is **Context Window VRAM usage**. As the context length ($L_{\text{ctx}}$) expands, the Key-Value (KV) cache must store past token representations in GPU memory. This prevents the system from having to recompute attention at every single inference step, but it eats up VRAM quickly.
+A common cause of unexpected CUDA OOM crashes is **context window VRAM usage**. As the context length grows, the Key-Value (KV) cache must store past token representations in GPU memory. This prevents the system from recomputing attention at every inference step, but it takes VRAM quickly.
 
-### Grouped Query Attention (GQA) Formula
+### Grouped Query Attention (GQA)
 
-Modern architectures (such as Llama 3 and Mistral) utilize a highly efficient technique called **Grouped Query Attention (GQA)**. GQA reduces KV cache memory usage by grouping key and value heads, saving significant memory during long conversations:
+Many modern architectures, such as Llama 3 and Mistral 7B, use **Grouped Query Attention (GQA)**. GQA stores fewer key and value heads than attention heads, which shrinks the KV cache and saves memory during long conversations. The KV cache size is:
 
-$$\text{KV Cache Memory (GQA)} = 2 \times n_{\text{layers}} \times \left( \frac{n_{\text{kv\_heads}}}{n_{\text{heads}}} \times d_{\text{model}} \right) \times L_{\text{ctx}} \times S_{\text{bytes}}$$
+```text
+KV cache = 2 x layers x KV heads x head size x context length x bytes per value
+```
 
 Where:
-- $n_{\text{layers}}$ = Number of transformer layers.
-- $d_{\text{model}}$ = Hidden dimension size.
-- $L_{\text{ctx}}$ = Active context window length in tokens.
-- $S_{\text{bytes}}$ = Precision bytes ($2 \text{ bytes}$ for $\text{FP16}$, $1 \text{ byte}$ for $\text{Q8}$, $0.5 \text{ bytes}$ for $\text{Q4}$).
+
+- **layers:** the number of transformer layers.
+- **KV heads:** the number of key and value heads, which is smaller than the number of attention heads in a GQA model.
+- **head size:** the size of each head.
+- **context length:** the active context window in tokens.
+- **bytes per value:** 2 for FP16. If you quantize the cache, `q8_0` is 8.5 bits (about 1.06 bytes) and `q4_0` is 4.5 bits (about 0.56 bytes) per value.
+
+For Llama 3.1 8B (32 layers, 8 KV heads, head size 128) in FP16, that is 2 x 32 x 8 x 128 x 2 bytes, or 128 KiB per token. At 8,192 tokens the cache is 1.0 GB, and at 32,768 tokens it is 4.0 GB. Quantizing the cache has a quality cost. The [24GB VRAM post](/posts/why-your-24gb-vram-isnt-enough) covers the measured numbers.
 
 ---
 
 ## 3. Quantization Memory Comparison
 
-Understanding how these formulas translate to real hardware is much easier with a reference table. Below is a breakdown of common VRAM targets for 8B and 70B models across different quantizations:
+Here is how the formulas work out for an 8B and a 70B model. Weights are real file sizes. The 70B model has 80 layers, 8 KV heads and head size 128, so its cache is 2.5 GB at 8K and 10.0 GB at 32K. Totals use (weights + KV cache) x 1.10.
 
-| Model Size | Quantization Type | Nominal Bits | Weights VRAM | 8k Context Cache | 32k Context Cache | Total Recommended VRAM |
+| Model | Quantization | Weights (File) | KV Cache 8K | KV Cache 32K | Total at 8K | Total at 32K |
 | :--- | :--- | :--- | :--- | :--- | :--- | :--- |
-| **8B Parameters** | $\text{FP16}$ | 16.0 | $16.0 \text{ GB}$ | $1.0 \text{ GB}$ | $4.0 \text{ GB}$ | **24 GB** (RTX 3090 / 4090) |
-| **8B Parameters** | $\text{Q8\_0}$ | 8.5 | $8.5 \text{ GB}$ | $1.0 \text{ GB}$ | $4.0 \text{ GB}$ | **16 GB** (RTX 4060 Ti 16GB) |
-| **8B Parameters** | $\text{Q4\_K\_M}$ | 4.8 | $4.8 \text{ GB}$ | $1.0 \text{ GB}$ | $4.0 \text{ GB}$ | **12 GB** (RTX 3060 / 4070) |
-| **70B Parameters** | $\text{Q8\_0}$ | 8.5 | $74.0 \text{ GB}$ | $5.0 \text{ GB}$ | $20.0 \text{ GB}$ | **96 GB** (4x RTX 3090 / Mac Studio) |
-| **70B Parameters** | $\text{Q4\_K\_M}$ | 4.8 | $42.0 \text{ GB}$ | $5.0 \text{ GB}$ | $20.0 \text{ GB}$ | **64 GB** (2x RTX 3090 / 4090) |
+| **Llama 3.1 8B** | FP16 | 14.96 GB | 1.0 GB | 4.0 GB | **17.6 GB** | **20.9 GB** |
+| **Llama 3.1 8B** | Q8_0 | 7.95 GB | 1.0 GB | 4.0 GB | **9.8 GB** | **13.1 GB** |
+| **Llama 3.1 8B** | Q4_K_M | 4.58 GB | 1.0 GB | 4.0 GB | **6.1 GB** | **9.4 GB** |
+| **Llama 3.1 70B** | Q8_0 | 69.82 GB | 2.5 GB | 10.0 GB | **79.6 GB** | **87.8 GB** |
+| **Llama 3.1 70B** | Q4_K_M | 39.6 GB | 2.5 GB | 10.0 GB | **46.3 GB** | **54.6 GB** |
+
+*File sizes are in GiB (1024^3 bytes) and shown as GB, as everywhere on this site.*
+
+To check any row against your own card, use the [VRAM calculator](/hardware). To see every synced model that fits at once, use the [matchmaker](/matchmaker).
 
 ---
 
 ## 4. GPU VRAM vs System RAM: CPU Offload Bottlenecks
 
-When total memory requirements exceed physical GPU VRAM, local runners like `llama.cpp` allow users to offload layers ($n_{\text{gpu\_layers}}$) to their System RAM via the CPU.
+When the total memory requirement exceeds GPU VRAM, `llama.cpp` can run some layers on the CPU from system RAM. The `--n-gpu-layers` option sets how many layers stay on the GPU.
 
-While CPU offloading is a great fallback to prevent CUDA OOM crashes, it introduces severe memory bandwidth bottlenecks that users should expect:
+CPU offloading is a good fallback against CUDA OOM crashes, but it runs into a large memory bandwidth gap:
 
-- **NVIDIA RTX 4090 Memory Bandwidth:** $\approx 1008 \text{ GB/s}$
-- **Dual-Channel DDR5 System RAM Bandwidth:** $\approx 64 \text{ to } 80 \text{ GB/s}$
+- **NVIDIA RTX 4090 memory bandwidth:** about 1,008 GB/s.
+- **Dual-channel DDR5 system RAM:** roughly 55 to 90 GB/s in synthetic benchmarks, depending on the kit and the test. The theoretical peak for DDR5-6000 is 96 GB/s.
 
-Because of this gap, offloading even 20% of transformer layers to system RAM drops generation speeds drastically—from a fluid **60+ tokens per second down to 8–12 tokens per second**—due to PCIe bus transfers and system memory latency.
+At those figures, each gigabyte read from system RAM takes roughly 11 to 18 times as long as one read from the 4090's VRAM (1,008 divided by 89 and by 55). Token speed falls as soon as layers spill into RAM. The [24GB VRAM post](/posts/why-your-24gb-vram-isnt-enough) works through the arithmetic for a 32B model and lists the sources for the DDR5 figures.
 
 ---
 
 ## 5. Automated Hardware Sizing
 
-Instead of calculating layer math manually for every single deployment, developers can evaluate their hardware configurations directly using interactive tools:
+Instead of doing the layer math by hand for every deployment, you can check your hardware directly:
 
-- The **[Local LLM VRAM Calculator](https://localnodeops.com)** allows users to model exact KV cache scaling, quantization precision overhead, and hardware limits before downloading any model weights.
-- The **[LLM Hardware Benchmark Tool](https://localnodeops.com)** helps analyze PCIe bandwidth bottlenecks, CPU layer offload performance, and predicted tokens-per-second throughput across standard consumer GPUs.
+- The **[VRAM calculator](/hardware)** shows the memory breakdown for one model at your context length, with a headroom check and a CPU offload check, before you download any weights.
+- The **[matchmaker](/matchmaker)** takes your GPU memory, system RAM and context length and sorts every synced model into full GPU fit, offload required or out of memory. Its multi-model card adds up several models run together.
+
+## Sources
+
+- [llama.cpp quantization README](https://github.com/ggml-org/llama.cpp/blob/master/tools/quantize/README.md): bits per weight and file sizes for Llama 3.1 8B.
+- [llama.cpp pull request #7412](https://github.com/ggerganov/llama.cpp/pull/7412): bits per value for quantized KV cache types.
+- [RTX 4070 and RTX 4070 Ti specs (Guru3D)](https://www.guru3d.com/news-story/nvidia-geforce-rtx-4070-and-rtx-4070-ti-specs-get-detailed.html): memory bandwidth figures for the RTX 40 series.
