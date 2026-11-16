@@ -1,11 +1,17 @@
 ---
-title: "Qwen 3.8 27B vs. Gemma 4 31B Dense: VRAM Benchmarks & Hardware Guide"
+title: "Qwen 3.8 27B vs. Gemma 4 31B Dense: VRAM Benchmarks & Hardware Guide"
+seoTitle: "Qwen 3.8 27B vs Gemma 4 31B: VRAM Guide"
 excerpt: "Comparing Qwen 3.8 27B and Gemma 4 31B Dense. Exact VRAM requirements with our 10% overhead formula to see what fits on your GPU."
 category: "Hardware"
 pubDate: 2026-09-24
 author: "Haseeb"
 tags: ["Qwen", "Gemma", "VRAM", "Local LLM", "Hardware"]
-readingTime: 4
+readingTime: 4
+keyAnswer: "At Q4_K_M, Qwen 3.8 27B fits a 24 GB card with about 3.4 GB to spare. Gemma 4 31B is extremely tight, with about 1.2 GB of headroom, and context past 8K risks an out-of-memory error."
+calc:
+  model: "bartowski-qwen3-8-27b-gguf"
+  quant: "Q4_K_M"
+  ctx: "8K"
 faq:
   - question: "Can a 24GB VRAM card run Qwen 3.8 27B at Q4_K_M?"
     answer: "Yes. At Q4_K_M quantization with an 8k context window, total VRAM requirement is approximately 20.6 GB including our 10% overhead formula (using a 2.5GB KV cache proxy), leaving ~3.4 GB of safe headroom on an RTX 3090 or 4090."
@@ -42,7 +48,7 @@ Assuming a standard **8k context window** using GGUF Q4_K_M quantization, here i
 ## Hardware Recommendations
 
 If your current rig falls short of these requirements, you have two primary routes:
-1.  **Cloud Scaling:** Don't let hardware limits stall your development. Spin up a dedicated cloud instance with sufficient VRAM instantly via <strong><a href="https://www.runpod.io/?ref=localnodeops" rel="sponsored noopener">RunPod (affiliate link)</a></strong>.
-2.  **Hardware Upgrade:** If you want local zero-latency execution for 30B-class models, you need a 24GB workstation baseline. Check out 24GB graphics cards on <strong><a href="https://www.amazon.com/s?k=RTX+4090+24GB&amp;tag=localnodeops-20" rel="sponsored noopener">Amazon (affiliate link)</a></strong>.
+1.  **Cloud Scaling:** Don't let hardware limits stall your development. Spin up a dedicated cloud instance with sufficient VRAM instantly via <strong><a href="https://runpod.io?ref=9k9rtpui" target="_blank" rel="sponsored nofollow noopener">RunPod (affiliate link)</a></strong>.
+2.  **Hardware Upgrade:** If you want local zero-latency execution for 30B-class models, you need a 24GB workstation baseline. Check out 24GB graphics cards on <strong><a href="https://www.amazon.com/s?k=RTX+4090+24GB&amp;tag=localnodeops-20" target="_blank" rel="sponsored nofollow noopener">Amazon (affiliate link)</a></strong>.
 
 Need help fine-tuning your memory allocation or resolving memory crashes? Check our guide on [diagnosing CUDA OOM errors](/posts/diagnosing-cuda-oom-errors). For production deployments, streamline your server setup using our pre-configured [Docker Stack](/docker-stack).

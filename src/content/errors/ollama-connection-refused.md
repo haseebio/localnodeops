@@ -1,7 +1,8 @@
 ---
 module: "Ollama"
 errorCode: "OLLAMA_CONNECTION_REFUSED"
-title: "Error: could not connect to Ollama, is it running?"
+title: "Error: could not connect to Ollama, is it running?"
+seoTitle: "Ollama: Could Not Connect, Is It Running?"
 summary: "The Ollama server isn't running, or a client is pointed at the wrong host/port."
 severity: "info"
 faq:

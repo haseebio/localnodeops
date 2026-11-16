@@ -1,11 +1,17 @@
 ---
-title: "VRAM Requirements & Benchmark Guide for DeepSeek R1 Distills (8B, 14B, 32B)"
+title: "VRAM Requirements & Benchmark Guide for DeepSeek R1 Distills (8B, 14B, 32B)"
+seoTitle: "DeepSeek R1 Distills: VRAM Requirements"
 excerpt: "A complete hardware guide to running DeepSeek R1 reasoning distills locally. Find out exactly how much VRAM you need for the 8B, 14B, and 32B models."
 category: "Hardware"
 pubDate: 2026-09-22
 author: "Haseeb"
 tags: ["DeepSeek", "VRAM", "Local Inference", "Hardware Guide"]
-readingTime: 4
+readingTime: 4
+keyAnswer: "At 32K or more of context, the 14B and 32B DeepSeek R1 distills need roughly 2 to 4 GB of extra VRAM for the context window, which pushes the 32B well past a 24 GB card."
+calc:
+  model: "bartowski-deepseek-r1-distill-qwen-32b-gguf"
+  quant: "Q4_K_M"
+  ctx: "32K"
 faq:
   - question: "Can I run DeepSeek R1 32B on a 16GB GPU?"
     answer: "No, a Q4_K_M quantized 32B model requires around 23GB of VRAM including the context window and runtime overhead. You will need to offload layers to system RAM, which drastically reduces inference speed, or use a 24GB card like the RTX 3090/4090."

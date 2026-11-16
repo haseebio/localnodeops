@@ -2,6 +2,7 @@
 module: "CUDA"
 errorCode: "CUDA_ERROR_INSUFFICIENT_DRIVER"
 title: "CUDA driver version mismatch"
+seoTitle: "CUDA_ERROR_INSUFFICIENT_DRIVER: Driver Fix"
 summary: "Installed CUDA toolkit version is newer than what the installed driver supports."
 severity: "warning"
 faq:

@@ -1,7 +1,8 @@
 ---
 module: "PyTorch"
 errorCode: "PYTORCH_DEVICE_MISMATCH"
-title: "RuntimeError: Expected all tensors on the same device"
+title: "RuntimeError: Expected all tensors on the same device"
+seoTitle: "PyTorch: Tensors on Different Devices Error"
 summary: "Mixing CPU and GPU tensors in a forward pass, often from partial CPU offload during quantized inference."
 severity: "warning"
 faq:

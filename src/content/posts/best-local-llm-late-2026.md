@@ -1,11 +1,18 @@
 ---
-title: "Best Local LLMs for 16GB and 24GB GPUs in Late 2026"
+title: "Best Local LLMs for 16GB and 24GB GPUs in Late 2026"
+seoTitle: "Best Local LLMs for 16GB and 24GB GPUs"
 excerpt: "Three local models, which GPU each one fits, and the exact VRAM math behind it, using real GGUF file sizes."
 pubDate: 2026-09-30
 author: "LocalNodeOps"
 category: "Hardware"
 tags: ["local-llm", "vram", "ollama", "hardware"]
-readingTime: 5
+readingTime: 5
+keyAnswer: "Qwen3-Coder 30B at Q4_K_M with 8K context needs about 19.8 GB in total (17.28 GB weights, about 0.75 GB KV cache, 10% overhead). It fits a 24 GB card and does not fit a 16 GB card."
+keyNumber: "Qwen3-Coder 30B Q4_K_M at 8K = about 19.8 GB"
+calc:
+  model: "unsloth-qwen3-coder-30b-a3b-instruct-gguf"
+  quant: "Q4_K_M"
+  ctx: "8K"
 ---
 
 Local AI is now a practical daily tool, not just a demo. The hard part is picking a model that actually fits your GPU. This post lists three strong options, shows which card each one needs, and gives the math so you can check it yourself.

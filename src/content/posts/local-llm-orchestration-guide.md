@@ -1,11 +1,13 @@
 ---
 title: "The Baseline Architecture for Local LLM Orchestration: Avoiding VRAM Bottlenecks"
+seoTitle: "Local LLM Orchestration and VRAM Bottlenecks"
 excerpt: "What actually consumes VRAM in local LLM serving, and how to architect a baseline setup that doesn't blow past it."
 category: "Architecture"
 pubDate: 2026-09-11
 author: "Haseeb"
 tags: ["Local LLM", "CUDA", "GGUF", "VRAM", "Orchestration"]
 readingTime: 11
+keyAnswer: "VRAM is split across three consumers: model weights, KV cache and runtime overhead. Treating them as one lump sum is how you get surprised."
 faq:
   - question: "Does more VRAM always mean I can run a bigger model?"
     answer: "No — VRAM headroom is consumed by three separate things (weights, KV cache, runtime overhead), and a long context window can eat more VRAM than the weights themselves. Sizing for weights alone is the most common mistake."

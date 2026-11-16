@@ -1,7 +1,8 @@
 ---
 module: "CUDA"
 errorCode: "CUDA_OUT_OF_MEMORY"
-title: "CUDA error: out of memory"
+title: "CUDA error: out of memory"
+seoTitle: "CUDA error: out of memory in Ollama"
 summary: "The model, context length, or batch size requested more VRAM than the GPU has available."
 severity: "critical"
 faq:

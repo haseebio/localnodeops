@@ -6,6 +6,7 @@ pubDate: 2026-08-02
 author: "LocalNodeOps Editorial"
 tags: ["cuda", "troubleshooting", "oom"]
 readingTime: 5
+keyAnswer: "Check whether the weights alone exceed VRAM first, then check nvidia-smi for other VRAM use, then use the VRAM calculator to see whether your model, quantization and context length should fit."
 faq:
   - question: "What's the fastest way to check if it's a CUDA OOM error?"
     answer: "Look for CUDA_ERROR_OUT_OF_MEMORY or 'CUDA out of memory' in the traceback — it's usually explicit rather than a silent failure. Running nvidia-smi right before the crash also shows how much VRAM was already in use."

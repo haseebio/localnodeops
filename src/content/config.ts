@@ -53,6 +53,16 @@ const posts = defineCollection({
     author: z.string(),
     tags: z.array(z.string()),
     readingTime: z.number(),
+    // Optional presentation fields, each written from the post's own text.
+    keyAnswer: z.string().max(400).optional(),
+    keyNumber: z.string().max(120).optional(),
+    calc: z
+      .object({
+        model: z.string(),
+        quant: z.enum(['Q4_K_M', 'Q8_0']).default('Q4_K_M'),
+        ctx: z.enum(['4K', '8K', '16K', '32K']).default('8K'),
+      })
+      .optional(),
     faq: z
       .array(
         z.object({
@@ -77,6 +87,7 @@ const docs = defineCollection({
 const errors = defineCollection({
   type: 'content',
   schema: z.object({
+    seoTitle: z.string().max(45).optional(),
     module: z.enum(['CUDA', 'vLLM', 'Ollama', 'PyTorch']),
     errorCode: z.string(),
     title: z.string(),

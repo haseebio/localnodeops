@@ -1,11 +1,13 @@
 ---
-title: "Building a Private RAG Pipeline with Qdrant, Ollama, and Docker"
+title: "Building a Private RAG Pipeline with Qdrant, Ollama, and Docker"
+seoTitle: "Private RAG Pipeline: Qdrant, Ollama, Docker"
 excerpt: "Learn how to orchestrate a fully containerized Retrieval-Augmented Generation (RAG) stack locally using Ollama, Qdrant, and Open WebUI."
 category: "Guides"
 pubDate: 2026-09-26
 author: "Haseeb"
 tags: ["RAG", "Docker", "Qdrant", "Ollama", "Vector Database", "Local AI"]
-readingTime: 6
+readingTime: 6
+keyAnswer: "This guide wires Ollama, Qdrant and Open WebUI together in one Docker network so you can chat with your own documents without sending data to third-party APIs."
 ---
 
 Running large language models locally is powerful, but out-of-the-box models lack context about your private codebase, documentation, or personal notes. To give your local LLM domain-specific knowledge without leaking data to third-party APIs, you need a **Retrieval-Augmented Generation (RAG)** pipeline.

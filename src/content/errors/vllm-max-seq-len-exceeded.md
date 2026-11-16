@@ -1,7 +1,8 @@
 ---
 module: "vLLM"
 errorCode: "VLLM_MAX_SEQ_LEN_EXCEEDED"
-title: "ValueError: prompt exceeds the model's maximum context length"
+title: "ValueError: prompt exceeds the model's maximum context length"
+seoTitle: "vLLM: Prompt Exceeds Max Context Length"
 summary: "The request's prompt + max_tokens exceeds max_model_len, often after that value was manually raised past what KV cache memory supports."
 severity: "warning"
 faq:

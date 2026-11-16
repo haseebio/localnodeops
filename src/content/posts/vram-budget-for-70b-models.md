@@ -6,6 +6,11 @@ pubDate: 2026-08-20
 author: "LocalNodeOps Editorial"
 tags: ["vram", "quantization", "70b"]
 readingTime: 7
+keyAnswer: "For a 70B model, pick the quantization first, then check whether the weight size plus a realistic KV cache fits your card. Do not reason backward from how many GB your card has."
+calc:
+  model: "bartowski-meta-llama-3-1-70b-instruct-gguf"
+  quant: "Q4_K_M"
+  ctx: "8K"
 faq:
   - question: "Can I run a 70B model on a single 24GB GPU?"
     answer: "Not fully on-GPU at Q4 or higher — weights alone need roughly 40GB at Q4_K_M. You can run it with partial CPU offload (llama.cpp's --n-gpu-layers), but expect a significant speed drop, or use a much lower quantization (Q2/IQ2) that trades quality for fitting more layers on-GPU."

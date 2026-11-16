@@ -11,7 +11,13 @@ tags:
   - "Ollama"
   - "llama.cpp"
   - "Hardware"
-readingTime: 5
+readingTime: 5
+keyAnswer: "A 32B Q4_K_M model that fits a 24 GB card at 8K context needs about 24.7 GB at 16K, so it is not safe on 24 GB. The KV cache, not the file size, is the reason."
+keyNumber: "32B Q4_K_M at 16K context = about 24.7 GB"
+calc:
+  model: "bartowski-deepseek-r1-distill-qwen-32b-gguf"
+  quant: "Q4_K_M"
+  ctx: "16K"
 faq:
   - question: "Why does my GPU throw CUDA_OUT_OF_MEMORY if the model file is smaller than my VRAM?"
     answer: "Model file size only represents static weights stored on disk. During inference, your GPU also requires memory for CUDA runtime initialization, tensor activation overhead, and the Key-Value (KV) cache. The KV cache is reserved for your full context window when the model loads, so as you set larger context windows (e.g., 16k–128k tokens), the KV cache grows rapidly, pushing total VRAM usage past physical card limits even when the raw .gguf file appears to fit easily."

@@ -1,11 +1,13 @@
 ---
-title: "Local LLM Trends: MoE Models and the KV Cache Problem"
+title: "Local LLM Trends: MoE Models and the KV Cache Problem"
+seoTitle: "Local LLM Trends: MoE and the KV Cache"
 excerpt: "Why KV cache size, not parameter count, decides which new MoE models fit a 16GB or 24GB GPU. Real GGUF sizes and the math behind each result."
 category: "Analysis"
 pubDate: 2026-09-27
 author: "Haseeb"
 tags: ["MoE", "KV cache", "VRAM", "Quantization", "Qwen3"]
-readingTime: 4
+readingTime: 4
+keyAnswer: "An MoE model needs its full file size in VRAM: only speed improves, not memory. The KV cache depends on the model's attention design, not its parameter count."
 ---
 
 Many of the strongest open-weight models you can run at home are now mixture-of-experts (MoE) models. They advertise small "active" parameter counts, but that number does not tell you how much VRAM you need. This post shows what actually decides whether a model fits your GPU.
@@ -49,4 +51,4 @@ DeepSeek-R1-Distill-Qwen-32B was released in January 2025. DeepSeek reported 72.
 
 ## Check Your Own Hardware
 
-Open the [VRAM Calculator](/hardware) and pick your model, quantization and context length. If it does not fit, you can rent a GPU by the hour on <a href="https://www.runpod.io/?ref=localnodeops" rel="sponsored noopener">RunPod (affiliate link)</a> or set up your own server with the [LocalNodeOps Docker Stack](/docker-stack).
+Open the [VRAM Calculator](/hardware) and pick your model, quantization and context length. If it does not fit, you can rent a GPU by the hour on <a href="https://runpod.io?ref=9k9rtpui" target="_blank" rel="sponsored nofollow noopener">RunPod (affiliate link)</a> or set up your own server with the [LocalNodeOps Docker Stack](/docker-stack).
