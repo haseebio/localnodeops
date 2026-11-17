@@ -6,7 +6,21 @@
 // missing env var can no longer produce an untagged link.
 
 export const RUNPOD_URL =
-  import.meta.env.PUBLIC_RUNPOD_AFFILIATE_URL || 'https://www.runpod.io/?ref=localnodeops';
+  import.meta.env.PUBLIC_RUNPOD_AFFILIATE_URL || 'https://runpod.io?ref=9k9rtpui';
+
+// Product checkout (Docker Stack). Not an affiliate link, kept here so every
+// outbound commercial URL lives in one file.
+export const LEMONSQUEEZY_URL =
+  import.meta.env.PUBLIC_LEMONSQUEEZY_PRODUCT_URL ||
+  'https://getlocalnodeops.lemonsqueezy.com/checkout/buy/65274943-26ca-490f-9fab-e5ab0231d73b';
+
+// Every affiliate link on the site uses this rel value, opens in a new tab and
+// carries visible "(affiliate link)" text next to it.
+export const AFFILIATE_REL = 'sponsored nofollow noopener noreferrer';
+
+// Shown once above the first affiliate block on a page. Wording is fixed.
+export const AFFILIATE_DISCLOSURE =
+  'Affiliate links: we may earn a commission if you buy or sign up through these links, at no extra cost to you. It never affects the VRAM math.';
 
 export const LAMBDA_URL =
   import.meta.env.PUBLIC_LAMBDA_AFFILIATE_URL || 'https://lambdalabs.com/';

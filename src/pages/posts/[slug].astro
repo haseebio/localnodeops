@@ -4,6 +4,8 @@ import BaseLayout from '../../layouts/BaseLayout.astro';
 import ArticleActions from '../../components/ArticleActions.astro';
 import FAQAccordion from '../../components/FAQAccordion.astro';
 import StickyActionBar from '../../components/StickyActionBar.astro';
+import MiniCalc from '../../components/MiniCalc.astro';
+import AuthorBox from '../../components/AuthorBox.astro';
 
 export async function getStaticPaths() {
   const posts = await getCollection('posts');
@@ -18,8 +20,22 @@ interface Props {
 }
 
 const { entry } = Astro.props as Props;
-const { Content } = await entry.render();
-const { title, seoTitle, excerpt, category, pubDate, author, readingTime, faq } = entry.data;
+const { Content, headings } = await entry.render();
+const { title, seoTitle, excerpt, category, pubDate, author, readingTime, faq, keyAnswer, calc } = entry.data;
+
+// Table of contents: the post's own H2s only, no new headings.
+const toc = headings.filter((h) => h.depth === 2);
+
+// Previous / next by date and related guides (same category first, then most
+// recent). All computed from the collection, nothing hand-picked.
+const allPosts = (await getCollection('posts')).sort((a, b) => b.data.pubDate.valueOf() - a.data.pubDate.valueOf());
+const idx = allPosts.findIndex((p) => p.slug === entry.slug);
+const newer = idx > 0 ? allPosts[idx - 1] : null;
+const older = idx < allPosts.length - 1 ? allPosts[idx + 1] : null;
+const related = [
+  ...allPosts.filter((p) => p.slug !== entry.slug && p.data.category === category),
+  ...allPosts.filter((p) => p.slug !== entry.slug && p.data.category !== category),
+].slice(0, 3);
 
 // tsconfig extends astro/tsconfigs/base (non-strict), so Zod infers faq items with
 // optional fields. The schema guarantees both are strings; assert that here so
@@ -45,10 +61,19 @@ const jsonLd: object[] = [
     headline: title,
     description: excerpt,
     datePublished: pubDate.toISOString(),
+    mainEntityOfPage: new URL(`/posts/${entry.slug}/`, Astro.site).toString(),
     author: {
       '@type': 'Person',
       name: author,
     },
+  },
+  {
+    '@context': 'https://schema.org',
+    '@type': 'BreadcrumbList',
+    itemListElement: [
+      { '@type': 'ListItem', position: 1, name: 'Blog', item: new URL('/posts/', Astro.site).toString() },
+      { '@type': 'ListItem', position: 2, name: title, item: new URL(`/posts/${entry.slug}/`, Astro.site).toString() },
+    ],
   },
 ];
 
@@ -69,36 +94,103 @@ if (faq && faq.length > 0) {
 ---
 
 <BaseLayout title={seoTitle ?? title} description={excerpt} jsonLd={jsonLd}>
-  <div class="max-w-reading mx-auto px-lg py-xl">
-    <nav class="breadcrumb" aria-label="Breadcrumb">
-      <a href="/posts">Blog</a>
-      <span class="breadcrumb-sep" aria-hidden="true">/</span>
-      <span class="text-primary">{title}</span>
-    </nav>
+  <div class="max-w-shell mx-auto px-md sm:px-lg py-lg post-wrap">
+    <aside class="post-toc-desk" aria-label="On this page">
+      {toc.length > 0 && (
+        <nav>
+          <p class="kicker m-0 mb-xs">On this page</p>
+          <ol class="toc-list" id="toc-desk">
+            {toc.map((h) => <li><a href={`#${h.slug}`} data-toc={h.slug}>{h.text}</a></li>)}
+          </ol>
+        </nav>
+      )}
+    </aside>
 
-    <p class="text-body-md text-secondary">
-      {category} <span aria-hidden="true">·</span> {formattedDate}
-      <span aria-hidden="true">·</span> {readingTime} min read
-    </p>
+    <article class="post-article">
+      <nav class="breadcrumb" aria-label="Breadcrumb">
+        <a href="/posts">Blog</a>
+        <span class="breadcrumb-sep" aria-hidden="true">/</span>
+        <span class="text-primary">{title}</span>
+      </nav>
 
-    <h1 class="text-display-hero text-primary mt-xs">{title}</h1>
-    <p class="text-body-lg text-secondary mt-sm">{excerpt}</p>
+      <p class="kicker m-0">{category}</p>
+      <h1 class="text-display-hero text-primary mt-xs">{title}</h1>
+      <p class="text-body-lg text-secondary mt-sm">{excerpt}</p>
 
-    <p class="text-body-md text-secondary mt-sm">
-      Written by <span class="text-primary">{author}</span>
-    </p>
+      <p class="text-body-md text-secondary mt-sm post-meta">
+        <span>Written by <span class="text-primary">{author}</span></span>
+        <span aria-hidden="true">·</span>
+        <time datetime={pubDate.toISOString()}>{formattedDate}</time>
+        <span aria-hidden="true">·</span>
+        <span>{readingTime} min read</span>
+        <span aria-hidden="true">·</span>
+        <span>Figures are estimates unless labelled</span>
+      </p>
 
-    <div class="mt-md">
-      <ArticleActions title={title} />
-    </div>
-
-    <div class="article-shell mt-lg">
-      <div class="docs-content" id="post-content">
-        <Content />
+      <div class="mt-md">
+        <ArticleActions title={title} />
       </div>
-    </div>
 
-    <FAQAccordion items={faqItems} title="Frequently asked questions" />
+      {keyAnswer && (
+        <div class="callout mt-md" role="note">
+          <p class="kicker m-0">Key answer</p>
+          <p class="post-key m-0 mt-xs">{keyAnswer}</p>
+        </div>
+      )}
+
+      {toc.length > 0 && (
+        <details class="post-toc-mob mt-md">
+          <summary>On this page</summary>
+          <ol class="toc-list">
+            {toc.map((h) => <li><a href={`#${h.slug}`}>{h.text}</a></li>)}
+          </ol>
+        </details>
+      )}
+
+      {calc && <MiniCalc model={calc.model} quant={calc.quant} ctx={calc.ctx} />}
+
+      <div class="article-shell mt-md">
+        <div class="docs-content" id="post-content">
+          <Content />
+        </div>
+      </div>
+
+      <FAQAccordion items={faqItems} title="Frequently asked questions" />
+
+      <section class="callout post-check" aria-labelledby="post-check-title">
+        <p id="post-check-title" class="kicker m-0">Check your own setup</p>
+        <p class="text-body-md text-secondary m-0 mt-xs">Use the same math on your hardware. Free, no sign-up.</p>
+        <div class="post-check-actions">
+          <a href="/hardware" class="post-btn post-btn-primary">VRAM calculator</a>
+          <a href="/matchmaker" class="post-btn">GPU matchmaker</a>
+        </div>
+      </section>
+
+      <AuthorBox />
+
+      <nav class="post-pn" aria-label="More guides">
+        {older ? <a href={`/posts/${older.slug}`} class="card-link post-pn-card"><span class="kicker">Previous</span><span>{older.data.title}</span></a> : <span></span>}
+        {newer ? <a href={`/posts/${newer.slug}`} class="card-link post-pn-card"><span class="kicker">Next</span><span>{newer.data.title}</span></a> : <span></span>}
+      </nav>
+
+      <section aria-labelledby="related-title" class="mt-lg">
+        <h2 id="related-title" class="text-headline-md text-primary">Related guides</h2>
+        <ul class="post-related">
+          {related.map((r) => (
+            <li><a href={`/posts/${r.slug}`} class="card-link post-pn-card"><span class="kicker">{r.data.category}</span><span>{r.data.title}</span></a></li>
+          ))}
+        </ul>
+      </section>
+    </article>
+
+    <aside class="post-rail" aria-label="Check this">
+      <div class="callout">
+        <p class="kicker m-0">Check this</p>
+        <p class="text-body-md text-secondary m-0 mt-xs">Run the numbers for your own GPU.</p>
+        <a href="/hardware" class="post-btn post-btn-primary mt-sm">VRAM calculator</a>
+        <a href="/matchmaker" class="post-btn mt-xs">GPU matchmaker</a>
+      </div>
+    </aside>
   </div>
 
   <StickyActionBar />
@@ -126,5 +218,71 @@ if (faq && faq.length > 0) {
       });
       pre.appendChild(btn);
     });
+
+    // Heading anchors (# on hover)
+    content.querySelectorAll('h2[id], h3[id]').forEach(function (h) {
+      const a = document.createElement('a');
+      a.href = '#' + h.id;
+      a.className = 'h-anchor';
+      a.setAttribute('aria-label', 'Link to this section');
+      a.textContent = '#';
+      h.appendChild(a);
+    });
+
+    // Verdict / takeaway sections get a distinct box (same text, no rewriting)
+    content.querySelectorAll('h2').forEach(function (h) {
+      if (!/verdict|summary recommendation|takeaway|bottom line/i.test(h.textContent || '')) return;
+      const box = document.createElement('div');
+      box.className = 'callout post-verdict';
+      h.parentNode.insertBefore(box, h);
+      box.appendChild(h);
+      let n = box.nextSibling;
+      while (n && !(n.nodeType === 1 && n.tagName === 'H2')) {
+        const next = n.nextSibling;
+        box.appendChild(n);
+        n = next;
+      }
+    });
+
+    // Sources list: numbered cards
+    content.querySelectorAll('h2').forEach(function (h) {
+      if (!/^sources?\b/i.test((h.textContent || '').trim())) return;
+      let n = h.nextElementSibling;
+      while (n && n.tagName !== 'H2') {
+        if (n.tagName === 'OL' || n.tagName === 'UL') n.classList.add('post-sources');
+        n = n.nextElementSibling;
+      }
+    });
+
+    // External links open safely
+    content.querySelectorAll('a[href^="http"]').forEach(function (a) {
+      if (a.hostname !== window.location.hostname && !/noopener/.test(a.rel)) a.rel = (a.rel + ' noopener').trim();
+    });
+
+    // "Scroll" hint for tables wider than the column
+    content.querySelectorAll('table').forEach(function (t) {
+      if (t.scrollWidth > t.clientWidth + 2) {
+        const hint = document.createElement('p');
+        hint.className = 'table-hint';
+        hint.textContent = 'Scroll sideways to see every column \u2192';
+        t.parentNode.insertBefore(hint, t);
+      }
+    });
+
+    // Highlight the current section in the table of contents
+    const links = Array.prototype.slice.call(document.querySelectorAll('#toc-desk a[data-toc]'));
+    if (links.length && 'IntersectionObserver' in window) {
+      const map = {};
+      links.forEach(function (l) { map[l.getAttribute('data-toc')] = l; });
+      const io = new IntersectionObserver(function (entries) {
+        entries.forEach(function (e) {
+          if (e.isIntersecting && map[e.target.id]) {
+            links.forEach(function (l) { l.removeAttribute('aria-current'); });
+            map[e.target.id].setAttribute('aria-current', 'true');
+          }
+        });
+      }, { rootMargin: '-15% 0px -70% 0px' });
+      content.querySelectorAll('h2[id]').forEach(function (h) { io.observe(h); });
+    }
   })();
 </script>

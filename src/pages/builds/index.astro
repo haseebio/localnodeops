@@ -1,0 +1,145 @@
+---
+import { getCollection } from 'astro:content';
+import BaseLayout from '../../layouts/BaseLayout.astro';
+import { getModelRows } from '../../lib/model-table';
+import { AFFILIATE_REL, AFFILIATE_DISCLOSURE, amazonSearchUrl } from '../../lib/affiliate';
+
+// Three calculator-checked builds. Every model list and number below is read
+// from the same shared table as /models and the calculator, so nothing is
+// typed by hand. These are guidance from the calculator's own numbers, not
+// measured builds, and no prices are printed: use the live links for prices.
+const rows = (await getModelRows()).filter((r) => r.total8kGb !== null);
+const hardware = await getCollection('hardware');
+const card = (slug: string) => hardware.find((h) => h.slug === slug);
+const gb = (n: number) => n.toFixed(1) + ' GB';
+
+const tiers = [
+  {
+    id: 'budget',
+    name: 'Budget Starter',
+    vram: 16,
+    ram: 32,
+    gpu: 'RTX 4060 Ti 16GB',
+    cardSlug: 'rtx-4060ti-16gb-inference',
+    parts: [
+      { label: 'GPU: RTX 4060 Ti 16GB', query: 'RTX 4060 Ti 16GB' },
+      { label: 'System RAM: 32 GB kit', query: '32GB DDR5 RAM kit' },
+    ],
+  },
+  {
+    id: 'sweet',
+    name: 'Sweet Spot',
+    vram: 24,
+    ram: 32,
+    gpu: 'RTX 3090 or RTX 4090 24GB',
+    cardSlug: 'rtx-4090-24gb-inference',
+    parts: [
+      { label: 'GPU: RTX 4090 24GB', query: 'RTX 4090 24GB' },
+      { label: 'GPU (alternative): RTX 3090 24GB', query: 'RTX 3090 24GB' },
+      { label: 'System RAM: 32 GB kit', query: '32GB DDR5 RAM kit' },
+    ],
+  },
+  {
+    id: 'power',
+    name: 'Local Powerhouse',
+    vram: 48,
+    ram: 64,
+    gpu: 'Dual RTX 3090 (48GB pooled)',
+    cardSlug: '',
+    parts: [
+      { label: 'GPUs: two RTX 3090 24GB', query: 'RTX 3090 24GB' },
+      { label: 'System RAM: 64 GB kit', query: '64GB DDR5 RAM kit' },
+      { label: 'Power supply sized for two GPUs (check each card\'s rated board power)', query: 'power supply for dual GPU' },
+    ],
+  },
+].map((t) => {
+  const fitting = rows.filter((r) => (r.total8kGb as number) <= t.vram);
+  const offload = rows
+    .filter((r) => (r.total8kGb as number) > t.vram && (r.total8kGb as number) <= t.vram + (t.ram - 4))
+    .sort((a, b) => (a.total8kGb as number) - (b.total8kGb as number));
+  const largest = [...fitting].sort((a, b) => (b.total8kGb as number) - (a.total8kGb as number))[0];
+  const c = t.cardSlug ? card(t.cardSlug) : undefined;
+  return { ...t, fitting, offload, largest, summary: c?.data.summary ?? null, cardSlugOk: !!c };
+});
+---
+
+<BaseLayout
+  title="Local AI Builds Checked by the Calculator"
+  description="Three local AI builds at 16, 24 and 48 GB of VRAM, with the models that fit at 8K context and the limit of each, from the VRAM calculator's own numbers."
+>
+  <section class="max-w-shell mx-auto px-md sm:px-lg pt-md sm:pt-lg pb-sm">
+    <h1 class="text-display-hero text-primary max-w-reading">Local AI builds checked by the calculator</h1>
+    <p class="text-body-md sm:text-body-lg text-secondary max-w-reading mt-xs">
+      Calculator-checked builds, not measured builds: each one lists the synced models whose estimated total fits
+      at 8K context, and where it stops. No prices are printed, because they change daily.
+    </p>
+    <p class="bld-disclosure">{AFFILIATE_DISCLOSURE}</p>
+  </section>
+
+  <section class="max-w-shell mx-auto px-md sm:px-lg pb-2xl">
+    <div class="bld-grid">
+      {tiers.map((t) => (
+        <article class="bld-card" id={t.id}>
+          <p class="kicker">{t.vram} GB VRAM</p>
+          <h2 class="bld-title">{t.name}</h2>
+          <p class="bld-gpu">{t.gpu}</p>
+
+          <h3 class="bld-h">Fits fully at 8K ({t.fitting.length} of {rows.length} models)</h3>
+          <ul class="bld-list">
+            {[...t.fitting].sort((a, b) => (b.total8kGb as number) - (a.total8kGb as number)).slice(0, 6).map((r) => (
+              <li><a href={`/calculator/${r.slug}`}>{r.name}</a> <span class="num">{gb(r.total8kGb as number)}</span></li>
+            ))}
+          </ul>
+
+          <h3 class="bld-h">The limit</h3>
+          {t.summary && <p class="bld-p">{t.summary}</p>}
+          {t.largest && t.largest.total16kGb !== null && t.largest.total32kGb !== null && (
+            <p class="bld-p">
+              The largest model that fits at 8K is {t.largest.name} at <span class="num">{gb(t.largest.total8kGb as number)}</span>.
+              At 16K it needs <span class="num">{gb(t.largest.total16kGb)}</span>
+              {t.largest.total16kGb > t.vram ? ' (does not fit)' : ' (fits)'}; at 32K,
+              <span class="num"> {gb(t.largest.total32kGb)}</span>{t.largest.total32kGb > t.vram ? ' (does not fit)' : ' (fits)'}.
+            </p>
+          )}
+          {t.offload.length > 0 && (
+            <p class="bld-p">
+              Next up needs CPU offload at 8K with {t.ram} GB RAM: {t.offload.slice(0, 3).map((r) => `${r.name} (${gb(r.total8kGb as number)})`).join(', ')}.
+            </p>
+          )}
+
+          <h3 class="bld-h">Parts</h3>
+          <ul class="bld-list">
+            {t.parts.map((p) => (
+              <li>
+                {p.label}:
+                <a href={amazonSearchUrl(p.query)} target="_blank" rel={AFFILIATE_REL} data-umami-event={`builds-amazon-${t.id}`}>search on Amazon</a>
+                (affiliate link)
+              </li>
+            ))}
+          </ul>
+
+          <a class="bld-cta" href={`/matchmaker?vram=${t.vram}&ram=${t.ram}&ctx=8K`}>Check this build in the matchmaker</a>
+        </article>
+      ))}
+    </div>
+    <p class="bld-foot">
+      Totals are (weights + KV cache) x 1.10, with the KV cache estimated. Pooled VRAM across two GPUs is the sum of
+      both cards, as in the <a href="/hardware">VRAM calculator</a>. See the <a href="/methodology">methodology</a>.
+    </p>
+  </section>
+</BaseLayout>
+
+<style is:global>
+  .bld-disclosure{margin:.75rem 0 0;font-size:.8rem;color:var(--text-secondary);max-width:52rem}
+  .bld-grid{display:grid;gap:1rem;grid-template-columns:1fr}
+  @media (min-width:900px){.bld-grid{grid-template-columns:repeat(3,minmax(0,1fr))}}
+  .bld-card{display:flex;flex-direction:column;gap:.35rem;padding:1.1rem 1.2rem;border:1px solid var(--border-color);border-top:3px solid var(--brand-2);border-radius:.75rem;background:var(--bg-surface)}
+  .bld-title{margin:0;font-size:1.4rem;font-weight:700;color:var(--text-primary)}
+  .bld-gpu{margin:0;font-weight:700;color:var(--accent-primary)}
+  .bld-h{margin:.9rem 0 .2rem;font-size:.78rem;letter-spacing:.08em;text-transform:uppercase;color:var(--text-secondary)}
+  .bld-p{margin:.2rem 0;font-size:.95rem;line-height:1.55;color:var(--text-primary)}
+  .bld-list{margin:0;padding-left:1.1rem;display:flex;flex-direction:column;gap:.3rem;font-size:.95rem;color:var(--text-primary)}
+  .bld-card a,.bld-foot a{color:var(--accent-primary);font-weight:700}
+  .bld-cta{margin-top:auto!important;display:flex;align-items:center;justify-content:center;min-height:2.75rem;padding:0 1rem;border-radius:9999px;background:var(--brand-3);color:var(--ink)!important;text-decoration:none;font-weight:700;margin-top:1rem}
+  .bld-foot{margin-top:1.25rem;font-size:.85rem;color:var(--text-secondary);max-width:52rem}
+</style>

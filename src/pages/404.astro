@@ -31,6 +31,15 @@ const helpfulLinks = [
       The link might be broken, or the page may have moved. Try one of these instead:
     </p>
 
+    <form action="/" onsubmit="return false" class="mt-md max-w-reading" role="search">
+      <label for="nf-search" class="kicker">Search the site</label>
+      <input id="nf-search" type="search" autocomplete="off" placeholder="Search models, guides, errors" class="nf-input" />
+      <ul id="nf-results" class="search-results" style="margin:.4rem 0 0;max-width:none"></ul>
+    </form>
+    <p class="text-body-md text-secondary mt-sm">
+      Or see what your GPU can run in the <a href="/matchmaker" class="text-accent-primary font-bold hover:underline">matchmaker</a>.
+    </p>
+
     <div class="grid grid-cols-1 sm:grid-cols-2 gap-md mt-lg max-w-reading">
       {helpfulLinks.map((link) => (
         <a href={link.href}
@@ -44,3 +53,40 @@ const helpfulLinks = [
     </div>
   </section>
 </BaseLayout>
+
+<script is:inline>
+  (function () {
+    const input = document.getElementById('nf-search');
+    const list = document.getElementById('nf-results');
+    let index = null;
+    function render() {
+      const words = input.value.toLowerCase().split(/\s+/).filter(Boolean);
+      list.replaceChildren();
+      if (!index || words.length === 0) return;
+      index.filter(function (it) {
+        const hay = (it.t + ' ' + it.k).toLowerCase();
+        return words.every(function (w) { return hay.indexOf(w) !== -1; });
+      }).slice(0, 8).forEach(function (it) {
+        const li = document.createElement('li');
+        const a = document.createElement('a');
+        a.href = it.u;
+        const k = document.createElement('span');
+        k.className = 'search-kind';
+        k.textContent = it.k;
+        a.appendChild(k);
+        a.appendChild(document.createTextNode(' ' + it.t));
+        li.appendChild(a);
+        list.appendChild(li);
+      });
+    }
+    input.addEventListener('focus', function () {
+      if (index) return;
+      fetch('/search-index.json').then(function (r) { return r.json(); }).then(function (j) { index = j; render(); });
+    });
+    input.addEventListener('input', render);
+  })();
+</script>
+
+<style is:global>
+  .nf-input{display:block;width:100%;min-height:2.75rem;margin-top:.3rem;padding:0 .9rem;border:1px solid var(--border-color);border-radius:.5rem;background:var(--bg-surface);color:var(--text-primary);font-size:1rem}
+</style>

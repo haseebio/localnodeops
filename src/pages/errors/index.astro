@@ -5,9 +5,13 @@ import BaseLayout from '../../layouts/BaseLayout.astro';
 const errorEntries = await getCollection('errors');
 
 const modules = [...new Set(errorEntries.map((e) => e.data.module))];
+// Order inside each module is unchanged, except CUDA_OUT_OF_MEMORY goes first
+// in its group. No popularity ranking is implied or invented.
 const grouped = modules.map((module) => ({
   module,
-  entries: errorEntries.filter((e) => e.data.module === module),
+  entries: errorEntries
+    .filter((e) => e.data.module === module)
+    .sort((a, b) => Number(b.data.errorCode === 'CUDA_OUT_OF_MEMORY') - Number(a.data.errorCode === 'CUDA_OUT_OF_MEMORY')),
 }));
 
 const severityStyle = {
@@ -44,13 +48,13 @@ const jsonLd = [
       <input
         id="error-search"
         type="search"
-        disabled
-        placeholder="Search error codes or messages (coming soon)"
+        autocomplete="off"
+        placeholder="Search errors: paste your error message or code"
         class="w-full min-h-touch-min rounded-md border border-border bg-surface
-          text-primary text-body-lg px-md font-mono placeholder:text-secondary
-          disabled:cursor-not-allowed disabled:opacity-70"
+          text-primary text-body-lg px-md font-mono placeholder:text-secondary"
       />
     </div>
+    <p id="error-search-empty" class="text-body-md text-secondary mt-sm" hidden>No errors match. Try a shorter part of the message.</p>
   </section>
 
   <section class="max-w-shell mx-auto px-lg pb-2xl">
@@ -59,7 +63,7 @@ const jsonLd = [
         <h2 class="text-headline-lg text-primary mb-md">{group.module}</h2>
         <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-md">
           {group.entries.map((entry) => (
-            <a href={`/errors/${entry.slug}`} class="no-underline">
+            <a href={`/errors/${entry.slug}`} class="no-underline err-card" data-search={`${entry.data.errorCode} ${entry.data.title} ${entry.data.summary}`.toLowerCase()}>
               <article class="border border-border rounded-lg bg-surface p-md flex flex-col gap-sm h-full transition-colors hover:border-accent-primary hover:bg-surface-elevated group">
                 <div class="flex items-center justify-between gap-sm">
                   <code class="text-code-mono text-secondary font-mono">{entry.data.errorCode}</code>
@@ -83,3 +87,25 @@ const jsonLd = [
     ))}
   </section>
 </BaseLayout>
+
+<script is:inline>
+  (function () {
+    const input = document.getElementById('error-search');
+    const cards = Array.prototype.slice.call(document.querySelectorAll('.err-card'));
+    const groups = Array.prototype.slice.call(document.querySelectorAll('[id="CUDA"],[id="Ollama"],[id="PyTorch"],[id="vLLM"]'));
+    const empty = document.getElementById('error-search-empty');
+    if (!input) return;
+    input.addEventListener('input', function () {
+      const words = input.value.toLowerCase().split(/\s+/).filter(Boolean);
+      let shown = 0;
+      cards.forEach(function (c) {
+        const hay = c.getAttribute('data-search') || '';
+        const ok = words.every(function (w) { return hay.indexOf(w) !== -1; });
+        c.hidden = !ok;
+        if (ok) shown++;
+      });
+      groups.forEach(function (g) { g.hidden = !g.querySelector('.err-card:not([hidden])'); });
+      empty.hidden = shown !== 0;
+    });
+  })();
+</script>

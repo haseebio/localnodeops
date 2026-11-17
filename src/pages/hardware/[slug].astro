@@ -2,6 +2,9 @@
 import { getCollection } from 'astro:content';
 import BaseLayout from '../../layouts/BaseLayout.astro';
 import ArticleActions from '../../components/ArticleActions.astro';
+import { getModelRows, APPLE_GPU_SHARE } from '../../lib/model-table';
+import { getHardwareAction } from '../../lib/hardware-actions';
+import { AFFILIATE_REL, AFFILIATE_DISCLOSURE } from '../../lib/affiliate';
 import { parseParamsB, nearestBucket, estimateVram, getModelArch } from '../../lib/vram-math';
 
 export async function getStaticPaths() {
@@ -74,7 +77,36 @@ if (vramGB != null) {
     .slice(0, 6);
 }
 
+// What fits: a 32B and a 70B model at Q4_K_M, at 8K / 16K / 32K context, against
+// the memory this card states (Mac: 75% GPU rule). Same math as the calculator.
+const modelRows = await getModelRows();
+const r32 = modelRows.find((r) => r.slug === 'bartowski-deepseek-r1-distill-qwen-32b-gguf');
+const r70 = modelRows.find((r) => r.slug === 'bartowski-meta-llama-3-1-70b-instruct-gguf');
+const memGb = vramGB ?? (entry.slug.startsWith('mac-mini') ? 16 * APPLE_GPU_SHARE : null);
+const fitRows =
+  memGb && r32 && r70
+    ? [r32, r70].map((r) => ({
+        name: r.name,
+        cells: [r.total8kGb, r.total16kGb, r.total32kGb].map((t) => (t === null ? null : { t, fits: t <= memGb })),
+      }))
+    : [];
+const action = getHardwareAction(entry.slug, r70?.total8kGb ?? null);
+const bandwidth = summary.match(/([\d,.]+)\s*GB\/s/)?.[0] ?? null;
+const allHardware = await getCollection('hardware');
+const relatedHw = [
+  ...allHardware.filter((h) => h.slug !== entry.slug && h.data.category === category),
+  ...allHardware.filter((h) => h.slug !== entry.slug && h.data.category !== category),
+].slice(0, 2);
+
 const jsonLd = [
+  {
+    '@context': 'https://schema.org',
+    '@type': 'BreadcrumbList',
+    itemListElement: [
+      { '@type': 'ListItem', position: 1, name: 'Hardware', item: new URL('/hardware/', Astro.site).toString() },
+      { '@type': 'ListItem', position: 2, name: title, item: new URL(`/hardware/${entry.slug}/`, Astro.site).toString() },
+    ],
+  },
   {
     '@context': 'https://schema.org',
     '@type': 'TechArticle',
@@ -126,6 +158,55 @@ const jsonLd = [
       </div>
     </div>
 
+    <section class="mt-lg" aria-labelledby="specs-title">
+      <h2 id="specs-title" class="text-headline-lg text-primary mb-md">Spec summary</h2>
+      <dl class="mdl-facts" style="flex-wrap:wrap;gap:1rem 2rem">
+        <div><dt>Type</dt><dd>{category}</dd></div>
+        {memGb && <div><dt>Memory</dt><dd class="num">{vramGB ?? 16} GB{entry.slug.startsWith('mac-mini') ? ' unified' : ''}</dd></div>}
+        {bandwidth && <div><dt>Bandwidth</dt><dd class="num">{bandwidth}</dd></div>}
+        <div><dt>Evidence</dt><dd>{STATUS_LABELS[status]}</dd></div>
+      </dl>
+    </section>
+
+    {fitRows.length > 0 && memGb && (
+      <section class="mt-lg" aria-labelledby="fits-title">
+        <h2 id="fits-title" class="text-headline-lg text-primary mb-xs">What fits</h2>
+        <p class="text-body-md text-secondary m-0 mb-md">
+          Q4_K_M, llama.cpp, against {Number.isInteger(memGb) ? memGb : Math.round(memGb)} GB of usable memory. Estimates.
+        </p>
+        <div class="compat" role="table" aria-label="What fits on this hardware">
+          <div class="compat-row compat-head" role="row" style="grid-template-columns:1.4fr 1fr 1fr 1fr">
+            <span role="columnheader">Model</span><span role="columnheader">8K</span><span role="columnheader">16K</span><span role="columnheader">32K</span>
+          </div>
+          {fitRows.map((r) => (
+            <div class="compat-row" role="row" style="grid-template-columns:1.4fr 1fr 1fr 1fr">
+              <span role="cell">{r.name}</span>
+              {r.cells.map((c) => (
+                <span role="cell">
+                  {c ? <span class:list={['fit-badge', c.fits ? 'fit-fits' : 'fit-oom']}>{c.t.toFixed(1)} GB {c.fits ? 'fits' : 'over'}</span> : 'n/a'}
+                </span>
+              ))}
+            </div>
+          ))}
+        </div>
+      </section>
+    )}
+
+    {action && (
+      <section class="callout mt-lg" aria-labelledby="limit-title">
+        <p id="limit-title" class="kicker m-0">The limit</p>
+        <p class="text-body-md text-primary m-0 mt-xs">{action.limit}</p>
+        <p class="text-secondary m-0 mt-sm" style="font-size:.8rem">{action.links.some((l) => l.affiliate) ? AFFILIATE_DISCLOSURE : ''}</p>
+        <ul class="aff-list mt-xs">
+          {action.links.map((l) => (
+            <li>
+              <a href={l.href} {...(l.affiliate ? { target: '_blank', rel: AFFILIATE_REL, 'data-umami-event': `hw-${l.label}` } : {})} class="text-accent-primary font-bold">{l.text}</a>{l.affiliate ? ' (affiliate link)' : ''}
+            </li>
+          ))}
+        </ul>
+      </section>
+    )}
+
     {fittingModels.length > 0 && (
       <div class="mt-lg">
         <h2 class="text-headline-lg text-primary mb-md">Models that fit this GPU</h2>
@@ -144,6 +225,18 @@ const jsonLd = [
           ))}
         </div>
       </div>
+    )}
+
+    {relatedHw.length > 0 && (
+      <section class="mt-lg" aria-labelledby="related-hw">
+        <h2 id="related-hw" class="text-headline-md text-primary">Related hardware</h2>
+        <ul class="post-related" style="grid-template-columns:repeat(auto-fit,minmax(14rem,1fr))">
+          {relatedHw.map((h) => (
+            <li><a href={`/hardware/${h.slug}`} class="card-link post-pn-card"><span class="kicker">{h.data.category}</span><span>{h.data.title}</span></a></li>
+          ))}
+        </ul>
+        <p class="mt-md"><a href="/hardware" class="text-accent-primary font-bold hover:underline">Back to the VRAM calculator and all hardware</a></p>
+      </section>
     )}
   </div>
 </BaseLayout>

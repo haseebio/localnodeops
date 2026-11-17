@@ -1,18 +1,32 @@
 ---
 import BaseLayout from '../layouts/BaseLayout.astro';
 import StandaloneMatchmaker from '../components/StandaloneMatchmaker.astro';
+
+const jsonLd = [
+  {
+    '@context': 'https://schema.org',
+    '@type': 'WebApplication',
+    name: 'LocalNodeOps GPU Matchmaker',
+    url: 'https://localnodeops.com/matchmaker/',
+    applicationCategory: 'DeveloperApplication',
+    operatingSystem: 'Any (runs in the browser)',
+    description:
+      'Shows which local LLMs fit fully on your GPU, need CPU offload, or do not fit, from your VRAM, system RAM and context length.',
+    offers: { '@type': 'Offer', price: '0', priceCurrency: 'USD' },
+  },
+];
 ---
 
 <BaseLayout
   title="What Can Your GPU Run? Local LLM Matchmaker"
-  description="Pick your GPU memory, system RAM and context length to see which local LLMs fit fully on the GPU, need CPU offload or do not fit."
+  description="Set your GPU memory, system RAM and context, then see every model that fits fully, needs offload, or will not run. Free, no sign-up."
+  jsonLd={jsonLd}
 >
-  <section class="max-w-shell mx-auto px-lg pt-2xl pb-md">
+  <section class="max-w-shell mx-auto px-lg pt-lg pb-md">
     <h1 class="text-display-hero text-primary max-w-reading">What can your GPU run?</h1>
-    <p class="text-body-lg text-secondary max-w-reading mt-md">
-      Set your GPU memory, system RAM and context length. The list sorts every synced
-      model into Full GPU fit, Offload required or Out of memory, using the same formula as
-      the VRAM calculator: (weights + KV cache) × 1.10.
+    <p class="text-body-lg text-secondary max-w-reading mt-xs">
+      Pick your GPU memory, RAM and context length, or tap a sample setup. Each model lands in
+      Full GPU fit, Offload required or Out of memory. Free, no sign-up.
     </p>
   </section>
 

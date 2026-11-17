@@ -3,6 +3,7 @@ import { getCollection } from 'astro:content';
 import BaseLayout from '../../layouts/BaseLayout.astro';
 import ArticleActions from '../../components/ArticleActions.astro';
 import FAQAccordion from '../../components/FAQAccordion.astro';
+import { RUNPOD_URL, AFFILIATE_REL, AFFILIATE_DISCLOSURE } from '../../lib/affiliate';
 
 export async function getStaticPaths() {
   const entries = await getCollection('errors');
@@ -14,7 +15,14 @@ export async function getStaticPaths() {
 
 const { entry } = Astro.props;
 const { Content } = await entry.render();
-const { module, errorCode, title, summary, severity, faq } = entry.data;
+const { module, errorCode, title, seoTitle, summary, severity, faq } = entry.data;
+
+// Same-module errors (not this one) for the "Related errors" list.
+const related = (await getCollection('errors'))
+  .filter((e) => e.data.module === module && e.slug !== entry.slug)
+  .slice(0, 3);
+// The only pages that carry an affiliate line: out-of-memory errors.
+const isOom = /out-of-memory|oom/.test(entry.slug);
 
 // Same normalization as posts/[slug].astro — tsconfig's non-strict base
 // makes Zod infer faq items with optional fields, but the schema
@@ -59,7 +67,7 @@ if (faq && faq.length > 0) {
 }
 ---
 
-<BaseLayout title={`${errorCode}: ${title}`} description={summary} jsonLd={jsonLd}>
+<BaseLayout title={seoTitle ?? `${errorCode}: ${title}`} description={summary} jsonLd={jsonLd}>
   <div class="max-w-reading mx-auto px-lg py-xl">
     <nav class="breadcrumb" aria-label="Breadcrumb">
       <a href="/errors">Errors</a>
@@ -81,7 +89,8 @@ if (faq && faq.length > 0) {
       </span>
     </div>
 
-    <h1 class="text-display-hero text-primary mt-xs">{title}</h1>
+    <h1 class="text-display-hero text-primary mt-xs err-h1"><code class="font-mono">{errorCode}</code></h1>
+    <p class="text-headline-md text-primary mt-xs m-0">{title}</p>
     <p class="text-body-lg text-secondary mt-sm">{summary}</p>
 
     <div class="mt-md">
@@ -95,5 +104,34 @@ if (faq && faq.length > 0) {
     </div>
 
     <FAQAccordion items={faqItems} title="Frequently asked questions" />
+
+    <section class="callout mt-lg" aria-labelledby="stuck-title">
+      <p id="stuck-title" class="kicker m-0">Still stuck?</p>
+      <p class="text-body-md text-secondary m-0 mt-xs">
+        Check whether your model, quantization and context length fit your GPU in the
+        <a href="/hardware" class="text-accent-primary font-bold hover:underline">VRAM calculator</a>
+        or the <a href="/matchmaker" class="text-accent-primary font-bold hover:underline">GPU matchmaker</a>.
+      </p>
+      {isOom && (
+        <>
+          <p class="text-secondary m-0 mt-sm" style="font-size:.8rem">{AFFILIATE_DISCLOSURE}</p>
+          <p class="text-body-md text-secondary m-0 mt-xs">
+            Still hitting OOM on every run? Rent a cloud GPU by the hour
+            (<a href={RUNPOD_URL} target="_blank" rel={AFFILIATE_REL} class="text-accent-primary font-bold hover:underline" data-umami-event="error-runpod">RunPod</a>, affiliate link).
+          </p>
+        </>
+      )}
+    </section>
+
+    {related.length > 0 && (
+      <section class="mt-lg" aria-labelledby="related-errors">
+        <h2 id="related-errors" class="text-headline-md text-primary">Related {module} errors</h2>
+        <ul class="post-related">
+          {related.map((r) => (
+            <li><a href={`/errors/${r.slug}`} class="card-link post-pn-card"><code class="font-mono text-secondary">{r.data.errorCode}</code><span>{r.data.title}</span></a></li>
+          ))}
+        </ul>
+      </section>
+    )}
   </div>
 </BaseLayout>

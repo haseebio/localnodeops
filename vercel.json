@@ -1,0 +1,7 @@
+{
+  "redirects": [
+    { "source": "/blog", "destination": "/posts/", "permanent": true },
+    { "source": "/blog/", "destination": "/posts/", "permanent": true },
+    { "source": "/sitemap.xml", "destination": "/sitemap-index.xml", "permanent": true }
+  ]
+}

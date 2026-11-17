@@ -3,17 +3,39 @@ import BaseLayout from '../layouts/BaseLayout.astro';
 import HardwareCard from '../components/HardwareCard.astro';
 import CategoryFilter from '../components/CategoryFilter.astro';
 import PublicationCard from '../components/PublicationCard.astro';
+import HomeTools from '../components/HomeTools.astro';
+import FAQAccordion from '../components/FAQAccordion.astro';
 import { getCollection } from 'astro:content';
+import { getModelRows } from '../lib/model-table';
+import { calculatorFaq } from '../lib/calculator-faq';
+import { AFFILIATE_DISCLOSURE } from '../lib/affiliate';
 
 const hardwareEntries = (await getCollection('hardware')).sort(
   (a, b) => b.data.publishedAt.valueOf() - a.data.publishedAt.valueOf()
 );
-
-const postEntries = (await getCollection('posts'))
-  .sort((a, b) => b.data.pubDate.valueOf() - a.data.pubDate.valueOf())
-  .slice(0, 3);
-
+const allPosts = (await getCollection('posts')).sort(
+  (a, b) => b.data.pubDate.valueOf() - a.data.pubDate.valueOf()
+);
+const postEntries = allPosts.slice(0, 3);
 const categories = [...new Set(hardwareEntries.map((entry) => entry.data.category))];
+
+// "What fits on your card?": for each memory size, the largest synced model
+// whose estimated total at 8K fits, and the longest of 8K / 16K / 32K that
+// still fits. All numbers come from the shared model table.
+const rows = (await getModelRows()).filter((r) => r.total8kGb !== null);
+const modelCount = (await getCollection('models')).length;
+const tiers = [8, 16, 24, 32, 48].map((vram) => {
+  const fitting = rows
+    .filter((r) => (r.total8kGb as number) <= vram)
+    .sort((a, b) => (b.total8kGb as number) - (a.total8kGb as number));
+  const best = fitting[0];
+  let longest = '8K';
+  if (best) {
+    if (best.total32kGb !== null && best.total32kGb <= vram) longest = '32K';
+    else if (best.total16kGb !== null && best.total16kGb <= vram) longest = '16K';
+  }
+  return { vram, best, longest };
+});
 
 const jsonLd = [
   {
@@ -32,33 +54,86 @@ const jsonLd = [
       url: new URL(`/hardware/${entry.slug}`, Astro.site).toString(),
     })),
   },
+  {
+    '@context': 'https://schema.org',
+    '@type': 'FAQPage',
+    mainEntity: calculatorFaq.map((item) => ({
+      '@type': 'Question',
+      name: item.question,
+      acceptedAnswer: { '@type': 'Answer', text: item.answer },
+    })),
+  },
+];
+
+// Four cards. Each statement is a fact the site already states elsewhere.
+const trust = [
+  {
+    href: '/models',
+    title: `${modelCount} synced models`,
+    text: 'Exact .gguf file sizes come straight from Hugging Face, so the weights in every calculation are real file sizes.',
+    cta: 'Browse models',
+  },
+  {
+    href: '/methodology',
+    title: 'Every figure is labelled',
+    text: 'Each figure is tagged Verified, Community-reported or Estimated. Right now every hardware card is estimated.',
+    cta: 'See how labels work',
+  },
+  {
+    href: '/methodology',
+    title: 'The formula is public',
+    text: 'Total VRAM = (weights + KV cache) x 1.10. Weights are exact where the file is synced; the KV cache is always an estimate.',
+    cta: 'Read the formula',
+  },
+  {
+    href: '/hardware',
+    title: 'Free, no sign-up',
+    text: 'Both calculators run in your browser. There is no account, no sign-up and no email wall.',
+    cta: 'Try the calculator',
+  },
 ];
 ---
 
 <BaseLayout
-  title="Local AI Hardware Benchmarks & Infrastructure Guides"
-  description="Local LLM inference hardware benchmarks, plus guides on quantization, VRAM budgeting, and self-hosted infrastructure."
+  title="VRAM Calculator & GPU Matchmaker for Local AI"
+  description="Free VRAM calculator and matchmaker for local LLMs. Exact .gguf sizes, KV cache math, and which models fit your GPU, every figure labelled by source."
   jsonLd={jsonLd}
 >
-  <section class="max-w-shell mx-auto px-lg pt-2xl pb-xl">
+  <section class="max-w-shell mx-auto px-md sm:px-lg pt-md sm:pt-lg pb-sm sm:pb-md">
     <h1 class="text-display-hero text-primary max-w-reading">
-      Know what your hardware can actually run.
+      Know what your hardware can <span class="hl">actually run.</span>
     </h1>
-    <p class="text-body-lg text-secondary max-w-reading mt-md">
-      LocalNodeOps estimates what your hardware can actually run: VRAM needs,
-      tokens-per-second figures and quantization trade-offs for consumer and
-      prosumer hardware, with every figure labeled by where it comes from.
+    <p class="text-body-md sm:text-body-lg text-secondary max-w-reading mt-xs">
+      <span class="hidden sm:inline">Check how much VRAM a model needs, or see which models fit your GPU.</span>
+      Free, no sign-up, and every figure is labeled by where it comes from.
     </p>
   </section>
 
-  <section class="max-w-shell mx-auto px-lg pb-xl">
+  <section class="max-w-shell mx-auto px-md sm:px-lg pb-md" aria-label="Free tools">
+    <HomeTools />
+  </section>
+
+  <section class="max-w-shell mx-auto px-md sm:px-lg pb-xl" aria-label="Why trust these numbers">
+    <ul class="trust-grid">
+      {trust.map((t) => (
+        <li class="trust-card">
+          <h2 class="trust-title">{t.title}</h2>
+          <p class="trust-text">{t.text}</p>
+          <a href={t.href} class="trust-btn">{t.cta}</a>
+        </li>
+      ))}
+    </ul>
+  </section>
+
+  <section class="max-w-shell mx-auto px-md sm:px-lg pb-xl">
     <h2 class="text-headline-lg text-primary">Hardware benchmarks</h2>
-    <p class="text-body-md text-secondary max-w-reading mt-xs mb-md">
+    <p class="text-body-md text-secondary max-w-reading mt-xs mb-xs">
       Each card is tagged verified, community-reported, or estimated. Right
       now every card is estimated: the figures come from third-party
       measurements, published papers or bandwidth calculations, and each card
       says which. None has been reproduced on LocalNodeOps hardware yet.
     </p>
+    <p class="text-secondary max-w-reading mb-md" style="font-size:.8rem">{AFFILIATE_DISCLOSURE}</p>
 
     <div class="mb-md">
       <CategoryFilter categories={categories} />
@@ -71,17 +146,99 @@ const jsonLd = [
     </div>
   </section>
 
-  <section class="max-w-shell mx-auto px-lg pb-2xl">
+  <section class="max-w-shell mx-auto px-md sm:px-lg pb-xl">
+    <h2 class="text-headline-lg text-primary">What fits on your card?</h2>
+    <p class="text-body-md text-secondary max-w-reading mt-xs mb-md">
+      The largest synced model whose estimated total fits each memory size at 8K context
+      (Q4_K_M, llama.cpp), from the same math as the calculator. Pick a row to try it in the matchmaker.
+    </p>
+    <div class="fits-table" role="table" aria-label="What fits on each GPU memory size">
+      <div class="fits-row fits-head" role="row">
+        <span role="columnheader">GPU memory</span>
+        <span role="columnheader">Largest model at 8K</span>
+        <span role="columnheader">Total at 8K</span>
+        <span role="columnheader">Longest context that fits</span>
+      </div>
+      {tiers.map((t) => (
+        <a class="fits-row" role="row" href={`/matchmaker?vram=${t.vram}&ram=32&ctx=8K`}>
+          <span role="cell" class="num fits-vram">{t.vram} GB</span>
+          <span role="cell">{t.best ? t.best.name : 'No synced model fits'}</span>
+          <span role="cell" class="num">{t.best ? (t.best.total8kGb as number).toFixed(1) + ' GB' : 'n/a'}</span>
+          <span role="cell" class="num">{t.best ? t.longest : 'n/a'}</span>
+        </a>
+      ))}
+    </div>
+    <p class="text-secondary mt-xs" style="font-size:.85rem">
+      Context is checked at 8K, 16K and 32K only. Estimates, not measurements.
+    </p>
+  </section>
+
+  <section class="max-w-shell mx-auto px-md sm:px-lg pb-xl">
     <h2 class="text-headline-lg text-primary">Latest from the blog</h2>
     <p class="text-body-md text-secondary max-w-reading mt-xs mb-md">
       Guides on quantization, VRAM budgeting, and diagnosing common local
       inference errors.
     </p>
 
-    <div class="grid grid-cols-1 md:grid-cols-3 gap-md">
+    <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-md">
       {postEntries.map((entry) => (
         <PublicationCard entry={entry} />
       ))}
+      <a href="/posts" class="card-link home-allguides">
+        <span class="kicker">Blog</span>
+        <span class="text-headline-md text-primary">All {allPosts.length} guides</span>
+        <span class="text-body-md font-bold text-accent-primary">Browse every guide →</span>
+      </a>
     </div>
   </section>
+
+  <section class="max-w-shell mx-auto px-md sm:px-lg pb-xl">
+    <div class="formula-card">
+      <p class="kicker m-0">How the numbers are made</p>
+      <h2 class="formula-title">Total VRAM = (Weights + KV cache) <span class="hl">x 1.10</span></h2>
+      <ul class="formula-parts">
+        <li><strong>Weights</strong> exact where the model file is synced</li>
+        <li><strong>KV cache</strong> always an estimate</li>
+        <li><strong>x 1.10</strong> adds 10% for overhead</li>
+      </ul>
+      <a href="/methodology" class="trust-btn trust-btn-solid">Read the methodology</a>
+    </div>
+  </section>
+
+  <section class="max-w-shell mx-auto px-md sm:px-lg pb-2xl">
+    <FAQAccordion items={calculatorFaq} title="Frequently asked questions" />
+  </section>
 </BaseLayout>
+
+<style is:global>
+  .trust-grid{display:grid;gap:1rem;margin:0;padding:0;list-style:none;grid-template-columns:1fr}
+  @media (min-width:640px){.trust-grid{grid-template-columns:repeat(2,minmax(0,1fr))}}
+  .trust-card{display:flex;flex-direction:column;gap:.55rem;padding:1.25rem 1.35rem;border:1px solid var(--border-color);border-left:5px solid var(--brand-3);border-radius:.9rem;background:var(--bg-surface);box-shadow:0 12px 30px -22px color-mix(in srgb,var(--brand-2) 60%,transparent)}
+  .trust-title{margin:0;font-size:1.3rem;font-weight:700;line-height:1.25;color:var(--text-primary)}
+  .trust-text{margin:0;flex:1;font-size:1rem;line-height:1.55;color:var(--text-secondary)}
+  .trust-btn{align-self:flex-start;display:inline-flex;align-items:center;gap:.4rem;min-height:2.75rem;padding:0 1.1rem;border:2px solid var(--brand-2);border-radius:9999px;color:var(--brand-2);font-weight:700;font-size:.95rem;text-decoration:none;transition:background .15s,color .15s}
+  .trust-btn::after{content:"\2192"}
+  @media (hover:hover){.trust-btn:hover{background:var(--brand-2-c)}}
+  .trust-btn:focus-visible{outline:2px solid var(--accent-primary);outline-offset:2px}
+  .formula-card .trust-btn{align-self:center}
+  .trust-btn-solid{background:var(--brand-2);color:#fff}
+  .dark .trust-btn-solid{color:var(--ink)}
+  @media (hover:hover){.trust-btn-solid:hover{background:var(--brand-2);filter:brightness(1.1)}}
+  .formula-card{max-width:56rem;margin:0 auto;padding:2rem 1.5rem;text-align:center;border:1px solid var(--border-color);border-top:5px solid var(--brand-2);border-radius:1rem;background:linear-gradient(160deg,var(--bg-surface),color-mix(in srgb,var(--brand-3) 12%,var(--bg-surface)));box-shadow:0 18px 40px -26px color-mix(in srgb,var(--brand-2) 70%,transparent);display:flex;flex-direction:column;align-items:center;gap:1rem}
+  .formula-title{margin:0;font-family:ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;font-size:clamp(1.15rem,3.4vw,2rem);font-weight:700;line-height:1.35;color:var(--text-primary);overflow-wrap:anywhere}
+  .formula-parts{display:flex;flex-wrap:wrap;justify-content:center;gap:.6rem;margin:0;padding:0;list-style:none}
+  .formula-parts li{padding:.45rem .9rem;border:1px solid var(--border-color);border-radius:9999px;background:var(--bg-base);font-size:.92rem;color:var(--text-secondary)}
+  .formula-parts strong{color:var(--text-primary)}
+  .home-allguides{display:flex;flex-direction:column;justify-content:center;gap:.4rem;padding:1rem;text-decoration:none}
+  .fits-table{border:1px solid var(--border-color);border-radius:.75rem;overflow:hidden;background:var(--bg-surface)}
+  .fits-row{display:grid;grid-template-columns:7rem 1fr 6.5rem 9rem;gap:.75rem;align-items:center;min-height:3rem;padding:.55rem 1rem;border-top:1px solid var(--border-subtle);color:var(--text-primary);text-decoration:none;font-size:.95rem}
+  .fits-head{border-top:0;background:var(--bg-surface-elevated);font-size:.72rem;font-weight:700;letter-spacing:.06em;text-transform:uppercase;color:var(--text-secondary)}
+  a.fits-row:hover{background:var(--accent-primary-container)}
+  .fits-vram{font-weight:700;color:var(--accent-primary)}
+  @media (max-width:639px){
+    .fits-head{display:none}
+    .fits-row{grid-template-columns:1fr 1fr;gap:.2rem .75rem}
+    .fits-row .fits-vram{grid-column:1 / -1;font-size:1.05rem}
+    .fits-row span:nth-child(2){grid-column:1 / -1}
+  }
+</style>

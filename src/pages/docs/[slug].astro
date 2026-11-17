@@ -17,12 +17,20 @@ interface Props {
 }
 
 const { entry } = Astro.props;
-const { Content } = await entry.render();
+const { Content, headings } = await entry.render();
 const { title, description, version } = entry.data;
 
 const allDocs = (await getCollection('docs')).sort(
   (a, b) => a.data.sidebarPosition - b.data.sidebarPosition
 );
+const di = allDocs.findIndex((d) => d.slug === entry.slug);
+const prevDoc = di > 0 ? allDocs[di - 1] : null;
+const nextDoc = di < allDocs.length - 1 ? allDocs[di + 1] : null;
+
+// Sections = this doc's own H2 headings (anchor links in the sidebar).
+const sections = headings
+  .filter((h) => h.depth === 2)
+  .map((h) => ({ id: h.slug, text: h.text }));
 
 const jsonLd = [
   {
@@ -36,9 +44,9 @@ const jsonLd = [
 ---
 
 <BaseLayout title={title} description={description} jsonLd={jsonLd}>
-  <div class="max-w-shell mx-auto px-lg py-xl grid grid-cols-1 lg:grid-cols-[16rem_1fr] gap-xl">
+  <div class="max-w-shell mx-auto px-md sm:px-lg py-xl grid grid-cols-1 lg:grid-cols-[17rem_minmax(0,1fr)] gap-xl">
     <aside class="hidden lg:block">
-      <DocsSidebar allDocs={allDocs} activeSlug={entry.slug} />
+      <DocsSidebar allDocs={allDocs} activeSlug={entry.slug} sections={sections} />
     </aside>
 
     <article class="max-w-reading min-w-0">
@@ -48,13 +56,27 @@ const jsonLd = [
         <span class="text-primary">{title}</span>
       </nav>
 
-      <p class="text-body-md text-secondary mt-sm">Version {version}</p>
+      <p class="kicker mt-sm m-0">Part {di + 1} of {allDocs.length} · Version {version}</p>
       <h1 class="text-display-hero text-primary mt-xs">{title}</h1>
       <p class="text-body-lg text-secondary mt-sm">{description}</p>
+
+      {sections.length > 0 && (
+        <details class="post-toc-mob mt-md">
+          <summary>On this page</summary>
+          <ol class="toc-list">
+            {sections.map((s) => <li><a href={`#${s.id}`}>{s.text}</a></li>)}
+          </ol>
+        </details>
+      )}
 
       <div class="docs-content mt-lg" id="docs-content">
         <Content />
       </div>
+
+      <nav class="post-pn" aria-label="More docs">
+        {prevDoc ? <a href={`/docs/${prevDoc.slug}`} class="card-link post-pn-card"><span class="kicker">Previous</span><span>{prevDoc.data.title}</span></a> : <span></span>}
+        {nextDoc ? <a href={`/docs/${nextDoc.slug}`} class="card-link post-pn-card"><span class="kicker">Next</span><span>{nextDoc.data.title}</span></a> : <span></span>}
+      </nav>
     </article>
   </div>
 
@@ -66,7 +88,8 @@ const jsonLd = [
     const content = document.getElementById('docs-content');
     if (!content) return;
 
-    content.querySelectorAll('pre').forEach((pre) => {
+    // Copy buttons
+    content.querySelectorAll('pre').forEach(function (pre) {
       const btn = document.createElement('button');
       btn.type = 'button';
       btn.textContent = 'Copy';
@@ -76,12 +99,45 @@ const jsonLd = [
         const text = code ? code.textContent : pre.textContent;
         navigator.clipboard.writeText(text || '').then(function () {
           btn.textContent = 'Copied';
-          setTimeout(function () {
-            btn.textContent = 'Copy';
-          }, 2000);
+          setTimeout(function () { btn.textContent = 'Copy'; }, 2000);
         });
       });
       pre.appendChild(btn);
     });
+
+    // Heading anchor links (# on hover)
+    content.querySelectorAll('h2[id], h3[id]').forEach(function (h) {
+      const a = document.createElement('a');
+      a.href = '#' + h.id;
+      a.className = 'h-anchor';
+      a.setAttribute('aria-label', 'Link to this section');
+      a.textContent = '#';
+      h.appendChild(a);
+    });
+
+    // External links open safely
+    content.querySelectorAll('a[href^="http"]').forEach(function (a) {
+      if (a.hostname !== window.location.hostname && !/noopener/.test(a.rel)) a.rel = (a.rel + ' noopener').trim();
+    });
+
+    // Highlight the section you are reading in the sidebar
+    const links = Array.prototype.slice.call(document.querySelectorAll('#docs-nav [data-sec]'));
+    if (links.length && 'IntersectionObserver' in window) {
+      const map = {};
+      links.forEach(function (l) { map[l.getAttribute('data-sec')] = l; });
+      const io = new IntersectionObserver(function (entries) {
+        entries.forEach(function (e) {
+          if (e.isIntersecting && map[e.target.id]) {
+            links.forEach(function (l) { l.removeAttribute('aria-current'); });
+            map[e.target.id].setAttribute('aria-current', 'true');
+          }
+        });
+      }, { rootMargin: '-12% 0px -75% 0px' });
+      content.querySelectorAll('h2[id]').forEach(function (h) { io.observe(h); });
+    }
   })();
 </script>
+
+<style is:global>
+  .docs-content h2,.docs-content h3{scroll-margin-top:5.5rem}
+</style>

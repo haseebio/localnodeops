@@ -1,73 +1,67 @@
 ---
 import { getCollection } from 'astro:content';
 import BaseLayout from '../../layouts/BaseLayout.astro';
+import PublicationCard from '../../components/PublicationCard.astro';
+import CategoryFilter from '../../components/CategoryFilter.astro';
 
 const posts = (await getCollection('posts')).sort(
   (a, b) => b.data.pubDate.valueOf() - a.data.pubDate.valueOf()
 );
+// Categories come from the posts' own frontmatter; none are invented.
+const categories = [...new Set(posts.map((p) => p.data.category))].sort();
+
+// "Start here": the three most useful guides first, in this order.
+const START = ['how-to-calculate-local-llm-vram', 'why-your-24gb-vram-isnt-enough', 'q4-km-vs-q8-0-vram-difference'];
+const startPosts = START.map((slug) => posts.find((p) => p.slug === slug)).filter((p) => !!p);
 
 const jsonLd = [
   {
     '@context': 'https://schema.org',
     '@type': 'CollectionPage',
-    name: 'LocalNodeOps Blog',
+    name: 'LocalNodeOps Guides',
   },
 ];
 ---
 
 <BaseLayout
-  title="Blog"
+  title="Local LLM Guides: VRAM, Hardware, Errors"
   description="Guides and write-ups on local LLM orchestration, hardware sizing, and inference troubleshooting."
   jsonLd={jsonLd}
 >
-  <section class="max-w-shell mx-auto px-lg pt-2xl pb-lg">
-    <h1 class="text-display-hero text-primary max-w-reading">Blog</h1>
-    <p class="text-body-lg text-secondary max-w-reading mt-md">
+  <section class="max-w-shell mx-auto px-md sm:px-lg pt-md sm:pt-lg pb-md">
+    <h1 class="text-display-hero text-primary max-w-reading">Guides</h1>
+    <p class="text-body-md sm:text-body-lg text-secondary max-w-reading mt-xs">
       Guides and write-ups on local LLM orchestration, hardware sizing, and
-      inference troubleshooting.
+      inference troubleshooting. {posts.length} guides, newest first.
     </p>
   </section>
 
-  <section class="max-w-shell mx-auto px-lg pb-2xl">
+  {startPosts.length > 0 && (
+    <section class="max-w-shell mx-auto px-md sm:px-lg pb-lg" aria-labelledby="start-here">
+      <h2 id="start-here" class="text-headline-md text-primary mb-sm">Start here</h2>
+      <div class="grid grid-cols-1 md:grid-cols-3 gap-md">
+        {startPosts.map((post) => <PublicationCard entry={post!} />)}
+      </div>
+    </section>
+  )}
+
+  <section class="max-w-shell mx-auto px-md sm:px-lg pb-2xl">
+    <h2 class="text-headline-md text-primary mb-sm">All guides</h2>
     {posts.length === 0 ? (
       <p class="text-body-lg text-secondary max-w-reading">No posts published yet.</p>
     ) : (
-      <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-md">
-        {posts.map((post) => (
-          <a href={`/posts/${post.slug}`}
-            data-astro-prefetch
-            class="group h-full flex flex-col gap-sm border border-border rounded-md bg-surface p-md
-              no-underline cursor-pointer transition-colors
-              hover:border-accent-primary hover:bg-surface-elevated"
-          >
-            <span class="text-body-md rounded-full px-sm py-[0.125rem] whitespace-nowrap font-bold bg-accent-primary-container text-primary w-fit">
-              {post.data.category}
-            </span>
-
-            <h2 class="text-headline-md text-primary m-0 group-hover:underline">
-              {post.data.title}
-            </h2>
-
-            <p class="text-body-md text-secondary m-0 flex-1">{post.data.excerpt}</p>
-
-            <div class="flex items-center justify-between gap-sm pt-sm border-t border-border">
-              <div class="flex items-center gap-xs min-w-0">
-                <span class="shrink-0 w-8 h-8 rounded-full bg-accent-primary-container text-primary font-bold flex items-center justify-center text-body-md" aria-hidden="true">
-                  {post.data.author.charAt(0)}
-                </span>
-                <span class="text-body-md text-primary font-bold truncate">{post.data.author}</span>
-              </div>
-              <div class="text-body-md text-secondary flex items-center gap-xs shrink-0">
-                <time datetime={post.data.pubDate.toISOString()}>
-                  {post.data.pubDate.toLocaleDateString('en-US', { year: 'numeric', month: 'short', day: 'numeric' })}
-                </time>
-                <span aria-hidden="true">·</span>
-                <span>{post.data.readingTime} min read</span>
-              </div>
+      <>
+        <div class="mb-md">
+          <CategoryFilter categories={categories} label="Filter guides by category" />
+        </div>
+        <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-md">
+          {posts.map((post) => (
+            <div data-category={post.data.category} class="h-full">
+              <PublicationCard entry={post} />
             </div>
-          </a>
-        ))}
-      </div>
+          ))}
+        </div>
+      </>
     )}
   </section>
 </BaseLayout>

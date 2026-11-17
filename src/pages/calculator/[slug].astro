@@ -2,6 +2,8 @@
 import { getCollection } from 'astro:content';
 import BaseLayout from '../../layouts/BaseLayout.astro';
 import VramCalculator from '../../components/VramCalculator.astro';
+import CalcExtras from '../../components/CalcExtras.astro';
+import { getModelRows, GPU_TARGETS, fitFor } from '../../lib/model-table';
 import DockerStackCTA from '../../components/DockerStackCTA.astro';
 import FAQAccordion from '../../components/FAQAccordion.astro';
 import { parseParamsB, nearestBucket, estimateVram, getModelArch } from '../../lib/vram-math';
@@ -21,6 +23,22 @@ const paramsB = parseParamsB(title);
 const bucket = getModelArch(entry.slug) ?? nearestBucket(paramsB, title);
 const syncedDate = last_synced.slice(0, 10);
 const hasEstimate = bucket !== null;
+
+// Page-level summary at 8K context, Q4_K_M, from the shared model table (same
+// math as the calculator). Used for the status badge, footprint box and the
+// compatibility table.
+const row = (await getModelRows()).find((r) => r.slug === entry.slug);
+const total8k = row?.total8kGb ?? null;
+const total32k = row?.total32kGb ?? null;
+const status: { label: string; cls: string } | null =
+  total8k === null
+    ? null
+    : total8k <= 32
+      ? { label: 'Fits on a single GPU', cls: 'fit-fits' }
+      : total8k <= 48
+        ? { label: 'Needs multi-GPU or CPU offload', cls: 'fit-offload' }
+        : { label: 'Cloud recommended', cls: 'fit-oom' };
+const displayName = title.replace(/-GGUF$/i, '');
 
 const DEFAULT_CONTEXT = 4096;
 const quantEstimates = hasEstimate
@@ -125,10 +143,17 @@ const jsonLd = [
       <span class="text-primary">{title}</span>
     </nav>
 
-    <p class="text-body-md text-secondary">Synced from Hugging Face — {syncedDate}</p>
+    <p class="text-body-md text-secondary">Exact .gguf file sizes synced from Hugging Face, checked {syncedDate}. <a href="/methodology" class="text-accent-primary font-bold hover:underline">Methodology</a></p>
     <h1 class="text-display-hero text-primary max-w-reading mt-xs">
-      How much VRAM does {title} need?
+      {displayName} VRAM Requirements &amp; Hardware Requirements
     </h1>
+    {status && (
+      <p class="mt-sm flex flex-wrap items-center gap-xs">
+        <span class:list={['fit-badge', status.cls]}>{status.label}</span>
+        <span class="tag tag-estimated">Estimated</span>
+        <span class="text-body-md text-secondary">at 8K context, Q4_K_M, llama.cpp</span>
+      </p>
+    )}
     <p class="text-body-lg text-secondary max-w-reading mt-md">
       Exact on-disk weight sizes below are pulled directly from Hugging Face.
       {hasEstimate
@@ -136,6 +161,45 @@ const jsonLd = [
         : ' A total VRAM estimate isn\'t shown for this model — see why below.'}
     </p>
   </section>
+
+  {row && row.q4FileGb !== null && total8k !== null && total32k !== null && (
+    <section class="max-w-shell mx-auto px-lg pb-xl">
+      <h2 class="text-headline-lg text-primary mb-md">Exact VRAM footprint</h2>
+      <div class="callout">
+        <dl class="mdl-facts" style="flex-wrap:wrap;gap:1rem 2rem">
+          <div><dt>Weights (Q4_K_M file)</dt><dd class="num">{row.q4FileGb.toFixed(2)} GB</dd></div>
+          <div><dt>KV cache at 8K</dt><dd class="num">{(row.kv8kGb as number).toFixed(2)} GB</dd></div>
+          <div><dt>KV cache at 32K</dt><dd class="num">{(row.kv32kGb as number).toFixed(2)} GB</dd></div>
+          <div><dt>Total at 8K</dt><dd class="num mdl-total">{total8k.toFixed(1)} GB</dd></div>
+          <div><dt>Total at 32K</dt><dd class="num mdl-total">{total32k.toFixed(1)} GB</dd></div>
+        </dl>
+        <p class="text-body-md text-secondary m-0 mt-sm">
+          Weights are the exact file size, synced from Hugging Face and checked {syncedDate}. The KV cache is always an
+          estimate. Total = (weights + KV cache) x 1.10.
+        </p>
+      </div>
+    </section>
+  )}
+
+  {total8k !== null && (
+    <section class="max-w-shell mx-auto px-lg pb-xl">
+      <h2 class="text-headline-lg text-primary mb-xs">Hardware compatibility</h2>
+      <p class="text-body-md text-secondary m-0 mb-md">Q4_K_M at 8K context, with 32 GB of system RAM for offload. Mac memory uses the 75% GPU rule.</p>
+      <div class="compat" role="table" aria-label="Hardware compatibility">
+        <div class="compat-row compat-head" role="row"><span role="columnheader">Hardware</span><span role="columnheader">Memory used</span><span role="columnheader">Result</span></div>
+        {GPU_TARGETS.map((g) => {
+          const f = fitFor(total8k, g);
+          return (
+            <div class="compat-row" role="row">
+              <span role="cell">{g.label}</span>
+              <span role="cell" class="num">{total8k.toFixed(1)} of {Number.isInteger(g.vramGb) ? g.vramGb : g.vramGb.toFixed(0)} GB</span>
+              <span role="cell"><span class:list={['fit-badge', f === 'fits' ? 'fit-fits' : f === 'offload' ? 'fit-offload' : 'fit-oom']}>{f === 'fits' ? 'Fits' : f === 'offload' ? 'Needs offload' : 'Out of memory'}</span></span>
+            </div>
+          );
+        })}
+      </div>
+    </section>
+  )}
 
   <section class="max-w-shell mx-auto px-lg pb-xl">
     <h2 class="text-headline-lg text-primary mb-md">By quantization</h2>
@@ -201,6 +265,7 @@ const jsonLd = [
   {hasEstimate && (
     <section class="max-w-shell mx-auto px-lg pb-xl">
       <VramCalculator preselectedModel={entry.slug} />
+      <CalcExtras />
     </section>
   )}
 
