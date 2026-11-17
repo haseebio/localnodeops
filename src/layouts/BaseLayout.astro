@@ -133,6 +133,29 @@ const allSchema = [baseSchema, organizationSchema, personSchema, ...jsonLd];
 
     <script is:inline>
       (function () {
+        const bot = document.getElementById('site-chatbot');
+        if (!bot) return;
+        const phone = window.matchMedia('(max-width: 767px)');
+        let last = window.scrollY;
+        let waiting = false;
+        function update() {
+          waiting = false;
+          const y = window.scrollY;
+          if (!phone.matches || y < 120 || y < last - 4 || bot.querySelector('.lno-open')) {
+            bot.classList.remove('lno-away');
+          } else if (y > last + 4) {
+            bot.classList.add('lno-away');
+          }
+          last = y;
+        }
+        window.addEventListener('scroll', function () {
+          if (!waiting) { waiting = true; requestAnimationFrame(update); }
+        }, { passive: true });
+      })();
+    </script>
+
+    <script is:inline>
+      (function () {
         const btn = document.getElementById('theme-toggle');
         const sunIcon = document.getElementById('icon-sun');
         const moonIcon = document.getElementById('icon-moon');

@@ -1,5 +1,5 @@
 ---
-import { RUNPOD_URL } from '../lib/affiliate';
+import { RUNPOD_URL, AFFILIATE_REL } from '../lib/affiliate';
 
 // Primary: solid fill, charcoal text — 5.21:1 in both themes.
 // Secondary: outline, text-primary — no fill, so no contrast pairing
@@ -34,14 +34,14 @@ const BTN_SECONDARY =
       <a href={RUNPOD_URL}
         data-umami-event="sticky-runpod"
         target="_blank"
-        rel="noopener noreferrer sponsored"
+        rel={AFFILIATE_REL}
         class={BTN_PRIMARY}
       >
         Rent GPU on RunPod
       </a>
     </div>
     <p class="text-secondary text-[0.7rem] leading-[0.95rem] text-center mt-[0.25rem] mb-0">
-      RunPod partner link — we may earn a commission.
+      RunPod (affiliate link) — we may earn a commission.
     </p>
   </div>
 </div>

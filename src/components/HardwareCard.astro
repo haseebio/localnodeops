@@ -1,12 +1,15 @@
 ---
 import type { CollectionEntry } from 'astro:content';
+import { getModelRows, APPLE_GPU_SHARE } from '../lib/model-table';
+import { AFFILIATE_REL } from '../lib/affiliate';
+import { getHardwareAction } from '../lib/hardware-actions';
 
 interface Props {
   entry: CollectionEntry<'hardware'>;
 }
 
 const { entry } = Astro.props;
-const { title, category, metricLabel, metricValue, status, summary } = entry.data;
+const { title, category, metricLabel, metricValue, status, summary, vramGB } = entry.data;
 
 const STATUS_LABELS: Record<string, string> = {
   verified: 'Verified',
@@ -14,32 +17,40 @@ const STATUS_LABELS: Record<string, string> = {
   estimated: 'Estimated — not yet benchmarked',
 };
 
-// Filled, tinted backgrounds instead of a thin 1px outline — same
-// WCAG-checked container colors used elsewhere on the site
-// (accent-tertiary-container, accent-secondary-container). Text is
-// text-primary (charcoal) rather than an "-on-container" variant —
-// those aren't mapped Tailwind utilities in this project (see the
-// article-action-btn comment in global.css for the same issue), and
-// charcoal reads safely against any of these light pastel fills.
+// Filled, tinted backgrounds, with charcoal text that stays readable on all
+// of these pastel fills.
 const STATUS_STYLES: Record<string, string> = {
   verified: 'bg-accent-tertiary-container text-primary',
   community: 'bg-surface-elevated text-secondary border border-border',
   estimated: 'bg-accent-secondary-container text-primary',
 };
+
+// Fit strip: computed from the calculator's own numbers (Q4_K_M, 8K context)
+// for a 32B and a 70B model, against the memory this card states. Only cards
+// that state a memory size get one.
+const rows = await getModelRows();
+const r32 = rows.find((r) => r.slug === 'bartowski-deepseek-r1-distill-qwen-32b-gguf');
+const r70 = rows.find((r) => r.slug === 'bartowski-meta-llama-3-1-70b-instruct-gguf');
+const isMac = entry.slug.startsWith('mac-mini');
+const memGb = vramGB ?? (isMac ? 16 * APPLE_GPU_SHARE : null);
+const fitChips =
+  memGb && r32?.total8kGb && r70?.total8kGb
+    ? [
+        { label: '32B Q4 @8K', total: r32.total8kGb, fits: r32.total8kGb <= memGb },
+        { label: '70B Q4 @8K', total: r70.total8kGb, fits: r70.total8kGb <= memGb },
+      ]
+    : [];
+
+// "If this is your card": only where the card itself states a limit.
+const action = getHardwareAction(entry.slug, r70?.total8kGb ?? null);
 ---
 
-<a href={`/hardware/${entry.slug}`}
-  data-astro-prefetch
-  class="group h-full flex flex-col gap-sm border border-border rounded-md bg-surface p-md
-    no-underline cursor-pointer transition-colors
-    hover:border-accent-primary hover:bg-surface-elevated"
-  data-category={category}
->
+<article class="card-link hw-card group h-full flex flex-col gap-xs p-md" data-category={category}>
   <div class="flex flex-wrap items-center justify-between gap-x-sm gap-y-xs">
-    <span class="text-body-md text-secondary">{category}</span>
+    <span class="kicker">{category}</span>
     <span
       class:list={[
-        'text-body-md rounded-full px-sm py-[0.125rem] text-center font-bold',
+        'text-[0.78rem] rounded-full px-sm py-[0.125rem] text-center font-bold',
         STATUS_STYLES[status],
       ]}
     >
@@ -47,21 +58,49 @@ const STATUS_STYLES: Record<string, string> = {
     </span>
   </div>
 
-  <h3 class="text-headline-md text-primary m-0 group-hover:underline">
-    {title}
+  <h3 class="text-headline-md text-primary m-0">
+    <a href={`/hardware/${entry.slug}`} data-astro-prefetch class="hw-stretch text-primary no-underline group-hover:underline">{title}</a>
   </h3>
 
-  <div class="rounded-md bg-accent-primary-container px-sm py-xs font-mono w-fit">
-    <span class="text-headline-lg text-accent-primary">{metricValue}</span>
-    <span class="text-body-md text-primary ml-xs">{metricLabel}</span>
-  </div>
+  <p class="m-0 flex items-baseline gap-xs flex-wrap">
+    <span class="num text-headline-lg text-accent-primary leading-none">{metricValue}</span>
+    <span class="text-body-md text-secondary">{metricLabel}</span>
+  </p>
 
   <p class="text-body-md text-secondary m-0 flex-1">{summary}</p>
 
-  <span class="min-h-touch-min flex items-center justify-center rounded-md border
-    border-accent-primary text-body-md font-bold text-accent-primary
-    group-hover:bg-accent-primary-solid group-hover:text-accent-on-primary
-    group-hover:border-accent-primary-solid transition-colors">
-    View benchmark
+  {fitChips.length > 0 && (
+    <ul class="hw-fits" aria-label="What fits">
+      {fitChips.map((c) => (
+        <li class:list={['fit-badge', c.fits ? 'fit-fits' : 'fit-oom']}>
+          {c.label}: {c.total.toFixed(1)} GB, {c.fits ? 'fits' : memGb ? `over ${Number.isInteger(memGb) ? memGb : Math.round(memGb)} GB` : 'does not fit'}
+        </li>
+      ))}
+    </ul>
+  )}
+
+  {action && (
+    <p class="hw-ifcard">
+      <strong>If this is your card:</strong> {action.limit}
+      {action.links.map((l) => (
+        <>
+          {' '}
+          <a href={l.href} class="hw-aff" {...(l.affiliate ? { target: '_blank', rel: AFFILIATE_REL, 'data-umami-event': `card-${l.label}` } : {})}>{l.text}</a>{l.affiliate ? ' (affiliate link)' : ''}.
+        </>
+      ))}
+    </p>
+  )}
+
+  <span class="text-body-md font-bold text-accent-primary pt-xs" aria-hidden="true">
+    View benchmark →
   </span>
-</a>
+</article>
+
+<style is:global>
+  .hw-card{position:relative}
+  .hw-stretch::after{content:"";position:absolute;inset:0;border-radius:.75rem}
+  .hw-fits{display:flex;flex-wrap:wrap;gap:.35rem;margin:0;padding:0;list-style:none}
+  .hw-ifcard{margin:0;font-size:.85rem;line-height:1.5;color:var(--text-secondary)}
+  .hw-ifcard strong{color:var(--text-primary)}
+  .hw-aff{position:relative;z-index:1;color:var(--accent-primary);font-weight:700}
+</style>

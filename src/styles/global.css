@@ -4,18 +4,25 @@
 
 @layer base {
   :root {
-    --bg-base: #FFFFFF;
-    --bg-surface: #FFF9F3;
-    --bg-surface-elevated: #F8F5F2;
+    --bg-base: #FBFDFD;
+    --bg-surface: #F0F7F6;
+    --bg-surface-elevated: #E2EFED;
     --bg-surface-lowest: #FFFFFF;
 
-    --text-primary: #1F2937;
-    --text-secondary: #6B7280;
+    --text-primary: #0F2A2E;
+    --text-secondary: #46636A;
 
-    --border-color: #E5E7EB;
-    --border-subtle: #F0EDE8;
+    --border-color: #C9DCDA;
+    --border-subtle: #E4EFEE;
 
-    --accent-primary: #C1401F;
+    /* Brand colours: orange (actions) + deep teal (structure) + lime (highlight) */
+    --brand-2: #0F766E;
+    --brand-2-c: #CCEBE7;
+    --brand-3: #C7F23A;
+    --brand-3-c: #EAFBB5;
+    --ink: #0F2A2E; /* text on lime */
+
+    --accent-primary: #B3381A;
     --accent-primary-container: #FFE7D6;
     --on-primary: #1F2937;
     --on-primary-container: #7A2E12;
@@ -39,19 +46,25 @@
   }
 
   .dark {
-    --bg-base: #1A1512;
-    --bg-surface: #221B16;
-    --bg-surface-elevated: #2C2119;
-    --bg-surface-lowest: #120E0B;
+    --bg-base: #111315;
+    --bg-surface: #181B1E;
+    --bg-surface-elevated: #22262A;
+    --bg-surface-lowest: #0C0E10;
 
-    --text-primary: #F5EFE8;
-    --text-secondary: #B8A99A;
+    --text-primary: #ECEFF1;
+    --text-secondary: #A3ADB5;
 
-    --border-color: #7A695A;
-    --border-subtle: #3A322B;
+    --border-color: #343B41;
+    --border-subtle: #252A2F;
 
-    --accent-primary: #FF6B4A;
-    --accent-primary-container: #8C3A22;
+    --brand-2: #2DD4BF;
+    --brand-2-c: #123D3A;
+    --brand-3: #C7F23A;
+    --brand-3-c: #2F3A10;
+    --ink: #0F1A12;
+
+    --accent-primary: #FF8A6A;
+    --accent-primary-container: #4A2519;
     --on-primary: #1F2937;
     --on-primary-container: #FFE0D2;
 
@@ -115,6 +128,7 @@
 
   .breadcrumb {
     @apply flex items-center gap-xs text-body-md text-secondary mb-sm flex-wrap;
+    font-size: 0.875rem;
   }
   .breadcrumb a {
     @apply hover:text-primary hover:underline;
@@ -132,8 +146,13 @@
     @apply text-body-md rounded-full px-sm py-[0.125rem] border whitespace-nowrap inline-flex items-center gap-xs;
   }
 
+  /* Long-form text sits on the page itself, not inside a tinted box:
+     the box cut contrast and wasted width on phones. */
   .article-shell {
-    @apply border border-border rounded-lg bg-surface p-lg;
+    @apply pt-md;
+  }
+  .article-shell .docs-content > :first-child {
+    margin-top: 0;
   }
 
   /*
@@ -173,11 +192,11 @@
     scroll-margin-top: 1.5rem;
   }
   .docs-content p {
-    @apply text-body-lg text-secondary mb-md leading-relaxed;
+    @apply text-body-lg text-primary mb-md leading-relaxed;
   }
   .docs-content ul,
   .docs-content ol {
-    @apply text-body-lg text-secondary mb-md pl-lg flex flex-col gap-xs;
+    @apply text-body-lg text-primary mb-md pl-lg flex flex-col gap-xs;
   }
   .docs-content li {
     @apply leading-relaxed;
@@ -194,6 +213,12 @@
   }
   .docs-content table {
     @apply w-full border-collapse mb-md text-body-md;
+    display: block;
+    max-width: 100%;
+    overflow-x: auto;
+  }
+  .docs-content tbody tr:nth-child(even) {
+    background: var(--bg-surface);
   }
   .docs-content th {
     @apply border border-border bg-surface-elevated text-primary font-bold
@@ -241,3 +266,243 @@ html.dark .astro-code span {
   font-weight: var(--shiki-dark-font-weight);
   text-decoration: var(--shiki-dark-text-decoration);
 }
+
+/* =====================================================================
+   Redesign system (colors are the existing tokens; no new colors except
+   the three fit-tier colors also used on /matchmaker).
+   ===================================================================== */
+.kicker {
+  font-size: 0.72rem;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--text-secondary);
+}
+.num {
+  font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
+  font-variant-numeric: tabular-nums;
+}
+.card-link {
+  border: 1px solid var(--border-color);
+  border-radius: 0.75rem;
+  background: var(--bg-surface);
+  transition: border-color 0.15s, background-color 0.15s;
+}
+@media (hover: hover) {
+  .card-link:hover {
+    border-color: var(--accent-primary);
+    background: var(--bg-surface-elevated);
+  }
+}
+.card-link:focus-visible {
+  outline-offset: 3px;
+}
+
+/* Calculator page polish (CSS only; markup and scripts untouched). */
+#vram-calculator {
+  border-radius: 0.75rem;
+}
+#vram-calculator input[type='range'] {
+  accent-color: var(--accent-primary-solid);
+}
+#vram-calculator #out-total {
+  font-size: 1.35rem;
+  line-height: 1.75rem;
+  font-variant-numeric: tabular-nums;
+}
+#vram-calculator dd,
+#vram-calculator dt {
+  min-width: 0;
+}
+#hardware-modal {
+  max-height: calc(100vh - 2rem);
+  max-height: calc(100dvh - 2rem);
+  overflow-y: auto;
+}
+
+/* Chat button: on phones it slides away while you read down the page and
+   returns on scroll up, so it never sits on top of cards or tables. */
+#site-chatbot {
+  transition: transform 0.2s ease;
+}
+@media (max-width: 767px) {
+  #site-chatbot.lno-away {
+    transform: translateY(calc(100% + 1.5rem));
+  }
+}
+
+/* Phone tool strip (header.astro) */
+.tool-strip a {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.4rem;
+  min-height: 2.75rem;
+  padding: 0 0.9rem;
+  border: 1px solid var(--border-color);
+  border-radius: 9999px;
+  background: var(--bg-surface);
+  color: var(--text-primary);
+  font-weight: 700;
+  font-size: 0.9rem;
+  text-decoration: none;
+  white-space: nowrap;
+}
+.tool-strip a::before {
+  content: '';
+  width: 0.5rem;
+  height: 0.5rem;
+  border-radius: 9999px;
+  background: var(--accent-primary-solid);
+}
+
+/* Fit badges: text + icon, never color alone. */
+.fit-badge{display:inline-flex;align-items:center;gap:.3rem;padding:.15rem .6rem;border-radius:9999px;font-size:.78rem;font-weight:700;white-space:nowrap}
+.fit-badge::before{content:"";width:.8rem;height:.8rem;background:currentColor;-webkit-mask:var(--fit-icon) center/contain no-repeat;mask:var(--fit-icon) center/contain no-repeat}
+.fit-fits{background:#dcfce7;color:#15803d;--fit-icon:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='black' stroke-width='3' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M5 12l5 5L20 7'/%3E%3C/svg%3E")}
+.fit-offload{background:#fef3c7;color:#b45309;--fit-icon:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='black' stroke-width='3' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M12 4v11m0 0l-4-4m4 4l4-4M5 20h14'/%3E%3C/svg%3E")}
+.fit-oom{background:#fee2e2;color:#b91c1c;--fit-icon:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='black' stroke-width='3' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M6 6l12 12M18 6L6 18'/%3E%3C/svg%3E")}
+.dark .fit-fits{background:#0f5132;color:#86efac}
+.dark .fit-offload{background:#5a3b00;color:#fcd34d}
+.dark .fit-oom{background:#5b1a1a;color:#fca5a5}
+.tag{display:inline-flex;align-items:center;padding:.1rem .55rem;border-radius:9999px;border:1px solid var(--border-color);font-size:.74rem;font-weight:700;color:var(--text-secondary)}
+.tag-estimated{background:var(--accent-secondary-container);border-color:var(--accent-secondary-container);color:#1f2937}
+.callout{border:1px solid var(--border-color);border-left:4px solid var(--accent-primary-solid);border-radius:.75rem;background:var(--bg-surface);padding:.9rem 1.1rem}
+.formula{font-family:ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;font-size:1rem;font-weight:700;color:var(--text-primary)}
+
+/* Header: "More" menu, search panel, reading progress */
+.nav-more > summary::-webkit-details-marker{display:none}
+.nav-more-chevron{width:.45rem;height:.45rem;border-right:2px solid currentColor;border-bottom:2px solid currentColor;transform:rotate(45deg);margin-top:-.15rem}
+.nav-more[open] .nav-more-chevron{transform:rotate(-135deg);margin-top:.15rem}
+.nav-more-list{position:absolute;right:0;top:calc(100% + .4rem);min-width:11rem;margin:0;padding:.35rem;list-style:none;border:1px solid var(--border-color);border-radius:.75rem;background:var(--bg-base);box-shadow:0 8px 24px rgb(0 0 0 / .12);z-index:60}
+.nav-more-list a{display:flex;align-items:center;min-height:2.75rem;padding:0 .75rem;border-radius:.5rem;color:var(--text-primary);text-decoration:none;font-size:1rem}
+.nav-more-list a:hover,.nav-more-list a[aria-current="page"]{background:var(--accent-primary-container)}
+.read-progress{position:absolute;left:0;right:0;bottom:-1px;height:3px;background:transparent}
+.read-progress span{display:block;height:100%;width:0;background:var(--accent-primary-solid)}
+.search-panel{position:fixed;left:0;right:0;top:0;z-index:70;padding:.75rem;background:var(--bg-base);border-bottom:1px solid var(--border-color);box-shadow:0 8px 24px rgb(0 0 0 / .15);max-height:100vh;overflow-y:auto}
+.search-panel[hidden]{display:none}
+.search-box{display:flex;gap:.5rem;max-width:40rem;margin:0 auto}
+.search-box input{flex:1;min-height:2.75rem;padding:0 .9rem;border:1px solid var(--border-color);border-radius:.5rem;background:var(--bg-surface);color:var(--text-primary);font-size:1rem}
+.search-close{min-height:2.75rem;padding:0 .9rem;border:1px solid var(--border-color);border-radius:.5rem;background:transparent;color:var(--text-primary);cursor:pointer}
+.search-results{list-style:none;margin:.5rem auto 0;padding:0;max-width:40rem}
+.search-results a{display:flex;gap:.6rem;align-items:center;min-height:2.75rem;padding:.35rem .5rem;border-radius:.5rem;color:var(--text-primary);text-decoration:none}
+.search-results a:hover{background:var(--accent-primary-container)}
+.search-kind{font-size:.7rem;font-weight:700;letter-spacing:.06em;text-transform:uppercase;color:var(--text-secondary);min-width:4.5rem}
+.search-empty{padding:.6rem .5rem;color:var(--text-secondary)}
+
+/* Hardware compatibility table (per-model pages): stacks on phones */
+.compat{border:1px solid var(--border-color);border-radius:.75rem;overflow:hidden;background:var(--bg-surface)}
+.compat-row{display:grid;grid-template-columns:1.6fr 1fr 1fr;gap:.75rem;align-items:center;min-height:3rem;padding:.55rem 1rem;border-top:1px solid var(--border-subtle);font-size:.95rem;color:var(--text-primary)}
+.compat-head{border-top:0;background:var(--bg-surface-elevated);font-size:.72rem;font-weight:700;letter-spacing:.06em;text-transform:uppercase;color:var(--text-secondary)}
+@media (max-width:639px){.compat-head{display:none}.compat-row{grid-template-columns:1fr auto}.compat-row span:nth-child(1){grid-column:1 / -1;font-weight:700}}
+
+/* ---- Blog post template ---- */
+.post-wrap{display:grid;gap:1.5rem;grid-template-columns:minmax(0,1fr)}
+.post-toc-desk,.post-rail{display:none}
+@media (min-width:1024px){
+  .post-wrap{grid-template-columns:13rem minmax(0,46rem) 13rem;justify-content:center;gap:2rem}
+  .post-toc-desk,.post-rail{display:block;align-self:start;position:sticky;top:6rem}
+  .post-toc-mob{display:none}
+}
+.post-article{min-width:0}
+.post-meta{display:flex;flex-wrap:wrap;gap:.15rem .5rem;align-items:center}
+.post-key{font-size:1.05rem;line-height:1.6;color:var(--text-primary);font-weight:600}
+.toc-list{margin:0;padding:0;list-style:none;display:flex;flex-direction:column;gap:.1rem;font-size:.9rem}
+.toc-list a{display:block;padding:.3rem .5rem;border-left:2px solid var(--border-color);color:var(--text-secondary);text-decoration:none;line-height:1.35}
+.toc-list a:hover,.toc-list a[aria-current="true"]{color:var(--text-primary);border-left-color:var(--accent-primary-solid);font-weight:700}
+.post-toc-mob{border:1px solid var(--border-color);border-radius:.75rem;background:var(--bg-surface);padding:.2rem .9rem}
+.post-toc-mob summary{display:flex;align-items:center;min-height:2.75rem;cursor:pointer;font-weight:700;color:var(--text-primary)}
+.post-article .docs-content p,.post-article .docs-content li{font-size:1.0625rem;line-height:1.7}
+.post-article .docs-content p{margin-bottom:1.25em}
+.post-article .docs-content h2{margin-top:2rem;position:relative}
+.h-anchor{margin-left:.4rem;color:var(--text-secondary);text-decoration:none;opacity:0;font-weight:400}
+h2:hover .h-anchor,h3:hover .h-anchor,.h-anchor:focus-visible{opacity:1}
+.post-verdict{margin:1.5rem 0}
+.post-verdict h2{margin-top:0!important}
+.post-sources{counter-reset:src;list-style:none;padding:0!important;display:flex;flex-direction:column;gap:.5rem}
+.post-sources li{counter-increment:src;padding:.6rem .8rem .6rem 2.4rem;border:1px solid var(--border-color);border-radius:.6rem;background:var(--bg-surface);position:relative;font-size:.95rem!important;line-height:1.5!important;overflow-wrap:anywhere}
+.post-sources li::before{content:counter(src);position:absolute;left:.8rem;top:.6rem;font-weight:700;color:var(--accent-primary)}
+.table-hint{margin:0 0 .25rem;font-size:.8rem!important;color:var(--text-secondary)}
+.docs-content pre[data-language]::before{content:attr(data-language);position:absolute;left:.75rem;top:.35rem;font-size:.7rem;letter-spacing:.06em;text-transform:uppercase;color:#94a3b8}
+.post-check{margin-top:1.5rem}
+.post-check-actions{display:flex;flex-wrap:wrap;gap:.5rem;margin-top:.6rem}
+.post-btn{display:inline-flex;align-items:center;justify-content:center;min-height:2.75rem;padding:0 1rem;border:1px solid var(--border-color);border-radius:9999px;background:var(--bg-base);color:var(--text-primary);font-weight:700;font-size:.95rem;text-decoration:none}
+.post-btn-primary{background:var(--accent-primary-solid);border-color:var(--accent-primary-solid);color:var(--on-primary)}
+.post-rail .post-btn{display:flex;width:100%}
+.post-pn{display:grid;gap:.75rem;margin-top:1.5rem;grid-template-columns:1fr}
+@media (min-width:640px){.post-pn{grid-template-columns:1fr 1fr}}
+.post-pn-card{display:flex;flex-direction:column;gap:.25rem;padding:.8rem 1rem;text-decoration:none;color:var(--text-primary);font-weight:700;line-height:1.35}
+.post-related{display:grid;gap:.75rem;margin:.75rem 0 0;padding:0;list-style:none;grid-template-columns:1fr}
+@media (min-width:640px){.post-related{grid-template-columns:repeat(3,minmax(0,1fr))}}
+
+.err-h1{font-size:clamp(1.4rem,3.2vw,2.1rem)}
+.err-card[hidden]{display:none}
+.err-h1 code{overflow-wrap:anywhere;word-break:break-word;white-space:normal}
+.err-card .flex{flex-wrap:wrap}
+.err-card code{overflow-wrap:anywhere}
+
+/* =====================================================================
+   Colour system v2: orange (actions) + deep teal (structure) + lime
+   (highlight). Fit colours (green / amber / red) keep their meaning.
+   ===================================================================== */
+body {
+  background:
+    radial-gradient(900px 380px at 88% -90px, color-mix(in srgb, var(--brand-2) 12%, transparent), transparent),
+    radial-gradient(700px 320px at 0% -70px, color-mix(in srgb, var(--accent-primary-solid) 11%, transparent), transparent),
+    var(--bg-base);
+  background-repeat: no-repeat;
+}
+.kicker { color: var(--brand-2); }
+.hl {
+  background: linear-gradient(transparent 60%, var(--brand-3) 60%);
+  padding: 0 0.12em;
+  color: var(--text-primary);
+}
+.dark .hl {
+  background: linear-gradient(transparent 84%, var(--brand-3) 84%);
+}
+/* Cards and panels get a teal top edge and a soft teal shadow */
+.ht-card,
+.bld-card {
+  border-top: 3px solid var(--brand-2);
+  box-shadow: 0 10px 28px -18px color-mix(in srgb, var(--brand-2) 55%, transparent);
+}
+.callout { border-left-color: var(--brand-2); background: linear-gradient(135deg, var(--bg-surface), color-mix(in srgb, var(--brand-3) 9%, var(--bg-surface))); }
+@media (hover: hover) {
+  .card-link:hover { border-color: var(--brand-2); }
+}
+header nav > ul { background: var(--brand-2-c); }
+/* Lime on the calculator buttons */
+.ht-cta,
+.bld-cta,
+.cx-btn-primary,
+.post-btn-primary {
+  background: var(--brand-3);
+  border-color: var(--brand-3);
+  color: var(--ink) !important;
+  box-shadow: 0 6px 16px -8px color-mix(in srgb, var(--brand-3) 80%, transparent);
+}
+.ht-cta::after { color: var(--ink); }
+.ht-pick { background: var(--brand-3-c); border-color: var(--brand-3); color: var(--text-primary); }
+.ht-tab[aria-selected='true'] { background: var(--brand-2-c); border-color: var(--brand-2); box-shadow: inset 0 -3px 0 var(--brand-2); }
+.tool-strip a::before { background: var(--brand-3); }
+.dark .tag-estimated { color: #FFE9A8; }
+footer { border-top: 3px solid var(--brand-2); }
+
+/* Dropdown menus (Calculator, More): same look, hover or click */
+.nav-dd > summary::-webkit-details-marker{display:none}
+.nav-dd > summary{list-style:none}
+.nav-dot{background:var(--brand-3);box-shadow:0 0 0 1px color-mix(in srgb,var(--brand-2) 40%,transparent)}
+.nav-dd[open] > .nav-more-list{animation:nav-in .12s ease-out}
+@keyframes nav-in{from{opacity:0;transform:translateY(-4px)}to{opacity:1;transform:none}}
+.nav-more-list{border-top:3px solid var(--brand-2)}
+.nav-more-list a:hover,.nav-more-list a[aria-current="page"]{background:var(--brand-2-c)}
+.mob-group{border-top:1px solid var(--border-subtle);border-bottom:1px solid var(--border-subtle);margin:.25rem 0}
+@media (prefers-reduced-motion:reduce){.nav-dd[open] > .nav-more-list{animation:none}}
+
+/* Text on the orange action colour is always dark (5.2:1), in both themes. */
+.text-on-primary,
+.text-accent-on-primary { color: #1F2937; }
+
+/* "More" lights up for Docs / Blog / Errors only when they are inside it (< 1280px) */
+@media (max-width:1279px){.more-narrow-active{background:var(--accent-primary-solid);color:#1F2937;font-weight:700;box-shadow:0 1px 2px rgb(0 0 0 / .12)}}

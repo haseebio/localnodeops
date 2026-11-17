@@ -16,13 +16,9 @@ const formattedDate = pubDate.toLocaleDateString('en-US', {
 ---
 
 <a href={`/posts/${entry.slug}`}
-  class="group h-full flex flex-col gap-sm border border-border rounded-md bg-surface p-md
-    no-underline cursor-pointer transition-colors
-    hover:border-accent-primary hover:bg-surface-elevated"
+  class="card-link group h-full flex flex-col gap-xs p-md no-underline cursor-pointer"
 >
-  <span class="text-body-md rounded-full px-sm py-[0.125rem] whitespace-nowrap font-bold bg-accent-primary-container text-primary w-fit">
-    {category}
-  </span>
+  <span class="kicker">{category}</span>
 
   <h3 class="text-headline-md text-primary m-0 group-hover:underline">
     {title}
@@ -30,17 +26,15 @@ const formattedDate = pubDate.toLocaleDateString('en-US', {
 
   <p class="text-body-md text-secondary m-0 flex-1">{excerpt}</p>
 
-  <div class="flex items-center justify-between gap-sm pt-sm border-t border-border">
-    <div class="flex items-center gap-xs min-w-0">
-      <span class="shrink-0 w-8 h-8 rounded-full bg-accent-primary-container text-primary font-bold flex items-center justify-center text-body-md" aria-hidden="true">
-        {author.charAt(0)}
-      </span>
-      <span class="text-body-md text-primary font-bold truncate">{author}</span>
-    </div>
-    <div class="text-body-md text-secondary flex items-center gap-xs shrink-0">
-      <time datetime={pubDate.toISOString()}>{formattedDate}</time>
-      <span aria-hidden="true">·</span>
-      <span>{readingTime} min read</span>
-    </div>
+  {entry.data.keyNumber && (
+    <p class="num m-0 text-accent-primary" style="font-size:.85rem;font-weight:700">{entry.data.keyNumber}</p>
+  )}
+
+  <div class="flex flex-wrap items-center gap-x-xs gap-y-[0.125rem] pt-sm border-t border-border-subtle text-body-md text-secondary">
+    <span class="text-primary font-bold">{author}</span>
+    <span aria-hidden="true">·</span>
+    <time datetime={pubDate.toISOString()}>{formattedDate}</time>
+    <span aria-hidden="true">·</span>
+    <span>{readingTime} min read</span>
   </div>
 </a>

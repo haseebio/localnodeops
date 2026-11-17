@@ -1,0 +1,460 @@
+---
+import { getCollection } from 'astro:content';
+import { getModelArch, nearestBucket, parseParamsB } from '../lib/vram-math';
+import { estimateForEngine } from '../lib/engine-math';
+import { usableQuants } from '../lib/quant-filter';
+
+// Two small live tools for the home page. They use the same build-time math
+// as /matchmaker and the per-model calculator pages (shared lib functions),
+// so there is no second copy of the formula. The browser script only
+// compares these numbers with what the visitor picks.
+const CONTEXTS = [4096, 8192, 16384, 32768];
+const CONTEXT_LABELS = ['4K', '8K', '16K', '32K'];
+const DEFAULT_CTX = 1; // 8K
+const RAM_OPTIONS = [16, 32, 64, 128, 256];
+const VRAM_CHIPS = [8, 12, 16, 24, 32, 48];
+const FIT_SIZES = [8, 12, 16, 24, 32];
+const DEFAULT_VRAM = 24;
+const ASSUMED_RAM = 32;
+const OS_RESERVED_RAM = 4;
+const QUANT_CHIPS = ['Q4_K_M', 'Q8_0'];
+const TRY_MODELS: [string, string][] = [
+  ['qwen-qwen2-5-32b-instruct-gguf', 'Qwen2.5 32B'],
+  ['bartowski-meta-llama-3-1-70b-instruct-gguf', 'Llama 3.1 70B'],
+];
+const DEFAULT_MODEL = 'bartowski-meta-llama-3-1-8b-instruct-gguf';
+
+function shortQuant(type: string): string {
+  const last = String(type).split('/').pop() ?? '';
+  if (/^I?Q\d[A-Za-z0-9_-]*$/i.test(last)) return last;
+  const full = last.match(/(bf16|f16|f32|fp16|fp32)$/i);
+  if (full) return full[1].toUpperCase();
+  const tail = last.match(/-([A-Za-z0-9_]+)$/);
+  return tail ? tail[1] : last;
+}
+
+type Model = {
+  s: string; // slug
+  n: string; // display name
+  m: number | null; // native max context, when known
+  p: number | null; // parameter count read from the name
+  q: number[][]; // [file size GB, total GB at 4K, 8K, 16K, 32K] for every usable quantization
+  k: (number[] | null)[]; // totals at 4K/8K/16K/32K for Q4_K_M and Q8_0
+};
+
+const entries = await getCollection('models');
+const models: Model[] = [];
+for (const entry of entries) {
+  const arch =
+    getModelArch(entry.slug) ?? nearestBucket(parseParamsB(entry.data.title), entry.data.title);
+  const complete = entry.data.quantizations.flatMap((q) =>
+    typeof q.type === 'string' && typeof q.size_gb === 'number'
+      ? [{ type: q.type, size_gb: q.size_gb }]
+      : []
+  );
+  const quants = usableQuants(complete);
+  if (!arch || quants.length === 0) continue;
+  const total = (size: number, ctx: number) =>
+    Number(estimateForEngine(size, arch, ctx, 'llamacpp').totalGb.toFixed(3));
+  const totalsFor = (name: string) => {
+    const q = quants.find((x) => shortQuant(x.type).toUpperCase() === name);
+    return q ? CONTEXTS.map((c) => total(q.size_gb, c)) : null;
+  };
+  models.push({
+    s: entry.slug,
+    n: entry.data.title.replace(/-GGUF$/i, ''),
+    m: arch.maxContext ?? null,
+    p: parseParamsB(entry.data.title),
+    q: quants.map((q) => [q.size_gb, ...CONTEXTS.map((c) => total(q.size_gb, c))]),
+    k: QUANT_CHIPS.map(totalsFor),
+  });
+}
+models.sort((a, b) => a.n.localeCompare(b.n));
+
+// Server-side first paint, so the tools show real numbers before any script
+// runs and the layout does not move when the script starts.
+function tierOf(model: Model, vram: number, ram: number, ci: number): 'full' | 'offload' | 'none' {
+  const sorted = [...model.q].sort((a, b) => b[0] - a[0]);
+  for (const q of sorted) if (q[1 + ci] <= vram) return 'full';
+  const smallest = sorted[sorted.length - 1];
+  return smallest[1 + ci] <= vram + Math.max(0, ram - OS_RESERVED_RAM) ? 'offload' : 'none';
+}
+// Total of the largest quantization that fits fully (same choice /matchmaker makes).
+function fullTotal(model: Model, vram: number, ci: number): number {
+  const sorted = [...model.q].sort((a, b) => b[0] - a[0]);
+  const hit = sorted.find((q) => q[1 + ci] <= vram);
+  return hit ? hit[1 + ci] : 0;
+}
+// Best picks: models that fit fully, most parameters first, then largest total.
+function picksFor(vram: number, ram: number, ci: number): Model[] {
+  return models
+    .filter((m) => !(m.m && CONTEXTS[ci] > m.m) && tierOf(m, vram, ram, ci) === 'full')
+    .sort((a, b) => (b.p ?? 0) - (a.p ?? 0) || fullTotal(b, vram, ci) - fullTotal(a, vram, ci))
+    .slice(0, 3);
+}
+const eligible = models.filter((m) => !(m.m && CONTEXTS[DEFAULT_CTX] > m.m));
+const counts = { full: 0, offload: 0, none: 0 };
+for (const m of eligible) counts[tierOf(m, DEFAULT_VRAM, ASSUMED_RAM, DEFAULT_CTX)]++;
+const startPicks = picksFor(DEFAULT_VRAM, ASSUMED_RAM, DEFAULT_CTX);
+
+const startModel = models.find((m) => m.s === DEFAULT_MODEL) ?? models[0];
+const startTotals = startModel?.k[0] ?? startModel?.k[1] ?? null;
+const startQuantIdx = startModel?.k[0] ? 0 : 1;
+const startTotal = startTotals ? startTotals[1] : null;
+const fitRows = FIT_SIZES.map((gb) => ({
+  gb,
+  fits: startTotal !== null && startTotal <= gb,
+}));
+const tryModels = TRY_MODELS.filter(([slug]) => models.some((m) => m.s === slug));
+
+const data = {
+  contexts: CONTEXTS,
+  labels: CONTEXT_LABELS,
+  defaultCtx: DEFAULT_CTX,
+  assumedRam: ASSUMED_RAM,
+  osReservedRamGb: OS_RESERVED_RAM,
+  quants: QUANT_CHIPS,
+  fit: FIT_SIZES,
+  models,
+};
+---
+
+<div id="home-tools" class="ht">
+  <div class="ht-tabs" id="ht-tabs" role="tablist" aria-label="Choose a tool" hidden>
+    <button type="button" role="tab" class="ht-tab" data-tool-tab="mm" aria-selected="true">Which models fit?</button>
+    <button type="button" role="tab" class="ht-tab" data-tool-tab="vr" aria-selected="false">How much VRAM?</button>
+  </div>
+  <div class="ht-grid" id="ht-grid" data-active="mm">
+    <article class="ht-card" data-tool="mm" aria-labelledby="ht-mm-title">
+      <p class="kicker">GPU matchmaker</p>
+      <h2 id="ht-mm-title" class="ht-title">Which models fit my GPU?</h2>
+
+      <div>
+        <span class="kicker" id="ht-vram-label">GPU memory (GB)</span>
+        <div class="ht-chips" role="group" aria-labelledby="ht-vram-label">
+          {VRAM_CHIPS.map((v) => (
+            <button type="button" class="ht-chip" data-vram={v} aria-pressed={v === DEFAULT_VRAM ? 'true' : 'false'}>{v}</button>
+          ))}
+        </div>
+      </div>
+
+      <div class="ht-selects">
+        <label class="ht-sel"><span class="kicker">RAM</span>
+          <select id="ht-ram" class="ht-select">
+            {RAM_OPTIONS.map((r) => <option value={r} selected={r === ASSUMED_RAM}>{r} GB</option>)}
+          </select>
+        </label>
+        <label class="ht-sel"><span class="kicker">Context</span>
+          <select id="ht-ctx" class="ht-select">
+            {CONTEXT_LABELS.map((l, i) => <option value={i} selected={i === DEFAULT_CTX}>{l}</option>)}
+          </select>
+        </label>
+      </div>
+
+      <p class="ht-result" role="status">
+        <span class="ht-big" id="ht-mm-count">{counts.full}</span>
+        <span>of <span id="ht-mm-total">{eligible.length}</span> models run fully on a <span id="ht-mm-vram">{DEFAULT_VRAM}</span> GB GPU</span>
+      </p>
+      <div class="ht-stack" aria-hidden="true">
+        <span class="ht-seg ht-full" id="ht-seg-full" style={`flex-grow:${counts.full}`}></span>
+        <span class="ht-seg ht-offload" id="ht-seg-offload" style={`flex-grow:${counts.offload}`}></span>
+        <span class="ht-seg ht-none" id="ht-seg-none" style={`flex-grow:${counts.none}`}></span>
+      </div>
+      <p class="ht-sub" id="ht-mm-sub">
+        {counts.offload} more need CPU offload, {counts.none} do not fit, at {ASSUMED_RAM} GB RAM and {CONTEXT_LABELS[DEFAULT_CTX]} context.
+      </p>
+      <div class="ht-picks">
+        <span class="kicker">Best picks</span>
+        <span id="ht-picks" class="ht-pick-list">
+          {startPicks.map((m) => <a class="ht-pick" href={`/calculator/${m.s}`}>{m.n}</a>)}
+        </span>
+      </div>
+
+      <a class="ht-cta" href="/matchmaker">Open the matchmaker</a>
+    </article>
+
+    <article class="ht-card" data-tool="vr" aria-labelledby="ht-vr-title">
+      <p class="kicker">VRAM calculator</p>
+      <h2 id="ht-vr-title" class="ht-title">How much VRAM does a model need?</h2>
+
+      <div>
+        <div class="ht-row">
+          <label for="ht-model" class="kicker">Model</label>
+          {tryModels.length > 0 && (
+            <span class="ht-try">
+              <span class="ht-try-label">Try</span>
+              {tryModels.map(([slug, label]) => (
+                <button type="button" class="ht-chip ht-chip-sm" data-try={slug}>{label}</button>
+              ))}
+            </span>
+          )}
+        </div>
+        <select id="ht-model" class="ht-select">
+          {models.map((m) => (
+            <option value={m.s} selected={m.s === startModel?.s}>{m.n}</option>
+          ))}
+        </select>
+      </div>
+
+      <div class="ht-chips" role="group" aria-label="Quantization and context length">
+        {QUANT_CHIPS.map((q, i) => (
+          <button type="button" class="ht-chip ht-chip-wide" data-quant={i} aria-pressed={i === startQuantIdx ? 'true' : 'false'} disabled={!startModel?.k[i]}>{q}</button>
+        ))}
+        <span class="ht-divider" aria-hidden="true"></span>
+        {CONTEXT_LABELS.map((label, i) => (
+          <button type="button" class="ht-chip" data-ctx={i} aria-pressed={i === 1 ? 'true' : 'false'}>{label}</button>
+        ))}
+      </div>
+
+      <p class="ht-result" role="status">
+        <span class="ht-big" id="ht-vr-total">{startTotal !== null ? startTotal.toFixed(1) : '-'} GB</span>
+        <span>total VRAM needed</span>
+      </p>
+      <p class="ht-sub" id="ht-vr-sub">
+        {startModel?.n} · {QUANT_CHIPS[startQuantIdx]} · 8K context · llama.cpp
+      </p>
+      <p class="ht-sub ht-warn" id="ht-vr-warn" hidden>This model's native context is shorter than the length you picked.</p>
+
+      <ul class="ht-fits" id="ht-fits" aria-label="Which GPU sizes fit">
+        {fitRows.map((row) => (
+          <li class={row.fits ? 'ht-fit ht-yes' : 'ht-fit ht-no'} data-gb={row.gb}>
+            <span class="ht-fit-gb">{row.gb} GB</span>
+            <span class="ht-sr">{row.fits ? 'fits' : 'does not fit'}</span>
+          </li>
+        ))}
+      </ul>
+
+      <a class="ht-cta" href="/hardware">Open the VRAM calculator</a>
+    </article>
+  </div>
+</div>
+
+<script is:inline type="application/json" id="ht-data" set:html={JSON.stringify(data)} />
+
+<script is:inline>
+  (function () {
+    const root = document.getElementById('home-tools');
+    const dataEl = document.getElementById('ht-data');
+    if (!root || !dataEl) return;
+    const data = JSON.parse(dataEl.textContent);
+
+    // ----- phone tabs (progressive: without JS both cards simply show)
+    const tabsEl = document.getElementById('ht-tabs');
+    const gridEl = document.getElementById('ht-grid');
+    const tabBtns = Array.prototype.slice.call(root.querySelectorAll('[data-tool-tab]'));
+    const phone = window.matchMedia('(max-width: 767px)');
+    function syncTabs() {
+      tabsEl.hidden = !phone.matches;
+      if (!phone.matches) gridEl.removeAttribute('data-tabbed');
+      else gridEl.setAttribute('data-tabbed', '');
+    }
+    tabBtns.forEach(function (b) {
+      b.addEventListener('click', function () {
+        gridEl.setAttribute('data-active', b.getAttribute('data-tool-tab'));
+        tabBtns.forEach(function (x) { x.setAttribute('aria-selected', String(x === b)); });
+      });
+    });
+    phone.addEventListener('change', syncTabs);
+    syncTabs();
+
+    // ----- matchmaker mini tool
+    const vramBtns = Array.prototype.slice.call(root.querySelectorAll('[data-vram]'));
+    const mmCount = document.getElementById('ht-mm-count');
+    const mmTotal = document.getElementById('ht-mm-total');
+    const mmVram = document.getElementById('ht-mm-vram');
+    const mmSub = document.getElementById('ht-mm-sub');
+    const segs = {
+      full: document.getElementById('ht-seg-full'),
+      offload: document.getElementById('ht-seg-offload'),
+      none: document.getElementById('ht-seg-none'),
+    };
+
+    function tick(el) {
+      el.classList.remove('ht-tick');
+      void el.offsetWidth;
+      el.classList.add('ht-tick');
+    }
+
+    const ramSel = document.getElementById('ht-ram');
+    const ctxSel = document.getElementById('ht-ctx');
+    const picksEl = document.getElementById('ht-picks');
+    const mm = { vram: 24 };
+
+    function tierOf(model, vram, ram, ci) {
+      const sorted = model.q.slice().sort(function (a, b) { return b[0] - a[0]; });
+      for (let i = 0; i < sorted.length; i++) if (sorted[i][1 + ci] <= vram) return 'full';
+      const smallest = sorted[sorted.length - 1];
+      const usableRam = Math.max(0, ram - data.osReservedRamGb);
+      return smallest[1 + ci] <= vram + usableRam ? 'offload' : 'none';
+    }
+
+    function fullTotal(model, vram, ci) {
+      const sorted = model.q.slice().sort(function (a, b) { return b[0] - a[0]; });
+      for (let i = 0; i < sorted.length; i++) if (sorted[i][1 + ci] <= vram) return sorted[i][1 + ci];
+      return 0;
+    }
+
+    function renderMatch() {
+      const vram = mm.vram;
+      const ram = Number(ramSel.value);
+      const ci = Number(ctxSel.value);
+      const ctx = data.contexts[ci];
+      const counts = { full: 0, offload: 0, none: 0 };
+      const full = [];
+      let n = 0;
+      data.models.forEach(function (m) {
+        if (m.m && ctx > m.m) return;
+        n++;
+        const t = tierOf(m, vram, ram, ci);
+        counts[t]++;
+        if (t === 'full') full.push(m);
+      });
+      mmCount.textContent = String(counts.full);
+      mmTotal.textContent = String(n);
+      mmVram.textContent = String(vram);
+      mmSub.textContent =
+        counts.offload + ' more need CPU offload, ' + counts.none + ' do not fit, at ' +
+        ram + ' GB RAM and ' + data.labels[ci] + ' context.';
+      ['full', 'offload', 'none'].forEach(function (k) { segs[k].style.flexGrow = String(counts[k]); });
+      vramBtns.forEach(function (b) {
+        b.setAttribute('aria-pressed', String(Number(b.getAttribute('data-vram')) === vram));
+      });
+      // Best picks: fit fully, most parameters first, then largest total.
+      full.sort(function (a, b) { return (b.p || 0) - (a.p || 0) || fullTotal(b, vram, ci) - fullTotal(a, vram, ci); });
+      picksEl.replaceChildren();
+      full.slice(0, 3).forEach(function (m) {
+        const a = document.createElement('a');
+        a.className = 'ht-pick';
+        a.href = '/calculator/' + encodeURIComponent(m.s);
+        a.textContent = m.n;
+        picksEl.appendChild(a);
+      });
+      if (full.length === 0) picksEl.textContent = 'none fit fully';
+      tick(mmCount);
+    }
+
+    vramBtns.forEach(function (b) {
+      b.addEventListener('click', function () { mm.vram = Number(b.getAttribute('data-vram')); renderMatch(); });
+    });
+    ramSel.addEventListener('change', renderMatch);
+    ctxSel.addEventListener('change', renderMatch);
+
+    // ----- VRAM mini tool
+    const select = document.getElementById('ht-model');
+    const quantBtns = Array.prototype.slice.call(root.querySelectorAll('[data-quant]'));
+    const ctxBtns = Array.prototype.slice.call(root.querySelectorAll('[data-ctx]'));
+    const tryBtns = Array.prototype.slice.call(root.querySelectorAll('[data-try]'));
+    const vrTotal = document.getElementById('ht-vr-total');
+    const vrSub = document.getElementById('ht-vr-sub');
+    const vrWarn = document.getElementById('ht-vr-warn');
+    const fitItems = Array.prototype.slice.call(document.querySelectorAll('#ht-fits [data-gb]'));
+    const vr = { quant: 0, ctx: 1 };
+
+    function currentModel() {
+      for (let i = 0; i < data.models.length; i++) if (data.models[i].s === select.value) return data.models[i];
+      return data.models[0];
+    }
+
+    function renderVram() {
+      const model = currentModel();
+      // If the model lacks the chosen quantization, fall back to the other one.
+      if (!model.k[vr.quant]) vr.quant = model.k[0] ? 0 : 1;
+      const totals = model.k[vr.quant];
+      quantBtns.forEach(function (b) {
+        const i = Number(b.getAttribute('data-quant'));
+        b.disabled = !model.k[i];
+        b.setAttribute('aria-pressed', String(i === vr.quant));
+      });
+      ctxBtns.forEach(function (b) {
+        b.setAttribute('aria-pressed', String(Number(b.getAttribute('data-ctx')) === vr.ctx));
+      });
+      if (!totals) {
+        vrTotal.textContent = '- GB';
+        vrSub.textContent = model.n + ' has no usable Q4_K_M or Q8_0 file in the synced data.';
+        fitItems.forEach(function (li) { li.className = 'ht-fit ht-no'; });
+        return;
+      }
+      const total = totals[vr.ctx];
+      vrTotal.textContent = total.toFixed(1) + ' GB';
+      vrSub.textContent =
+        model.n + ' · ' + data.quants[vr.quant] + ' · ' + data.labels[vr.ctx] + ' context · llama.cpp';
+      vrWarn.hidden = !(model.m && data.contexts[vr.ctx] > model.m);
+      fitItems.forEach(function (li) {
+        const fits = total <= Number(li.getAttribute('data-gb'));
+        li.className = 'ht-fit ' + (fits ? 'ht-yes' : 'ht-no');
+        li.querySelector('.ht-sr').textContent = fits ? 'fits' : 'does not fit';
+      });
+      tick(vrTotal);
+    }
+
+    select.addEventListener('change', renderVram);
+    quantBtns.forEach(function (b) {
+      b.addEventListener('click', function () { vr.quant = Number(b.getAttribute('data-quant')); renderVram(); });
+    });
+    ctxBtns.forEach(function (b) {
+      b.addEventListener('click', function () { vr.ctx = Number(b.getAttribute('data-ctx')); renderVram(); });
+    });
+    tryBtns.forEach(function (b) {
+      b.addEventListener('click', function () { select.value = b.getAttribute('data-try'); renderVram(); });
+    });
+  })();
+</script>
+
+<style is:global>
+  .ht{--ht-full:#15803d;--ht-offload:#f59e0b;--ht-none:#b91c1c;color:var(--text-primary)}
+  .ht button,.ht select{font-family:inherit}
+  .ht-grid{display:grid;gap:.75rem}
+  .ht-tabs{display:grid;grid-template-columns:1fr 1fr;gap:.35rem;margin-bottom:.6rem}
+  .ht-tabs[hidden]{display:none}
+  .ht-tab{min-height:2.75rem;padding:0 .5rem;border:1px solid var(--border-color);border-radius:.75rem;background:var(--bg-surface);color:var(--text-primary);font-size:.9rem;font-weight:700;cursor:pointer}
+  .ht-tab[aria-selected="true"]{background:var(--accent-primary-container);border-color:var(--accent-primary-solid);box-shadow:inset 0 -3px 0 var(--accent-primary-solid)}
+  .ht-tab:focus-visible{outline:2px solid var(--accent-primary);outline-offset:2px}
+  .ht-grid[data-tabbed][data-active="mm"] .ht-card[data-tool="vr"],.ht-grid[data-tabbed][data-active="vr"] .ht-card[data-tool="mm"]{display:none}
+  .ht-card{display:flex;flex-direction:column;gap:.6rem;padding:.9rem 1rem;border:1px solid var(--border-color);border-top:3px solid var(--brand-2);border-radius:.75rem;background:var(--bg-surface);box-shadow:0 10px 28px -18px color-mix(in srgb,var(--brand-2) 55%,transparent)}
+  .ht-title{margin:0;font-size:1.15rem;font-weight:700;line-height:1.25;letter-spacing:-.01em;color:var(--text-primary)}
+  .ht-chips{display:flex;flex-wrap:wrap;align-items:center;gap:.35rem;margin-top:.4rem}
+  .ht-chip{display:inline-flex;align-items:center;justify-content:center;min-width:2.75rem;min-height:2.75rem;padding:0 .5rem;border:1px solid var(--border-color);border-radius:9999px;background:var(--bg-base);color:var(--text-primary);font-size:.9rem;cursor:pointer;transition:background .15s,border-color .15s}
+  .ht-chip-wide{padding:0 .8rem}
+  .ht-chip-sm{min-height:2.75rem;padding:0 .7rem;font-size:.82rem}
+  @media (hover:hover){.ht-chip:hover:not(:disabled){background:var(--accent-primary-container)}}
+  .ht-chip[aria-pressed="true"]{background:var(--accent-primary-solid);border-color:var(--accent-primary-solid);color:var(--on-primary);font-weight:700}
+  .ht-chip:disabled{opacity:.45;cursor:not-allowed}
+  .ht-chip:focus-visible,.ht-select:focus-visible,.ht-cta:focus-visible{outline:2px solid var(--accent-primary);outline-offset:2px}
+  .ht-divider{width:1px;height:1.6rem;background:var(--border-color);margin:0 .15rem}
+  .ht-row{display:flex;align-items:center;justify-content:space-between;gap:.5rem;flex-wrap:wrap}
+  .ht-try{display:inline-flex;align-items:center;gap:.3rem;flex-wrap:wrap}
+  .ht-try-label{font-size:.72rem;font-weight:700;letter-spacing:.08em;text-transform:uppercase;color:var(--text-secondary)}
+  .ht-select{width:100%;min-height:2.75rem;margin-top:.2rem;padding:0 .7rem;border:1px solid var(--border-color);border-radius:.5rem;background:var(--bg-base);color:var(--text-primary);font-size:.95rem}
+  .ht-result{display:flex;align-items:baseline;gap:.6rem;flex-wrap:wrap;margin:.15rem 0 0;font-size:.95rem;color:var(--text-primary)}
+  .ht-big{font-family:ui-monospace,SFMono-Regular,Menlo,Monaco,Consolas,monospace;font-variant-numeric:tabular-nums;font-size:2.1rem;font-weight:700;line-height:1;color:var(--accent-primary)}
+  .ht-tick{animation:ht-pop .18s ease-out}
+  @keyframes ht-pop{from{opacity:.4;transform:translateY(3px)}to{opacity:1;transform:none}}
+  .ht-selects{display:flex;gap:.6rem}
+  .ht-sel{display:flex;flex-direction:column;gap:.15rem;flex:1;min-width:0}
+  .ht-picks{display:flex;flex-direction:column;gap:.3rem}
+  .ht-pick-list{display:flex;flex-wrap:wrap;gap:.35rem;font-size:.85rem;color:var(--text-secondary)}
+  .ht-pick{display:inline-flex;align-items:center;min-height:2.25rem;padding:0 .65rem;border:1px solid var(--brand-3);border-radius:9999px;background:var(--brand-3-c);color:var(--text-primary);font-weight:700;font-size:.82rem;text-decoration:none}
+  @media (hover:hover){.ht-pick:hover{background:var(--accent-primary-container)}}
+  .ht-sub{margin:0;font-size:.85rem;line-height:1.45;color:var(--text-secondary)}
+  .ht-warn{color:var(--accent-secondary);font-weight:700}
+  .ht-stack{display:flex;height:.45rem;border-radius:9999px;overflow:hidden;background:var(--border-subtle)}
+  .ht-seg{flex:0 0 auto;transition:flex-grow .25s}
+  .ht-seg.ht-full{background:var(--ht-full)}.ht-seg.ht-offload{background:var(--ht-offload)}.ht-seg.ht-none{background:var(--ht-none)}
+  .ht-fits{display:flex;flex-wrap:wrap;gap:.35rem;margin:0;padding:0;list-style:none}
+  .ht-fit{display:inline-flex;align-items:center;gap:.35rem;padding:.2rem .6rem;border-radius:9999px;font-size:.8rem;font-weight:700;border:1px solid var(--border-color)}
+  .ht-fit::before{content:"";width:.85rem;height:.85rem;background:currentColor;-webkit-mask:var(--ht-icon) center/contain no-repeat;mask:var(--ht-icon) center/contain no-repeat}
+  .ht-fit.ht-yes{background:var(--ht-full);border-color:var(--ht-full);color:#fff;--ht-icon:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='black' stroke-width='3' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M5 12l5 5L20 7'/%3E%3C/svg%3E")}
+  .ht-fit.ht-no{background:transparent;color:var(--text-secondary);--ht-icon:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='black' stroke-width='3' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M6 6l12 12M18 6L6 18'/%3E%3C/svg%3E")}
+  .ht-fit-gb{font-family:ui-monospace,SFMono-Regular,Menlo,Monaco,Consolas,monospace}
+  .ht-sr{position:absolute;width:1px;height:1px;overflow:hidden;clip:rect(0 0 0 0);white-space:nowrap}
+  .ht-cta{margin-top:auto;display:flex;align-items:center;justify-content:center;gap:.4rem;min-height:2.75rem;padding:0 1rem;border-radius:9999px;background:var(--brand-3);color:var(--ink);font-weight:700;font-size:.95rem;text-decoration:none;transition:filter .15s;box-shadow:0 6px 16px -8px color-mix(in srgb,var(--brand-3) 80%,transparent)}
+  .ht-cta::after{content:"→"}
+  @media (hover:hover){.ht-cta:hover{filter:brightness(.95)}}
+  @media (max-width:767px){.ht-grid[data-tabbed] .ht-card > .kicker:first-child{display:none}.ht-card{gap:.5rem}}
+  @media (min-width:768px){
+    .ht-grid{grid-template-columns:repeat(2,minmax(0,1fr));gap:1rem}
+    .ht-card{padding:1.1rem 1.25rem;gap:.7rem}
+    .ht-title{font-size:1.3rem}
+  }
+  @media (prefers-reduced-motion:reduce){.ht *{animation:none!important;transition:none!important}}
+</style>

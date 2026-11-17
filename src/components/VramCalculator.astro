@@ -1680,11 +1680,10 @@ const SYSTEM_RAM_OPTIONS = [8, 16, 32, 64, 128, 256];
         if (runpodBox && bestFit.runpodEquivalent) {
           runpodBox.classList.remove('hidden');
           const eq = bestFit.runpodEquivalent;
-          const hourly = (eq.hourlyRate * qty).toFixed(2);
           const eqName = qty > 1 ? qty + '× ' + eq.name : eq.name;
           if (runpodTextEl) {
             runpodTextEl.textContent =
-                  `Rent the closest cloud equivalent (${eqName}) on RunPod from about $${hourly}/hr (estimate for the cheapest tier; prices change often)`;
+                  `Rent the closest cloud equivalent (${eqName}) on RunPod. Check the current hourly rate on RunPod before you start.`;
           }
           if (runpodBtnEl) runpodBtnEl.setAttribute('aria-label', runpodTextEl ? runpodTextEl.textContent : '');
         } else if (runpodBox) {

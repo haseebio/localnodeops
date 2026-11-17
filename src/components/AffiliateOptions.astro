@@ -1,0 +1,62 @@
+---
+// Inline, labelled affiliate placement for the decision moment only.
+//  - state "over": the setup does not fit fully (offload or out of memory) ->
+//    the three-path "Your options" panel.
+//  - state "fit": one quiet line, no panel, no pressure.
+// It is presentation only. It never touches any VRAM math, and the math is the
+// same with or without these links. All URLs come from src/lib/affiliate.ts.
+import { RUNPOD_URL, AFFILIATE_REL, AFFILIATE_DISCLOSURE, amazonSearchUrl } from '../lib/affiliate';
+
+interface Props {
+  state: 'fit' | 'over';
+  amazonQuery?: string;
+  amazonLabel?: string;
+  showDisclosure?: boolean;
+}
+const {
+  state,
+  amazonQuery = 'RTX 4090 24GB',
+  amazonLabel = '24GB graphics cards on Amazon',
+  showDisclosure = true,
+} = Astro.props;
+const amazonUrl = amazonSearchUrl(amazonQuery);
+---
+
+{state === 'fit' ? (
+  <p class="aff-quiet">
+    {showDisclosure && <span class="aff-disclosure">{AFFILIATE_DISCLOSURE} </span>}
+    Fits. If you still want headroom, see
+    <a href={amazonUrl} target="_blank" rel={AFFILIATE_REL} data-umami-event="options-amazon-fit">{amazonLabel}</a>
+    (affiliate link).
+  </p>
+) : (
+  <section class="aff-panel" aria-labelledby="aff-options-title">
+    <h2 id="aff-options-title" class="aff-title">Your options</h2>
+    {showDisclosure && <p class="aff-disclosure">{AFFILIATE_DISCLOSURE}</p>}
+    <ul class="aff-list">
+      <li>
+        <strong>Build locally.</strong> A bigger card or a dual-GPU setup adds VRAM.
+        <a href={amazonUrl} target="_blank" rel={AFFILIATE_REL} data-umami-event="options-amazon">{amazonLabel}</a>
+        (affiliate link).
+      </li>
+      <li>
+        <strong>Rent by the hour.</strong> Pay only while it runs. Check the current rate before you start.
+        <a href={RUNPOD_URL} target="_blank" rel={AFFILIATE_REL} data-umami-event="options-runpod">Rent a cloud GPU on RunPod</a>
+        (affiliate link).
+      </li>
+      <li>
+        <strong>Optimise down.</strong> Pick a smaller quantization or a shorter context, then
+        <a href="/hardware">recalculate in the VRAM calculator</a>.
+      </li>
+    </ul>
+  </section>
+)}
+
+<style is:global>
+  .aff-panel{margin:1rem 0;padding:1rem 1.1rem;border:1px solid var(--border-color);border-left:4px solid var(--accent-secondary);border-radius:.75rem;background:var(--bg-surface)}
+  .aff-title{margin:0 0 .35rem;font-size:1.1rem;font-weight:700;color:var(--text-primary)}
+  .aff-disclosure{margin:0 0 .6rem;font-size:.8rem;line-height:1.45;color:var(--text-secondary)}
+  .aff-list{margin:0;padding-left:1.1rem;display:flex;flex-direction:column;gap:.5rem;font-size:.95rem;color:var(--text-primary)}
+  .aff-list a,.aff-quiet a{color:var(--accent-primary);font-weight:700}
+  .aff-quiet{margin:.75rem 0;font-size:.9rem;color:var(--text-secondary)}
+</style>

@@ -1,21 +1,87 @@
 ---
+import { getCollection } from 'astro:content';
+
+// "Checked against Hugging Face" date = the newest last_synced stamp in the
+// synced model files, so it is read from data, never typed by hand.
+const models = await getCollection('models');
+const stamps = models.map((m) => Date.parse(m.data.last_synced)).filter((n) => Number.isFinite(n));
+const checked = stamps.length
+  ? new Date(Math.max(...stamps)).toLocaleDateString('en-US', {
+      year: 'numeric',
+      month: 'short',
+      day: 'numeric',
+      timeZone: 'UTC',
+    })
+  : null;
+
+const columns = [
+  {
+    title: 'Tools',
+    links: [
+      { href: '/hardware', label: 'VRAM Calculator' },
+      { href: '/matchmaker', label: 'Matchmaker' },
+      { href: '/builds', label: 'Builds' },
+      { href: '/models', label: 'Models' },
+    ],
+  },
+  {
+    title: 'Learn',
+    links: [
+      { href: '/docs', label: 'Docs' },
+      { href: '/posts', label: 'Blog' },
+      { href: '/methodology', label: 'Methodology' },
+      { href: '/errors', label: 'Errors' },
+    ],
+  },
+  {
+    title: 'Site',
+    links: [
+      { href: '/about', label: 'About' },
+      { href: '/contact', label: 'Contact' },
+      { href: '/docker-stack', label: 'Production Docker Stack' },
+      { href: '/privacy', label: 'Privacy' },
+      { href: '/terms', label: 'Terms' },
+      { href: '/terms#data-license', label: 'Data License' },
+      { href: '/cookies', label: 'Cookies' },
+      { href: '/sitemap-index.xml', label: 'Sitemap' },
+    ],
+  },
+];
 ---
 
 <footer class="border-t border-border bg-surface-elevated">
-  <div class="max-w-shell mx-auto px-lg py-lg flex flex-col md:flex-row items-center justify-between gap-md text-body-md text-primary">
-    <div class="flex flex-col gap-xs items-center md:items-start">
-      <p class="m-0">© {new Date().getFullYear()} LocalNodeOps. All rights reserved.</p>
-      <p class="m-0 text-secondary">As an Amazon Associate I earn from qualifying purchases.</p>
+  <div class="max-w-shell mx-auto px-md sm:px-lg py-lg text-body-md text-primary">
+    <div class="foot-grid">
+      {columns.map((col) => (
+        <nav aria-label={`Footer: ${col.title}`}>
+          <p class="kicker m-0 mb-xs">{col.title}</p>
+          <ul class="list-none m-0 p-0 flex flex-col">
+            {col.links.map((l) => (
+              <li><a href={l.href} class="foot-link">{l.label}</a></li>
+            ))}
+          </ul>
+        </nav>
+      ))}
+      <div>
+        <p class="kicker m-0 mb-xs">Trust</p>
+        <p class="m-0 text-secondary foot-text">As an Amazon Associate I earn from qualifying purchases.</p>
+        <p class="m-0 mt-xs text-secondary foot-text">Affiliate links never affect the VRAM math.</p>
+        <p class="m-0 mt-xs text-secondary foot-text">All figures are labelled Verified, Community-reported or Estimated.</p>
+        <p class="m-0 mt-xs text-secondary foot-text">Corrections are dated, not silently edited.</p>
+        {checked && <p class="m-0 mt-xs text-secondary foot-text">Model file sizes checked against Hugging Face on {checked}.</p>}
+      </div>
     </div>
-    <nav aria-label="Footer navigation">
-      <ul class="flex items-center gap-lg list-none m-0 p-0">
-        <li><a href="/matchmaker" class="hover:underline">Matchmaker</a></li>
-        <li><a href="/docker-stack" class="hover:underline">Production Docker Stack</a></li>
-        <li><a href="/privacy" class="hover:underline">Privacy</a></li>
-        <li><a href="/terms#data-license" class="hover:underline">Data License</a></li>
-        <li><a href="/terms" class="hover:underline">Terms</a></li>
-        <li><a href="/cookies" class="hover:underline">Cookies</a></li>
-      </ul>
-    </nav>
+    <p class="m-0 mt-md pt-sm border-t border-border text-secondary foot-text">
+      © {new Date().getFullYear()} LocalNodeOps. All rights reserved.
+    </p>
   </div>
 </footer>
+
+<style is:global>
+  .foot-grid{display:grid;gap:1.25rem 1rem;grid-template-columns:repeat(2,minmax(0,1fr))}
+  .foot-grid > div{grid-column:1 / -1}
+  @media (min-width:1024px){.foot-grid{grid-template-columns:1fr 1fr 1.2fr 1.6fr;gap:1.5rem}.foot-grid > div{grid-column:auto}}
+  .foot-link{display:flex;align-items:center;min-height:2.25rem;color:var(--text-primary);text-decoration:none}
+  .foot-link:hover{text-decoration:underline}
+  .foot-text{font-size:.85rem;line-height:1.5}
+</style>

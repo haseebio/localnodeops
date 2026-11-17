@@ -3,6 +3,8 @@ import { getCollection } from 'astro:content';
 import { getModelArch, nearestBucket, parseParamsB } from '../lib/vram-math';
 import { estimateForEngine } from '../lib/engine-math';
 import { usableQuants } from '../lib/quant-filter';
+import { getModelRows } from '../lib/model-table';
+import AffiliateOptions from './AffiliateOptions.astro';
 
 // Context lengths offered by the toggle. 128K is 128 x 1024 tokens.
 const CONTEXTS = [4096, 8192, 16384, 32768, 131072];
@@ -15,12 +17,15 @@ const RAM_PRESETS = [16, 32, 64, 128, 256];
 // compares these numbers with the VRAM and RAM the visitor picks, so there
 // is no second copy of the formula to keep in sync.
 const entries = await getCollection('models');
+// Dense / MoE / Hybrid tag comes from the shared model table.
+const typeBySlug = new Map((await getModelRows()).map((r) => [r.slug, r.type]));
 let noEstimate = 0;
 const models: {
   slug: string;
   title: string;
   paramsB: number | null;
   maxContext: number | null;
+  type: string;
   quants: { type: string; sizeGb: number; totals: number[] }[];
 }[] = [];
 
@@ -43,6 +48,7 @@ for (const entry of entries) {
     title: entry.data.title,
     paramsB: parseParamsB(entry.data.title),
     maxContext: arch.maxContext ?? null,
+    type: typeBySlug.get(entry.slug) ?? 'Dense',
     quants: quants.map((q) => ({
       type: q.type,
       sizeGb: q.size_gb,
@@ -55,93 +61,136 @@ for (const entry of entries) {
 
 const data = { contexts: CONTEXTS, labels: CONTEXT_LABELS, osReservedRamGb: 4, noEstimate, models };
 
-const BTN =
-  'inline-flex items-center justify-center min-h-touch-min rounded-full px-md border border-border text-body-md text-primary cursor-pointer bg-surface hover:bg-accent-primary-container';
+const SAMPLES = [
+  [8, 16],
+  [16, 32],
+  [24, 64],
+  [48, 128],
+];
 ---
 
-<div id="matchmaker" class="flex flex-col gap-md">
-  <div class="grid gap-md md:grid-cols-2">
-    <div class="border border-border rounded-md bg-surface p-md">
-      <label for="mm-vram" class="text-body-md text-primary font-bold">
-        GPU VRAM: <span id="mm-vram-label">24</span> GB
-      </label>
-      <input id="mm-vram" type="range" min="2" max="192" step="1" value="24" class="w-full mt-xs" />
-      <div class="flex flex-wrap gap-xs mt-xs" role="group" aria-label="VRAM presets">
-        {VRAM_PRESETS.map((v) => (
-          <button type="button" class={BTN} data-preset="vram" data-value={v}>{v} GB</button>
-        ))}
+<div id="matchmaker" class="mm">
+  <div class="mm-grid">
+    <aside id="mm-controls" class="mm-controls mm-panel" aria-label="Your hardware">
+      <button type="button" id="mm-bar" class="mm-bar" aria-expanded="false" aria-controls="mm-controls-body">
+        <span class="mm-kicker">Your hardware</span>
+        <span class="mm-bar-main"><span id="mm-bar-text" class="mm-bar-text">24 GB VRAM · 32 GB RAM · 8K</span><span class="mm-bar-hint">Tap to adjust VRAM, RAM, context</span></span>
+        <span class="mm-chevron" aria-hidden="true"></span>
+      </button>
+
+      <div id="mm-controls-body" class="mm-controls-body">
+        <div class="mm-group">
+          <span class="mm-kicker">Try a setup</span>
+          <div class="mm-chips mm-samples-row" role="group" aria-label="Sample setups">
+            {SAMPLES.map(([v, r]) => (
+              <button type="button" class="mm-chip" data-sample={`${v},${r}`} aria-pressed="false">{v} GB + {r} GB RAM</button>
+            ))}
+          </div>
+        </div>
+
+        <div class="mm-group">
+          <div class="mm-row-head">
+            <label for="mm-vram" class="mm-kicker">GPU VRAM</label>
+            <span class="mm-readout"><span id="mm-vram-label">24</span> GB</span>
+          </div>
+          <input id="mm-vram" type="range" min="4" max="128" step="1" value="24" class="mm-range" />
+          <div class="mm-chips" role="group" aria-label="VRAM presets">
+            {VRAM_PRESETS.map((v) => (
+              <button type="button" class="mm-chip" data-preset="vram" data-value={v} aria-pressed="false">{v}</button>
+            ))}
+          </div>
+        </div>
+
+        <div class="mm-group">
+          <div class="mm-row-head">
+            <label for="mm-ram" class="mm-kicker">System RAM</label>
+            <span class="mm-readout"><span id="mm-ram-label">32</span> GB</span>
+          </div>
+          <input id="mm-ram" type="range" min="8" max="256" step="1" value="32" class="mm-range" />
+          <div class="mm-chips" role="group" aria-label="RAM presets">
+            {RAM_PRESETS.map((v) => (
+              <button type="button" class="mm-chip" data-preset="ram" data-value={v} aria-pressed="false">{v}</button>
+            ))}
+          </div>
+        </div>
+
+        <fieldset class="mm-group mm-fieldset">
+          <legend class="mm-kicker">Context length</legend>
+          <div class="mm-chips" role="radiogroup">
+            {CONTEXT_LABELS.map((label, i) => (
+              <label class="mm-chip mm-chip-radio">
+                <input type="radio" name="mm-ctx" value={i} checked={i === 1} class="mm-radio" />
+                <span>{label}</span>
+              </label>
+            ))}
+          </div>
+        </fieldset>
+
+        <div class="mm-group">
+          <label for="mm-search" class="mm-kicker">Find a model</label>
+          <input id="mm-search" type="search" placeholder="Search models, e.g. qwen" class="mm-input" />
+        </div>
+
+        <div class="mm-group">
+          <span class="mm-kicker">Save and share</span>
+          <div class="mm-chips">
+            <button type="button" id="mm-copy-link" class="mm-chip">Copy link to this setup</button>
+            <button type="button" id="mm-save-rig" class="mm-chip">Save my rig</button>
+          </div>
+          <p id="mm-share-status" class="mm-note" role="status"></p>
+        </div>
       </div>
-    </div>
+    </aside>
 
-    <div class="border border-border rounded-md bg-surface p-md">
-      <label for="mm-ram" class="text-body-md text-primary font-bold">
-        System RAM: <span id="mm-ram-label">32</span> GB
-      </label>
-      <input id="mm-ram" type="range" min="8" max="256" step="1" value="32" class="w-full mt-xs" />
-      <div class="flex flex-wrap gap-xs mt-xs" role="group" aria-label="RAM presets">
-        {RAM_PRESETS.map((v) => (
-          <button type="button" class={BTN} data-preset="ram" data-value={v}>{v} GB</button>
-        ))}
+    <div class="mm-results">
+      <div id="mm-saved" class="mm-saved" hidden>
+        <span id="mm-saved-text"></span>
+        <button type="button" id="mm-apply-rig" class="mm-chip">Apply</button>
       </div>
+      <div id="mm-tabs" class="mm-tabs" role="group" aria-label="Filter by fit">
+        <button type="button" class="mm-tab" data-tab="all" aria-pressed="true">
+          <span class="mm-kicker">All</span><span class="mm-count" data-count="all">0</span>
+        </button>
+        <button type="button" class="mm-tab mm-t-full" data-tab="full" aria-pressed="false">
+          <span class="mm-kicker">Full GPU fit</span><span class="mm-count" data-count="full">0</span>
+        </button>
+        <button type="button" class="mm-tab mm-t-offload" data-tab="offload" aria-pressed="false">
+          <span class="mm-kicker">Offload required</span><span class="mm-count" data-count="offload">0</span>
+        </button>
+        <button type="button" class="mm-tab mm-t-none" data-tab="none" aria-pressed="false">
+          <span class="mm-kicker">Out of memory</span><span class="mm-count" data-count="none">0</span>
+        </button>
+      </div>
+      <div class="mm-stack" aria-hidden="true">
+        <span class="mm-seg mm-t-full" data-seg="full"></span>
+        <span class="mm-seg mm-t-offload" data-seg="offload"></span>
+        <span class="mm-seg mm-t-none" data-seg="none"></span>
+      </div>
+
+      <p id="mm-summary" class="mm-summary" role="status"></p>
+      <div id="mm-best" class="mm-best" hidden></div>
+      <div id="mm-list" class="mm-list"></div>
+      <p id="mm-note" class="mm-note"></p>
+      <div id="mm-aff-over" hidden><AffiliateOptions state="over" /></div>
+      <div id="mm-aff-fit" hidden><AffiliateOptions state="fit" /></div>
     </div>
   </div>
 
-  <fieldset class="border border-border rounded-md bg-surface p-md m-0">
-    <legend class="text-body-md text-primary font-bold px-xs">Context length</legend>
-    <div class="flex flex-wrap gap-xs" role="radiogroup">
-      {CONTEXT_LABELS.map((label, i) => (
-        <label class="inline-flex items-center gap-xs min-h-touch-min px-md rounded-full border border-border text-body-md text-primary cursor-pointer bg-surface">
-          <input type="radio" name="mm-ctx" value={i} checked={i === 1} />
-          {label}
-        </label>
-      ))}
-    </div>
-  </fieldset>
-
-  <div class="flex flex-wrap items-center gap-sm">
-    <label for="mm-search" class="text-body-md text-primary font-bold">Find a model</label>
-    <input
-      id="mm-search"
-      type="search"
-      placeholder="Search by name, e.g. qwen"
-      class="flex-1 min-w-[12rem] min-h-touch-min rounded-md border border-border bg-surface text-primary px-md"
-    />
-  </div>
-
-  <div id="mm-tabs" class="flex flex-wrap gap-xs" role="group" aria-label="Filter by fit">
-    <button type="button" class={BTN} data-tab="all" aria-pressed="true">All</button>
-    <button type="button" class={BTN} data-tab="full" aria-pressed="false">Full GPU fit</button>
-    <button type="button" class={BTN} data-tab="offload" aria-pressed="false">Offload required</button>
-    <button type="button" class={BTN} data-tab="none" aria-pressed="false">Out of memory</button>
-  </div>
-
-  <p id="mm-summary" class="text-body-md text-primary m-0" role="status"></p>
-  <div id="mm-list" class="grid gap-md sm:grid-cols-2 lg:grid-cols-3"></div>
-  <p id="mm-note" class="text-body-md text-secondary m-0"></p>
-
-  <section id="mm-multi" class="border border-border rounded-md bg-surface p-md flex flex-col gap-sm">
-    <h2 class="text-body-lg text-primary font-bold m-0">Run more than one model at once</h2>
-    <p class="text-body-md text-secondary m-0">
+  <section id="mm-multi" class="mm-panel mm-multi">
+    <h2 class="mm-multi-title">Run more than one model at once</h2>
+    <p class="mm-note">
       Pick up to three models. Their memory is added together at the context length above, then
       compared with your VRAM and RAM.
     </p>
-    <div id="mm-multi-rows" class="flex flex-col gap-sm"></div>
-    <div class="flex flex-wrap items-center gap-sm">
-      <button type="button" id="mm-multi-add" class={BTN}>Add a model</button>
-      <label for="mm-multi-extra" class="text-body-md text-primary">Other memory in use (GB)</label>
-      <input
-        id="mm-multi-extra"
-        type="number"
-        min="0"
-        max="512"
-        step="0.5"
-        value="0"
-        class="w-24 min-h-touch-min rounded-md border border-border bg-surface text-primary px-sm"
-      />
+    <div id="mm-multi-rows" class="mm-multi-rows"></div>
+    <div class="mm-multi-tools">
+      <button type="button" id="mm-multi-add" class="mm-chip">Add a model</button>
+      <label for="mm-multi-extra" class="mm-kicker">Other memory in use (GB)</label>
+      <input id="mm-multi-extra" type="number" min="0" max="512" step="0.5" value="0" class="mm-input mm-input-num" />
     </div>
-    <p id="mm-multi-result" class="text-body-md text-primary m-0" role="status"></p>
+    <p id="mm-multi-result" class="mm-summary" role="status"></p>
     <span id="mm-multi-badge" class="hidden"></span>
-    <p id="mm-multi-note" class="text-body-md text-secondary m-0"></p>
+    <p id="mm-multi-note" class="mm-note"></p>
   </section>
 </div>
 
@@ -162,15 +211,37 @@ const BTN =
     const list = document.getElementById('mm-list');
     const note = document.getElementById('mm-note');
     const tabButtons = Array.prototype.slice.call(document.querySelectorAll('#mm-tabs [data-tab]'));
+    const bar = document.getElementById('mm-bar');
+    const controls = document.getElementById('mm-controls');
+    const barText = document.getElementById('mm-bar-text');
+    const countEls = Array.prototype.slice.call(root.querySelectorAll('[data-count]'));
+    const presetBtns = Array.prototype.slice.call(root.querySelectorAll('[data-preset]'));
+    const segEls = {
+      full: root.querySelector('[data-seg="full"]'),
+      offload: root.querySelector('[data-seg="offload"]'),
+      none: root.querySelector('[data-seg="none"]'),
+    };
 
     const TIGHT_RATIO = 0.95; // 95% or more of VRAM is marked "very tight"
     const BADGE = {
-      full: { text: 'Full GPU fit', cls: 'bg-green-600 text-white' },
-      offload: { text: 'Offload required', cls: 'bg-amber-500 text-black' },
-      none: { text: 'Out of memory', cls: 'bg-red-600 text-white' },
+      full: { text: 'Full GPU fit', cls: 'mm-t-full' },
+      offload: { text: 'Offload required', cls: 'mm-t-offload' },
+      none: { text: 'Out of memory', cls: 'mm-t-none' },
     };
 
     const state = { tab: 'all' };
+    const bestEl = document.getElementById('mm-best');
+    const savedEl = document.getElementById('mm-saved');
+    const savedText = document.getElementById('mm-saved-text');
+    const affOver = document.getElementById('mm-aff-over');
+    const affFit = document.getElementById('mm-aff-fit');
+    const shareStatus = document.getElementById('mm-share-status');
+    const RIG_KEY = 'lno-saved-rig';
+    let rig = null; // saved on this device only (localStorage), never sent anywhere
+    try {
+      const raw = window.localStorage.getItem(RIG_KEY);
+      if (raw) rig = JSON.parse(raw);
+    } catch (e) { rig = null; }
 
     const multiRowsEl = document.getElementById('mm-multi-rows');
     const multiAdd = document.getElementById('mm-multi-add');
@@ -179,8 +250,7 @@ const BTN =
     const multiBadge = document.getElementById('mm-multi-badge');
     const multiNote = document.getElementById('mm-multi-note');
     const MULTI_MAX = 3;
-    const MULTI_SELECT_CLASS =
-      'min-h-touch-min rounded-md border border-border bg-surface text-primary px-sm max-w-full';
+    const MULTI_SELECT_CLASS = 'mm-select';
     const multiRows = []; // { row, modelSel, quantSel }
 
     function ctxIndex() {
@@ -217,38 +287,72 @@ const BTN =
     }
 
     function makeCard(item, vram) {
+      const tierNow = item.pick.tier;
+      const tier = item.pick.tier;
       const card = document.createElement('div');
-      card.className = 'border border-border rounded-md bg-surface p-md flex flex-col gap-xs';
+      card.className = 'mm-card ' + BADGE[tier].cls;
 
       const title = document.createElement('a');
       title.href = '/calculator/' + encodeURIComponent(item.model.slug);
-      title.className = 'text-body-lg font-bold text-accent-primary hover:underline';
+      title.className = 'mm-title';
       title.textContent = item.model.title;
 
+      const badge = document.createElement('span');
+      badge.className = 'mm-badge ' + BADGE[tier].cls;
+      badge.textContent =
+        BADGE[tier].text + (tier === 'full' && item.pick.total / vram >= TIGHT_RATIO ? ' (very tight)' : '');
+
+      const top = document.createElement('div');
+      top.className = 'mm-card-top';
+      const typeTag = document.createElement('span');
+      typeTag.className = 'mm-tag';
+      typeTag.textContent = item.model.type;
+      top.appendChild(badge);
+      top.appendChild(typeTag);
+
+      const gauge = document.createElement('div');
+      gauge.className = 'mm-gauge';
+      gauge.setAttribute('role', 'img');
+      gauge.setAttribute(
+        'aria-label',
+        'Needs ' + item.pick.total.toFixed(1) + ' GB of ' + vram + ' GB of VRAM'
+      );
+      const fill = document.createElement('span');
+      fill.className = 'mm-gauge-fill';
+      fill.style.width = Math.min(100, (item.pick.total / vram) * 100).toFixed(1) + '%';
+      gauge.appendChild(fill);
+
+      const meta = document.createElement('div');
+      meta.className = 'mm-meta';
+      const file = document.createElement('span');
+      file.textContent = 'GGUF ' + shortQuant(item.pick.quant.type) + ' · ' + item.pick.quant.sizeGb.toFixed(1) + ' GB';
+      const need = document.createElement('span');
+      need.textContent = 'Needs ' + item.pick.total.toFixed(1) + ' GB';
+      meta.appendChild(file);
+      meta.appendChild(need);
+
       const params = document.createElement('p');
-      params.className = 'text-body-md text-secondary m-0';
+      params.className = 'mm-params';
       params.textContent = item.model.paramsB
         ? 'About ' + item.model.paramsB + 'B parameters (read from the model name)'
         : 'Parameter count is not in the model name';
 
-      const file = document.createElement('p');
-      file.className = 'text-body-md text-primary m-0';
-      file.textContent = 'GGUF file: ' + shortQuant(item.pick.quant.type) + ', ' + item.pick.quant.sizeGb.toFixed(1) + ' GB';
-
-      const need = document.createElement('p');
-      need.className = 'text-body-md text-primary m-0';
-      need.textContent = 'Memory needed: ' + item.pick.total.toFixed(1) + ' GB';
-
-      const badge = document.createElement('span');
-      const b = BADGE[item.pick.tier];
-      badge.className = 'inline-block self-start rounded-full px-md py-xs text-body-md font-bold ' + b.cls;
-      badge.textContent = b.text + (item.pick.tier === 'full' && item.pick.total / vram >= TIGHT_RATIO ? ' (very tight)' : '');
-
       card.appendChild(title);
+      card.appendChild(top);
+      card.appendChild(gauge);
+      card.appendChild(meta);
       card.appendChild(params);
-      card.appendChild(file);
-      card.appendChild(need);
-      card.appendChild(badge);
+      if (rig && rig.vram && rig.vram !== vram && item.pick.total > rig.vram) {
+        const warn = document.createElement('p');
+        warn.className = 'mm-warn';
+        warn.textContent = 'Needs ' + item.pick.total.toFixed(1) + ' GB; your saved rig has ' + rig.vram + ' GB of VRAM.';
+        card.appendChild(warn);
+      }
+      const calc = document.createElement('a');
+      calc.href = '/calculator/' + encodeURIComponent(item.model.slug);
+      calc.className = 'mm-calc-link';
+      calc.textContent = 'Check in calculator \u2192';
+      card.appendChild(calc);
       return card;
     }
 
@@ -273,7 +377,7 @@ const BTN =
     function addRow(modelIndex) {
       if (multiRows.length >= MULTI_MAX) return;
       const row = document.createElement('div');
-      row.className = 'flex flex-wrap items-center gap-xs';
+      row.className = '';
 
       const modelSel = document.createElement('select');
       modelSel.className = MULTI_SELECT_CLASS;
@@ -292,8 +396,7 @@ const BTN =
 
       const remove = document.createElement('button');
       remove.type = 'button';
-      remove.className =
-        'inline-flex items-center justify-center min-h-touch-min rounded-full px-md border border-border text-body-md text-primary cursor-pointer bg-surface';
+      remove.className = 'mm-chip';
       remove.textContent = 'Remove';
 
       const entry = { row: row, modelSel: modelSel, quantSel: quantSel };
@@ -377,7 +480,7 @@ const BTN =
             : 'This does not fit in VRAM plus usable system RAM.';
       multiResult.textContent = 'Combined memory: ' + labels.join(' + ') + ' = ' + sum.toFixed(1) + ' GB. ' + sentence;
       const b = BADGE[tier];
-      multiBadge.className = 'inline-block self-start rounded-full px-md py-xs text-body-md font-bold ' + b.cls;
+      multiBadge.className = 'mm-badge ' + b.cls;
       multiBadge.textContent = b.text + (tier === 'full' && sum / vram >= TIGHT_RATIO ? ' (very tight)' : '');
     }
 
@@ -401,9 +504,27 @@ const BTN =
       const counts = { full: 0, offload: 0, none: 0 };
       items.forEach(function (it) { counts[it.pick.tier]++; });
 
+      countEls.forEach(function (el) {
+        const k = el.getAttribute('data-count');
+        el.textContent = String(k === 'all' ? items.length : counts[k]);
+      });
+      ['full', 'offload', 'none'].forEach(function (k) {
+        segEls[k].style.flexGrow = String(counts[k]);
+      });
+      barText.textContent = vram + ' GB VRAM · ' + ram + ' GB RAM · ' + data.labels[ci];
+      presetBtns.forEach(function (b) {
+        const target = b.getAttribute('data-preset') === 'vram' ? vram : ram;
+        b.setAttribute('aria-pressed', String(Number(b.getAttribute('data-value')) === target));
+      });
+
+      root.querySelectorAll('[data-sample]').forEach(function (b) {
+        const sp = b.getAttribute('data-sample').split(',');
+        b.setAttribute('aria-pressed', String(Number(sp[0]) === vram && Number(sp[1]) === ram));
+      });
+
       const order = { full: 0, offload: 1, none: 2 };
       items.sort(function (a, b) {
-        return order[a.pick.tier] - order[b.pick.tier] || b.pick.total - a.pick.total;
+        return order[a.pick.tier] - order[b.pick.tier] || a.pick.total - b.pick.total;
       });
 
       const q = searchInput.value.trim().toLowerCase();
@@ -413,12 +534,69 @@ const BTN =
       });
 
       list.replaceChildren();
-      shown.forEach(function (it) { list.appendChild(makeCard(it, vram)); });
+      let lastTier = '';
+      shown.forEach(function (it) {
+        if (state.tab === 'all' && it.pick.tier !== lastTier) {
+          lastTier = it.pick.tier;
+          const n = shown.filter(function (x) { return x.pick.tier === lastTier; }).length;
+          const h = document.createElement('h3');
+          h.className = 'mm-group-title';
+          h.textContent = BADGE[lastTier].text + ' (' + n + ')';
+          list.appendChild(h);
+        }
+        list.appendChild(makeCard(it, vram));
+      });
       if (shown.length === 0) {
         const empty = document.createElement('p');
-        empty.className = 'text-body-md text-secondary m-0';
+        empty.className = 'mm-note';
         empty.textContent = 'No models match this filter.';
         list.appendChild(empty);
+      }
+
+      // Best pick rule: the model that fits fully on the GPU with the most
+      // parameters (read from the model name), then the largest total.
+      const fulls = items.filter(function (it) { return it.pick.tier === 'full'; });
+      fulls.sort(function (a, b) {
+        return (b.model.paramsB || 0) - (a.model.paramsB || 0) || b.pick.total - a.pick.total;
+      });
+      bestEl.replaceChildren();
+      if (fulls.length > 0) {
+        const bp = fulls[0];
+        bestEl.hidden = false;
+        const k = document.createElement('span');
+        k.className = 'mm-kicker';
+        k.textContent = 'Best pick for your GPU';
+        const t = document.createElement('a');
+        t.href = '/calculator/' + encodeURIComponent(bp.model.slug);
+        t.className = 'mm-title';
+        t.textContent = bp.model.title;
+        const d = document.createElement('span');
+        d.className = 'mm-meta';
+        d.textContent = 'GGUF ' + shortQuant(bp.pick.quant.type) + ' \u00b7 needs ' + bp.pick.total.toFixed(1) + ' GB of ' + vram + ' GB';
+        const rule = document.createElement('span');
+        rule.className = 'mm-note';
+        rule.textContent = 'Rule: fits fully on the GPU, then the most parameters, then the largest total.';
+        bestEl.appendChild(k);
+        bestEl.appendChild(t);
+        bestEl.appendChild(d);
+        bestEl.appendChild(rule);
+      } else {
+        bestEl.hidden = true;
+      }
+
+      // Affiliate options: only when the person is looking at something that
+      // does not fit fully (a search, or the offload / out-of-memory filter).
+      const looking = q !== '' ? shown : state.tab === 'offload' || state.tab === 'none' ? shown : [];
+      const anyOver = looking.some(function (it) { return it.pick.tier !== 'full'; });
+      affOver.hidden = !(looking.length > 0 && anyOver);
+      affFit.hidden = !(looking.length > 0 && !anyOver && q !== '');
+
+      // Saved rig bar
+      if (rig && rig.vram) {
+        savedEl.hidden = false;
+        savedText.textContent = 'Your saved rig: ' + rig.vram + ' GB VRAM \u00b7 ' + rig.ram + ' GB RAM \u00b7 ' + (data.labels[rig.ctx] || '8K');
+      } else {
+        savedEl.hidden = true;
       }
 
       summary.textContent =
@@ -463,10 +641,84 @@ const BTN =
       });
     });
 
+    root.querySelectorAll('[data-sample]').forEach(function (btn) {
+      btn.addEventListener('click', function () {
+        const parts = btn.getAttribute('data-sample').split(',');
+        vramInput.value = parts[0];
+        ramInput.value = parts[1];
+        render();
+      });
+    });
+
+    // On phones the controls collapse into one compact bar. From 768px up they
+    // are always shown, so the bar is just a heading there.
+    const wide = window.matchMedia('(min-width: 768px)');
+    function syncBar() {
+      bar.disabled = wide.matches;
+      bar.setAttribute('aria-expanded', String(wide.matches || controls.classList.contains('is-open')));
+    }
+    bar.addEventListener('click', function () {
+      const open = controls.classList.toggle('is-open');
+      bar.setAttribute('aria-expanded', String(open));
+    });
+    wide.addEventListener('change', syncBar);
+    syncBar();
+
     multiAdd.addEventListener('click', function () {
       addRow(0);
     });
     multiExtra.addEventListener('input', renderMulti);
+
+    function shareUrl() {
+      const ci = ctxIndex();
+      return window.location.origin + window.location.pathname + '?vram=' + vramInput.value +
+        '&ram=' + ramInput.value + '&ctx=' + data.labels[ci];
+    }
+    function say(msg) {
+      shareStatus.textContent = msg;
+      window.setTimeout(function () { shareStatus.textContent = ''; }, 2500);
+    }
+    document.getElementById('mm-copy-link').addEventListener('click', function () {
+      const url = shareUrl();
+      if (navigator.clipboard && navigator.clipboard.writeText) {
+        navigator.clipboard.writeText(url).then(function () { say('Link copied'); }, function () { say(url); });
+      } else {
+        say(url);
+      }
+    });
+    document.getElementById('mm-save-rig').addEventListener('click', function () {
+      rig = { vram: Number(vramInput.value), ram: Number(ramInput.value), ctx: ctxIndex() };
+      try {
+        window.localStorage.setItem(RIG_KEY, JSON.stringify(rig));
+        say('Saved on this device');
+      } catch (e) {
+        say('Could not save in this browser');
+      }
+      render();
+    });
+    document.getElementById('mm-apply-rig').addEventListener('click', function () {
+      if (!rig) return;
+      vramInput.value = String(rig.vram);
+      ramInput.value = String(rig.ram);
+      const radios = document.querySelectorAll('input[name="mm-ctx"]');
+      if (radios[rig.ctx]) radios[rig.ctx].checked = true;
+      render();
+    });
+
+    // Load a shared setup from the URL (?vram=24&ram=32&ctx=8K).
+    try {
+      const params = new URLSearchParams(window.location.search);
+      const v = Number(params.get('vram'));
+      const r = Number(params.get('ram'));
+      const c = params.get('ctx');
+      if (params.has('vram') && v >= 4 && v <= 128) vramInput.value = String(Math.round(v));
+      if (params.has('ram') && r >= 8 && r <= 256) ramInput.value = String(Math.round(r));
+      if (c) {
+        const idx = data.labels.indexOf(String(c).toUpperCase());
+        const radios = document.querySelectorAll('input[name="mm-ctx"]');
+        if (idx >= 0 && radios[idx]) radios[idx].checked = true;
+      }
+    } catch (e) { /* ignore a bad URL */ }
 
     // Start with the two models that have the smallest files, so the sum is
     // visible straight away.
@@ -481,3 +733,103 @@ const BTN =
     render();
   })();
 </script>
+
+<style is:global>
+  .mm{--mm-full:#15803d;--mm-offload:#f59e0b;--mm-none:#b91c1c;display:flex;flex-direction:column;gap:1.5rem;color:var(--text-primary)}
+  .mm button,.mm input,.mm select{font-family:inherit}
+  .mm-grid{display:grid;gap:1rem}
+  .mm-panel{border:1px solid var(--border-color);border-radius:.75rem;background:var(--bg-surface)}
+  .mm-kicker{font-size:.72rem;font-weight:700;letter-spacing:.08em;text-transform:uppercase;color:var(--text-secondary)}
+  .mm-controls{overflow:hidden}
+  .mm-bar{display:flex;align-items:center;gap:.75rem;width:100%;min-height:3rem;padding:.5rem 1rem;background:transparent;border:0;color:inherit;text-align:left;cursor:pointer}
+  .mm-bar:disabled{cursor:default;opacity:1;color:inherit}
+  .mm-bar-main{flex:1;display:flex;flex-direction:column;gap:.15rem;min-width:0}
+  .mm-bar-hint{font-size:.68rem;font-weight:700;letter-spacing:.06em;text-transform:uppercase;color:var(--accent-primary)}
+  .mm-bar-text{flex:none;font-family:ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;font-size:.85rem;color:var(--text-primary)}
+  .mm-chevron{width:.6rem;height:.6rem;border-right:2px solid currentColor;border-bottom:2px solid currentColor;transform:rotate(45deg);transition:transform .2s}
+  .mm-controls.is-open .mm-chevron{transform:rotate(-135deg)}
+  .mm-controls-body{display:none;padding:0 1rem 1rem}
+  .mm-controls.is-open .mm-controls-body{display:block}
+  .mm-group{padding:.9rem 0;border-top:1px solid var(--border-subtle)}
+  .mm-fieldset{margin:0;min-width:0;border-left:0;border-right:0;border-bottom:0;border-radius:0}
+  .mm-fieldset legend{padding:0}
+  .mm-row-head{display:flex;align-items:baseline;justify-content:space-between;gap:.5rem}
+  .mm-readout{font-family:ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;font-size:1.35rem;font-weight:700;font-variant-numeric:tabular-nums;color:var(--text-primary)}
+  .mm-range{width:100%;margin:.4rem 0 .2rem;accent-color:var(--accent-primary-solid)}
+  .mm-chips{display:flex;flex-wrap:wrap;gap:.4rem;margin-top:.5rem}
+  .mm-chip{display:inline-flex;align-items:center;justify-content:center;min-height:2.75rem;padding:0 .85rem;border:1px solid var(--border-color);border-radius:9999px;background:var(--bg-base);color:var(--text-primary);font-size:.9rem;cursor:pointer;transition:background .15s,border-color .15s}
+  @media (hover:hover){.mm-chip:hover{background:var(--accent-primary-container)}}
+  .mm-chip[aria-pressed="true"],.mm-chip-radio:has(.mm-radio:checked){background:var(--accent-primary-solid);border-color:var(--accent-primary-solid);color:var(--on-primary);font-weight:700}
+  .mm-chip:disabled{opacity:.5;cursor:not-allowed}
+  .mm-radio{position:absolute;opacity:0;pointer-events:none}
+  .mm-chip-radio:has(.mm-radio:focus-visible),.mm-chip:focus-visible,.mm-tab:focus-visible,.mm-bar:focus-visible,.mm-range:focus-visible{outline:2px solid var(--accent-primary);outline-offset:2px}
+  .mm-input{width:100%;min-height:2.75rem;margin-top:.4rem;padding:0 .8rem;border:1px solid var(--border-color);border-radius:.5rem;background:var(--bg-base);color:var(--text-primary);font-size:1rem}
+  .mm-input-num{width:6rem;margin-top:0}
+  .mm-tabs{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:.5rem}
+  .mm-tab{display:flex;flex-direction:column;gap:.15rem;align-items:flex-start;min-height:3.5rem;padding:.55rem .8rem;border:1px solid var(--border-color);border-radius:.75rem;background:var(--bg-surface);color:var(--text-primary);cursor:pointer;text-align:left;transition:border-color .15s,background .15s}
+  @media (hover:hover){.mm-tab:hover{background:var(--accent-primary-container)}}
+  .mm-tab[aria-pressed="true"]{border-color:var(--accent-primary-solid);background:var(--accent-primary-container);box-shadow:inset 0 -3px 0 var(--accent-primary-solid)}
+  .mm-count{font-family:ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;font-size:1.5rem;font-weight:700;font-variant-numeric:tabular-nums;line-height:1}
+  .mm-stack{display:flex;height:.5rem;margin-top:.6rem;border-radius:9999px;overflow:hidden;background:var(--border-subtle)}
+  .mm-seg{flex:0 0 auto;flex-grow:0;background:var(--tier);transition:flex-grow .25s}
+  .mm-t-full{--tier:var(--mm-full);--tier-ink:#fff}
+  .mm-t-offload{--tier:var(--mm-offload);--tier-ink:#1f2937}
+  .mm-t-none{--tier:var(--mm-none);--tier-ink:#fff}
+  .mm-summary{margin:.9rem 0 .6rem;font-size:.95rem;color:var(--text-primary)}
+  .mm-note{margin:.75rem 0 0;font-size:.85rem;line-height:1.5;color:var(--text-secondary)}
+  .mm-list{display:grid;gap:.75rem;grid-template-columns:repeat(auto-fill,minmax(16.5rem,1fr))}
+  .mm-card{display:flex;flex-direction:column;gap:.55rem;padding:.9rem 1rem;border:1px solid var(--border-color);border-left:4px solid var(--tier);border-radius:.75rem;background:var(--bg-surface);animation:mm-in .22s ease-out both}
+  .mm-card:nth-child(n+13){animation:none}
+  .mm-card:nth-child(2){animation-delay:.02s}.mm-card:nth-child(3){animation-delay:.04s}.mm-card:nth-child(4){animation-delay:.06s}.mm-card:nth-child(5){animation-delay:.08s}.mm-card:nth-child(6){animation-delay:.1s}
+  @keyframes mm-in{from{opacity:0;transform:translateY(6px)}to{opacity:1;transform:none}}
+  .mm-title{font-weight:700;font-size:1rem;line-height:1.3;color:var(--accent-primary);overflow-wrap:anywhere;text-decoration:none}
+  .mm-title:hover{text-decoration:underline}
+  .mm-gauge{height:.5rem;border-radius:9999px;background:var(--border-subtle);overflow:hidden}
+  .mm-gauge-fill{display:block;height:100%;width:0;background:var(--tier);border-radius:9999px;transition:width .25s}
+  .mm-meta{display:flex;flex-wrap:wrap;justify-content:space-between;gap:.25rem .75rem;font-family:ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;font-size:.8rem;color:var(--text-secondary)}
+  .mm-params{margin:0;font-size:.8rem;color:var(--text-secondary)}
+  .mm-badge{display:inline-flex;align-items:center;gap:.35rem;align-self:flex-start;padding:.25rem .7rem;border-radius:9999px;background:var(--tier);color:var(--tier-ink);font-size:.8rem;font-weight:700}
+  .mm-badge::before{content:"";width:.9rem;height:.9rem;background:currentColor;-webkit-mask:var(--mm-icon) center/contain no-repeat;mask:var(--mm-icon) center/contain no-repeat}
+  .mm-t-full{--mm-icon:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='black' stroke-width='3' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M5 12l5 5L20 7'/%3E%3C/svg%3E")}
+  .mm-t-offload{--mm-icon:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='black' stroke-width='3' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M12 4v11m0 0l-4-4m4 4l4-4M5 20h14'/%3E%3C/svg%3E")}
+  .mm-t-none{--mm-icon:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='black' stroke-width='3' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M6 6l12 12M18 6L6 18'/%3E%3C/svg%3E")}
+  .mm-tab::before,.mm-seg::before{content:none}
+  .mm-multi{padding:1rem}
+  .mm-multi-title{margin:0;font-size:1.1rem;font-weight:700;color:var(--text-primary)}
+  .mm-multi-rows{display:flex;flex-direction:column;gap:.5rem;margin-top:.75rem}
+  .mm-multi-rows>div{display:flex;flex-wrap:wrap;align-items:center;gap:.4rem}
+  .mm-select{min-height:2.75rem;max-width:100%;padding:0 .6rem;border:1px solid var(--border-color);border-radius:.5rem;background:var(--bg-base);color:var(--text-primary);font-size:.95rem}
+  .mm-multi-tools{display:flex;flex-wrap:wrap;align-items:center;gap:.6rem;margin-top:.75rem}
+  @media (min-width:640px){.mm-tabs{grid-template-columns:repeat(4,minmax(0,1fr))}}
+  @media (max-width:767px){
+    .mm-bar .mm-kicker{display:none}
+    .mm-bar-text{white-space:nowrap}
+    .mm-controls:not(.is-open) .mm-controls-body{display:block;padding-bottom:.25rem}
+    .mm-controls:not(.is-open) .mm-group:not(:has(.mm-samples-row)){display:none}
+    .mm-controls:not(.is-open) .mm-group:has(.mm-samples-row){padding:.6rem 0 .5rem}
+    .mm-controls:not(.is-open) .mm-samples-row{display:grid;grid-template-columns:repeat(2,minmax(0,1fr))}
+    .mm-controls:not(.is-open) .mm-samples-row .mm-chip{padding:0 .4rem;font-size:.85rem;text-align:center;line-height:1.15}
+  }
+  @media (min-width:768px){
+    .mm-controls-body{display:block}.mm-bar{cursor:default}.mm-chevron{display:none}.mm-bar-main{display:none}
+    .mm-grid{grid-template-columns:17rem minmax(0,1fr);gap:1rem;align-items:start}
+    .mm-controls{position:sticky;top:6.5rem;max-height:calc(100vh - 7.5rem);overflow-y:auto}
+    .mm-tabs{grid-template-columns:repeat(2,minmax(0,1fr))}
+  }
+  @media (min-width:1024px){
+    .mm-grid{grid-template-columns:20rem minmax(0,1fr);gap:1.5rem}
+    .mm-tabs{grid-template-columns:repeat(4,minmax(0,1fr))}
+  }
+  @media (min-width:1024px) and (hover:hover){.mm-controls .mm-chip{min-height:2.25rem}.mm-group{padding:.65rem 0}}
+  .mm-card-top{display:flex;flex-wrap:wrap;gap:.4rem;align-items:center}
+  .mm-tag{display:inline-flex;align-items:center;padding:.1rem .55rem;border-radius:9999px;border:1px solid var(--border-color);font-size:.74rem;font-weight:700;color:var(--text-secondary)}
+  .mm-group-title{grid-column:1 / -1;margin:.6rem 0 0;font-size:1.05rem;font-weight:700;color:var(--text-primary)}
+  .mm-calc-link{margin-top:auto;font-size:.85rem;font-weight:700;color:var(--accent-primary);text-decoration:none}
+  .mm-calc-link:hover{text-decoration:underline}
+  .mm-warn{margin:0;font-size:.8rem;font-weight:700;color:var(--accent-secondary)}
+  .mm-best{display:flex;flex-direction:column;gap:.3rem;margin:.25rem 0 .9rem;padding:.9rem 1rem;border:1px solid var(--border-color);border-left:4px solid var(--mm-full);border-radius:.75rem;background:var(--bg-surface-elevated)}
+  .mm-best[hidden],.mm-saved[hidden]{display:none}
+  .mm-saved{display:flex;flex-wrap:wrap;align-items:center;gap:.6rem;margin-bottom:.6rem;padding:.4rem .8rem;border:1px dashed var(--border-color);border-radius:.75rem;font-size:.9rem}
+  .mm-tabs{position:sticky;top:4.6rem;z-index:5;background:var(--bg-base);padding:.35rem 0}
+  @media (prefers-reduced-motion:reduce){.mm *{animation:none!important;transition:none!important}}
+</style>

@@ -1,59 +1,144 @@
 ---
-const navItems = [
+// Nav: Home, a "Calculator" menu (both tools + all model pages), Builds, Models
+// and Docs / Blog / Errors, then "More". Both menus open on hover (mouse) or on
+// click / tap / keyboard.
+type Item = { href: string; label: string; wide?: boolean };
+const calculatorMenu: Item[] = [
+  { href: '/hardware', label: 'VRAM calculator' },
+  { href: '/matchmaker', label: 'GPU matchmaker' },
+  { href: '/calculator', label: 'All model pages' },
+];
+const plain: Item[] = [
   { href: '/', label: 'Home' },
-  { href: '/docs', label: 'Docs' },
-  { href: '/posts', label: 'Blog' },
-  { href: '/hardware', label: 'Hardware' },
-  { href: '/matchmaker', label: 'Matchmaker' },
+];
+const afterCalc: Item[] = [
+  { href: '/builds', label: 'Builds' },
+  { href: '/models', label: 'Models' },
+  { href: '/docs', label: 'Docs', wide: true },
+  { href: '/posts', label: 'Blog', wide: true },
+  { href: '/errors', label: 'Errors', wide: true },
+];
+const more: Item[] = [
+  { href: '/docs', label: 'Docs', wide: true },
+  { href: '/posts', label: 'Blog', wide: true },
+  { href: '/errors', label: 'Errors', wide: true },
   { href: '/methodology', label: 'Methodology' },
-  { href: '/errors', label: 'Errors' },
   { href: '/about', label: 'About' },
   { href: '/contact', label: 'Contact' },
 ];
+const mobileFlat: Item[] = [...afterCalc, ...more.filter((m) => !m.wide)];
 
-// Active-page detection — startsWith (not exact match) so
-// /docs/getting-started still highlights "Docs", etc. Home is an
-// exact match only, since every path starts with "/".
+// Active-page detection: startsWith so /docs/getting-started still highlights
+// "Docs". Home is an exact match only.
 const currentPath = Astro.url.pathname;
 function isActivePath(href: string) {
   if (href === '/') return currentPath === '/';
   return currentPath === href || currentPath.startsWith(href + '/');
 }
+const moreActive = more.some((m) => !m.wide && isActivePath(m.href));
+const moreActiveNarrow = !moreActive && more.some((m) => m.wide && isActivePath(m.href));
+const calcActive = calculatorMenu.some((m) => isActivePath(m.href));
+// The tool strip is hidden where the tools are already on screen.
+const showToolStrip = !['/', '/hardware', '/matchmaker'].some(
+  (p) => currentPath === p || currentPath === p + '/'
+);
+// Reading progress bar only on article pages (not on the index pages).
+const isArticle = /^\/(posts|docs)\/[^/]+\/?$/.test(currentPath);
 ---
 
-<header class="sticky top-0 z-50 border-b border-border bg-base/90 backdrop-blur-xl">
-  <div class="max-w-shell mx-auto flex items-center justify-between px-lg py-sm gap-md">
-    <a href="/" class="flex items-center gap-xs font-bold text-headline-md text-primary no-underline shrink-0">
+<header class="sticky top-0 z-50 border-b border-border bg-base/90 backdrop-blur-xl relative">
+  <div class="max-w-shell mx-auto flex items-center justify-between px-md sm:px-lg py-sm gap-sm sm:gap-md">
+    <a href="/" aria-label="LocalNodeOps home" class="flex items-center gap-xs font-bold text-[1.05rem] min-[380px]:text-headline-md text-primary no-underline shrink-0">
       <span class="inline-flex h-8 w-8 items-center justify-center rounded-md bg-gradient-to-br from-accent-primary-solid to-accent-secondary-container text-on-primary font-mono text-body-md">
         L
       </span>
-      LocalNodeOps
+      <span class="max-[359px]:hidden">LocalNodeOps</span>
     </a>
 
-    <nav aria-label="Main navigation" class="hidden md:block min-w-0 overflow-x-auto">
+    <nav aria-label="Main navigation" class="hidden lg:block min-w-0">
       <ul class="flex items-center gap-xs list-none m-0 p-xs rounded-full bg-surface-elevated w-max">
-        {navItems.map((item) => {
+        {plain.map((item) => {
           const active = isActivePath(item.href);
           return (
             <li>
-              <a href={item.href}
-                aria-current={active ? 'page' : undefined}
+              <a href={item.href} aria-current={active ? 'page' : undefined}
                 class:list={[
-                  'text-body-md min-h-touch-min flex items-center whitespace-nowrap px-md rounded-full transition-colors',
-                  active
-                    ? 'text-on-primary font-bold bg-accent-primary-solid shadow-sm'
-                    : 'text-primary hover:bg-accent-primary-container',
+                  'text-body-md min-h-touch-min flex items-center gap-xs whitespace-nowrap px-sm xl:px-md rounded-full transition-colors',
+                  active ? 'text-on-primary font-bold bg-accent-primary-solid shadow-sm' : 'text-primary hover:bg-surface',
                 ]}
-              >
-                {item.label}
-              </a>
+              >{item.label}</a>
             </li>
           );
         })}
+        <li class="relative">
+          <details class="nav-dd">
+            <summary
+              class:list={[
+                'text-body-md min-h-touch-min flex items-center gap-xs whitespace-nowrap px-sm xl:px-md rounded-full cursor-pointer list-none transition-colors',
+                calcActive ? 'text-on-primary font-bold bg-accent-primary-solid shadow-sm' : 'text-primary hover:bg-surface',
+              ]}
+            >
+              <span class:list={['h-[0.4rem] w-[0.4rem] rounded-full', calcActive ? 'bg-primary' : 'nav-dot']} aria-hidden="true"></span>
+              Calculator <span class="nav-more-chevron" aria-hidden="true"></span>
+            </summary>
+            <ul class="nav-more-list">
+              {calculatorMenu.map((item) => (
+                <li><a href={item.href} aria-current={isActivePath(item.href) ? 'page' : undefined}>{item.label}</a></li>
+              ))}
+            </ul>
+          </details>
+        </li>
+        {afterCalc.map((item) => {
+          const active = isActivePath(item.href);
+          return (
+            <li class={item.wide ? 'hidden xl:block' : undefined}>
+              <a href={item.href} aria-current={active ? 'page' : undefined}
+                class:list={[
+                  'text-body-md min-h-touch-min flex items-center gap-xs whitespace-nowrap px-sm xl:px-md rounded-full transition-colors',
+                  active ? 'text-on-primary font-bold bg-accent-primary-solid shadow-sm' : 'text-primary hover:bg-surface',
+                ]}
+              >{item.label}</a>
+            </li>
+          );
+        })}
+        <li class="relative">
+          <details id="more-menu" class="nav-dd">
+            <summary
+              class:list={[
+                'text-body-md min-h-touch-min flex items-center gap-xs whitespace-nowrap px-sm xl:px-md rounded-full cursor-pointer list-none transition-colors',
+                moreActive ? 'text-on-primary font-bold bg-accent-primary-solid shadow-sm' : 'text-primary hover:bg-surface',
+                moreActiveNarrow ? 'more-narrow-active' : undefined,
+              ]}
+            >
+              More <span class="nav-more-chevron" aria-hidden="true"></span>
+            </summary>
+            <ul class="nav-more-list">
+              {more.map((item) => (
+                <li class={item.wide ? 'xl:hidden' : undefined}>
+                  <a href={item.href} aria-current={isActivePath(item.href) ? 'page' : undefined}>{item.label}</a>
+                </li>
+              ))}
+            </ul>
+          </details>
+        </li>
       </ul>
     </nav>
 
     <div class="flex items-center gap-xs shrink-0">
+      <button
+        id="search-toggle"
+        type="button"
+        aria-label="Search the site"
+        aria-expanded="false"
+        aria-controls="search-panel"
+        class="min-h-touch-min min-w-touch-min flex items-center justify-center rounded-full border border-border text-primary hover:bg-surface-elevated shrink-0"
+      >
+        <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+          <circle cx="11" cy="11" r="7"></circle>
+          <path d="M20 20l-3.5-3.5"></path>
+        </svg>
+      </button>
+
       <button
         id="theme-toggle"
         type="button"
@@ -76,7 +161,7 @@ function isActivePath(href: string) {
         aria-expanded="false"
         aria-controls="mobile-menu-panel"
         aria-label="Open menu"
-        class="md:hidden min-h-touch-min min-w-touch-min flex items-center justify-center rounded-full border border-border text-primary hover:bg-surface-elevated shrink-0"
+        class="lg:hidden min-h-touch-min min-w-touch-min flex items-center justify-center rounded-full border border-border text-primary hover:bg-surface-elevated shrink-0"
       >
         <svg id="icon-menu-open" xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
           <path d="M3 6h18M3 12h18M3 18h18"></path>
@@ -91,10 +176,25 @@ function isActivePath(href: string) {
   <nav
     id="mobile-menu-panel"
     aria-label="Mobile navigation"
-    class="hidden md:hidden border-t border-border bg-base px-lg py-sm"
+    class="hidden lg:hidden border-t border-border bg-base px-lg py-sm"
   >
     <ul class="flex flex-col list-none m-0 p-0">
-      {navItems.map((item) => {
+      <li>
+        <a href="/" aria-current={isActivePath('/') ? 'page' : undefined}
+          class:list={['text-body-lg min-h-touch-min flex items-center w-full px-sm rounded-md transition-colors', isActivePath('/') ? 'text-on-primary font-bold bg-accent-primary-solid' : 'text-primary hover:bg-accent-primary-container']}>Home</a>
+      </li>
+      <li class="mob-group">
+        <p class="kicker m-0 px-sm pt-sm">Calculator</p>
+        <ul class="list-none m-0 p-0">
+          {calculatorMenu.map((item) => (
+            <li>
+              <a href={item.href} aria-current={isActivePath(item.href) ? 'page' : undefined}
+                class:list={['text-body-lg min-h-touch-min flex items-center w-full pl-md pr-sm rounded-md transition-colors', isActivePath(item.href) ? 'text-on-primary font-bold bg-accent-primary-solid' : 'text-primary hover:bg-accent-primary-container']}>{item.label}</a>
+            </li>
+          ))}
+        </ul>
+      </li>
+      {mobileFlat.map((item) => {
         const active = isActivePath(item.href);
         return (
           <li>
@@ -114,7 +214,26 @@ function isActivePath(href: string) {
       })}
     </ul>
   </nav>
+
+  {isArticle && (
+    <div class="read-progress" aria-hidden="true"><span id="read-progress-bar"></span></div>
+  )}
 </header>
+
+<div id="search-panel" class="search-panel" hidden role="dialog" aria-modal="true" aria-label="Search the site">
+  <div class="search-box">
+    <input id="search-input" type="search" placeholder="Search models, guides, errors, hardware" autocomplete="off" aria-label="Search" />
+    <button id="search-close" type="button" class="search-close">Close</button>
+  </div>
+  <ul id="search-results" class="search-results" aria-live="polite"></ul>
+</div>
+
+{showToolStrip && (
+  <div class="tool-strip lg:hidden max-w-shell mx-auto w-full px-md pt-sm flex gap-xs">
+    <a href="/hardware">VRAM calculator</a>
+    <a href="/matchmaker">GPU matchmaker</a>
+  </div>
+)}
 
 <script is:inline>
   (function () {
@@ -130,7 +249,6 @@ function isActivePath(href: string) {
       iconOpen.classList.remove('hidden');
       iconClose.classList.add('hidden');
     }
-
     function openMenu() {
       panel.classList.remove('hidden');
       toggle.setAttribute('aria-expanded', 'true');
@@ -138,23 +256,138 @@ function isActivePath(href: string) {
       iconOpen.classList.add('hidden');
       iconClose.classList.remove('hidden');
     }
-
     toggle.addEventListener('click', function () {
-      const isOpen = toggle.getAttribute('aria-expanded') === 'true';
-      if (isOpen) closeMenu(); else openMenu();
+      if (toggle.getAttribute('aria-expanded') === 'true') closeMenu(); else openMenu();
     });
-
     panel.addEventListener('click', function (event) {
       if (event.target.tagName === 'A') closeMenu();
     });
+    const mq = window.matchMedia('(min-width: 1024px)');
+    mq.addEventListener('change', function (event) { if (event.matches) closeMenu(); });
 
+    // Both menus ("Calculator" and "More"): open on hover for mouse users,
+    // on click / tap / keyboard for everyone, close on outside click.
+    const menus = Array.prototype.slice.call(document.querySelectorAll('.nav-dd'));
+    const canHover = window.matchMedia('(hover: hover)').matches;
+    menus.forEach(function (m) {
+      let timer = null;
+      if (canHover) {
+        m.addEventListener('mouseenter', function () {
+          window.clearTimeout(timer);
+          menus.forEach(function (o) { if (o !== m) o.open = false; });
+          m.open = true;
+        });
+        m.addEventListener('mouseleave', function () {
+          timer = window.setTimeout(function () { m.open = false; }, 140);
+        });
+      }
+      // With a mouse the menu is already open from hovering, so a click keeps
+      // it open instead of toggling it shut. Touch and keyboard still toggle.
+      const sum = m.querySelector('summary');
+      sum.addEventListener('click', function (e) {
+        if (canHover && e.detail > 0) { e.preventDefault(); m.open = true; }
+      });
+      m.addEventListener('toggle', function () {
+        if (m.open) menus.forEach(function (o) { if (o !== m) o.open = false; });
+      });
+    });
+    document.addEventListener('click', function (e) {
+      menus.forEach(function (m) { if (m.open && !m.contains(e.target)) m.open = false; });
+    });
+    const more = document.getElementById('more-menu');
+
+    // Site search: loads /search-index.json the first time it opens.
+    const sBtn = document.getElementById('search-toggle');
+    const sPanel = document.getElementById('search-panel');
+    const sInput = document.getElementById('search-input');
+    const sList = document.getElementById('search-results');
+    const sClose = document.getElementById('search-close');
+    let index = null;
+    let loading = false;
+
+    function closeSearch() {
+      sPanel.hidden = true;
+      sBtn.setAttribute('aria-expanded', 'false');
+      sBtn.focus();
+    }
+    function openSearch() {
+      sPanel.hidden = false;
+      sBtn.setAttribute('aria-expanded', 'true');
+      sInput.focus();
+      if (!index && !loading) {
+        loading = true;
+        fetch('/search-index.json')
+          .then(function (r) { return r.json(); })
+          .then(function (j) { index = j; render(); })
+          .catch(function () { sList.textContent = 'Search could not load. Try again later.'; });
+      }
+    }
+    function render() {
+      const q = sInput.value.trim().toLowerCase();
+      sList.replaceChildren();
+      if (!index) return;
+      const words = q.split(/\s+/).filter(Boolean);
+      const hits = index.filter(function (it) {
+        const hay = (it.t + ' ' + it.k).toLowerCase();
+        return words.every(function (w) { return hay.indexOf(w) !== -1; });
+      }).slice(0, 8);
+      if (q && hits.length === 0) {
+        const li = document.createElement('li');
+        li.className = 'search-empty';
+        li.textContent = 'No results.';
+        sList.appendChild(li);
+        return;
+      }
+      (q ? hits : index.slice(0, 6)).forEach(function (it) {
+        const li = document.createElement('li');
+        const a = document.createElement('a');
+        a.href = it.u;
+        const kind = document.createElement('span');
+        kind.className = 'search-kind';
+        kind.textContent = it.k;
+        a.appendChild(kind);
+        a.appendChild(document.createTextNode(' ' + it.t));
+        li.appendChild(a);
+        sList.appendChild(li);
+      });
+    }
+    sBtn.addEventListener('click', function () { if (sPanel.hidden) openSearch(); else closeSearch(); });
+    // Close the search when you click anywhere outside it.
+    document.addEventListener('click', function (e) {
+      if (!sPanel.hidden && !sPanel.contains(e.target) && !sBtn.contains(e.target)) {
+        sPanel.hidden = true;
+        sBtn.setAttribute('aria-expanded', 'false');
+      }
+    });
+    sClose.addEventListener('click', closeSearch);
+    sInput.addEventListener('input', render);
+    sInput.addEventListener('keydown', function (e) {
+      if (e.key === 'Enter') {
+        const first = sList.querySelector('a');
+        if (first) window.location.href = first.getAttribute('href');
+      }
+    });
     document.addEventListener('keydown', function (event) {
-      if (event.key === 'Escape') closeMenu();
+      if (event.key === 'Escape') {
+        closeMenu();
+        if (more) more.open = false;
+        if (!sPanel.hidden) closeSearch();
+      }
     });
 
-    const mq = window.matchMedia('(min-width: 768px)');
-    mq.addEventListener('change', function (event) {
-      if (event.matches) closeMenu();
-    });
+    // Reading progress (article pages only).
+    const bar = document.getElementById('read-progress-bar');
+    if (bar) {
+      let waiting = false;
+      function update() {
+        waiting = false;
+        const h = document.documentElement.scrollHeight - window.innerHeight;
+        bar.style.width = (h > 0 ? Math.min(100, (window.scrollY / h) * 100) : 0).toFixed(1) + '%';
+      }
+      window.addEventListener('scroll', function () {
+        if (!waiting) { waiting = true; requestAnimationFrame(update); }
+      }, { passive: true });
+      update();
+    }
   })();
 </script>

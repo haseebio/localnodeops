@@ -1,0 +1,112 @@
+---
+// "Try it" embed for posts that already work through the numbers. It reuses the
+// build-time totals from lib/model-table's math (same functions as the VRAM
+// calculator), so there is no second formula. One instance per page.
+import { getCollection } from 'astro:content';
+import { getModelArch, nearestBucket, parseParamsB } from '../lib/vram-math';
+import { estimateForEngine } from '../lib/engine-math';
+import { usableQuants } from '../lib/quant-filter';
+import { shortQuant } from '../lib/model-table';
+
+interface Props {
+  model: string;
+  quant?: 'Q4_K_M' | 'Q8_0';
+  ctx?: '4K' | '8K' | '16K' | '32K';
+}
+const { model, quant = 'Q4_K_M', ctx = '8K' } = Astro.props;
+
+const CONTEXTS = [4096, 8192, 16384, 32768];
+const LABELS = ['4K', '8K', '16K', '32K'];
+const QUANTS = ['Q4_K_M', 'Q8_0'];
+const FIT = [8, 12, 16, 24, 32];
+
+const entries = await getCollection('models');
+const models: { s: string; n: string; m: number | null; k: (number[] | null)[] }[] = [];
+for (const entry of entries) {
+  const arch = getModelArch(entry.slug) ?? nearestBucket(parseParamsB(entry.data.title), entry.data.title);
+  const complete = entry.data.quantizations.flatMap((q) =>
+    typeof q.type === 'string' && typeof q.size_gb === 'number' ? [{ type: q.type, size_gb: q.size_gb }] : []
+  );
+  const quants = usableQuants(complete);
+  if (!arch || quants.length === 0) continue;
+  const totals = (name: string) => {
+    const q = quants.find((x) => shortQuant(x.type).toUpperCase() === name);
+    return q ? CONTEXTS.map((c) => Number(estimateForEngine(q.size_gb, arch, c, 'llamacpp').totalGb.toFixed(3))) : null;
+  };
+  models.push({ s: entry.slug, n: entry.data.title.replace(/-GGUF$/i, ''), m: arch.maxContext ?? null, k: QUANTS.map(totals) });
+}
+models.sort((a, b) => a.n.localeCompare(b.n));
+const start = models.find((m) => m.s === model) ?? models[0];
+const qi0 = Math.max(0, QUANTS.indexOf(quant));
+const ci0 = Math.max(0, LABELS.indexOf(ctx));
+const t0 = start?.k[qi0]?.[ci0] ?? null;
+const data = { contexts: CONTEXTS, labels: LABELS, quants: QUANTS, fit: FIT, models };
+---
+
+{start && (
+  <aside id="post-calc" class="pc" aria-label="Try it: VRAM for this example">
+    <p class="kicker m-0">Try it</p>
+    <p class="pc-sub">Same math as the <a href="/hardware">VRAM calculator</a>. Estimates, with the KV cache estimated.</p>
+    <select id="pc-model" class="pc-select" aria-label="Model">
+      {models.map((m) => <option value={m.s} selected={m.s === start.s}>{m.n}</option>)}
+    </select>
+    <div class="pc-chips" role="group" aria-label="Quantization and context length">
+      {QUANTS.map((q, i) => <button type="button" class="pc-chip" data-q={i} aria-pressed={i === qi0 ? 'true' : 'false'}>{q}</button>)}
+      <span class="pc-divider" aria-hidden="true"></span>
+      {LABELS.map((l, i) => <button type="button" class="pc-chip" data-c={i} aria-pressed={i === ci0 ? 'true' : 'false'}>{l}</button>)}
+    </div>
+    <p class="pc-result" role="status"><span class="pc-big num" id="pc-total">{t0 !== null ? t0.toFixed(1) : '-'} GB</span> total VRAM needed</p>
+    <ul class="pc-fits" id="pc-fits" aria-label="Which GPU sizes fit">
+      {FIT.map((g) => <li class={t0 !== null && t0 <= g ? 'fit-badge fit-fits' : 'fit-badge fit-oom'} data-gb={g}>{g} GB <span class="pc-sr">{t0 !== null && t0 <= g ? 'fits' : 'does not fit'}</span></li>)}
+    </ul>
+    <p class="pc-sub" id="pc-warn" hidden>This model's native context is shorter than the length you picked.</p>
+  </aside>
+  <script is:inline type="application/json" id="pc-data" set:html={JSON.stringify(data)} />
+  <script is:inline>
+    (function () {
+      const root = document.getElementById('post-calc');
+      const d = JSON.parse(document.getElementById('pc-data').textContent);
+      const sel = document.getElementById('pc-model');
+      const total = document.getElementById('pc-total');
+      const warn = document.getElementById('pc-warn');
+      const fits = Array.prototype.slice.call(document.querySelectorAll('#pc-fits [data-gb]'));
+      const qb = Array.prototype.slice.call(root.querySelectorAll('[data-q]'));
+      const cb = Array.prototype.slice.call(root.querySelectorAll('[data-c]'));
+      const st = { q: qb.findIndex(function (b) { return b.getAttribute('aria-pressed') === 'true'; }), c: cb.findIndex(function (b) { return b.getAttribute('aria-pressed') === 'true'; }) };
+      function render() {
+        const m = d.models.filter(function (x) { return x.s === sel.value; })[0] || d.models[0];
+        if (!m.k[st.q]) st.q = m.k[0] ? 0 : 1;
+        qb.forEach(function (b, i) { b.disabled = !m.k[i]; b.setAttribute('aria-pressed', String(i === st.q)); });
+        cb.forEach(function (b, i) { b.setAttribute('aria-pressed', String(i === st.c)); });
+        const t = m.k[st.q] ? m.k[st.q][st.c] : null;
+        total.textContent = t === null ? '- GB' : t.toFixed(1) + ' GB';
+        warn.hidden = !(m.m && d.contexts[st.c] > m.m);
+        fits.forEach(function (li) {
+          const ok = t !== null && t <= Number(li.getAttribute('data-gb'));
+          li.className = 'fit-badge ' + (ok ? 'fit-fits' : 'fit-oom');
+          li.lastElementChild.textContent = ok ? 'fits' : 'does not fit';
+        });
+      }
+      sel.addEventListener('change', render);
+      qb.forEach(function (b, i) { b.addEventListener('click', function () { st.q = i; render(); }); });
+      cb.forEach(function (b, i) { b.addEventListener('click', function () { st.c = i; render(); }); });
+    })();
+  </script>
+)}
+
+<style is:global>
+  .pc{display:flex;flex-direction:column;gap:.5rem;margin:1.25rem 0;padding:1rem 1.1rem;border:1px solid var(--border-color);border-radius:.75rem;background:var(--bg-surface)}
+  .pc-sub{margin:0;font-size:.85rem;color:var(--text-secondary)}
+  .pc-sub a{color:var(--accent-primary);font-weight:700}
+  .pc-select{width:100%;min-height:2.75rem;padding:0 .7rem;border:1px solid var(--border-color);border-radius:.5rem;background:var(--bg-base);color:var(--text-primary);font-size:.95rem}
+  .pc-chips{display:flex;flex-wrap:wrap;align-items:center;gap:.35rem}
+  .pc-chip{min-width:2.75rem;min-height:2.75rem;padding:0 .8rem;border:1px solid var(--border-color);border-radius:9999px;background:var(--bg-base);color:var(--text-primary);font-size:.9rem;cursor:pointer}
+  .pc-chip[aria-pressed="true"]{background:var(--accent-primary-solid);border-color:var(--accent-primary-solid);color:var(--on-primary);font-weight:700}
+  .pc-chip:disabled{opacity:.45;cursor:not-allowed}
+  .pc-chip:focus-visible,.pc-select:focus-visible{outline:2px solid var(--accent-primary);outline-offset:2px}
+  .pc-divider{width:1px;height:1.6rem;background:var(--border-color)}
+  .pc-result{display:flex;align-items:baseline;gap:.6rem;flex-wrap:wrap;margin:.2rem 0 0;color:var(--text-primary)}
+  .pc-big{font-size:2rem;font-weight:700;line-height:1;color:var(--accent-primary)}
+  .pc-fits{display:flex;flex-wrap:wrap;gap:.35rem;margin:0;padding:0;list-style:none}
+  .pc-sr{position:absolute;width:1px;height:1px;overflow:hidden;clip:rect(0 0 0 0);white-space:nowrap}
+</style>

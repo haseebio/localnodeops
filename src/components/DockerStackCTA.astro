@@ -1,5 +1,7 @@
 ---
-const checkoutUrl = import.meta.env.PUBLIC_LEMONSQUEEZY_PRODUCT_URL || 'https://www.lemonsqueezy.com/';
+import { LEMONSQUEEZY_URL } from '../lib/affiliate';
+
+const checkoutUrl = LEMONSQUEEZY_URL;
 
 // Free-tier snippet uses the official Ollama and Open WebUI images,
 // standard ports (11434 Ollama, 8080 Open WebUI internal → 3000

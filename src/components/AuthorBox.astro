@@ -1,0 +1,22 @@
+---
+// Short author card. Facts come from the /about page and the site's Person
+// schema; nothing new is claimed here.
+---
+<aside class="author-box" aria-label="About the author">
+  <p class="kicker m-0">Written by</p>
+  <p class="author-name">Muhammad Haseeb Ur Rehman (Haseeb)</p>
+  <p class="author-role">Full-stack and AI engineer in Lahore. Builds and maintains LocalNodeOps.</p>
+  <p class="author-links">
+    <a href="https://github.com/haseebio" rel="me noopener">GitHub</a>
+    <a href="https://www.linkedin.com/in/haseebio" rel="me noopener">LinkedIn</a>
+    <a href="https://haseebio-portfolio.netlify.app" rel="me noopener">Portfolio</a>
+    <a href="/about">About LocalNodeOps</a>
+  </p>
+</aside>
+<style is:global>
+  .author-box{margin:2rem 0 1rem;padding:1rem 1.1rem;border:1px solid var(--border-color);border-radius:.75rem;background:var(--bg-surface)}
+  .author-name{margin:.2rem 0 0;font-size:1.1rem;font-weight:700;color:var(--text-primary)}
+  .author-role{margin:.1rem 0 .4rem;font-size:.95rem;color:var(--text-secondary)}
+  .author-links{display:flex;flex-wrap:wrap;gap:.3rem 1rem;margin:0}
+  .author-links a{display:inline-flex;align-items:center;min-height:2.75rem;color:var(--accent-primary);font-weight:700}
+</style>

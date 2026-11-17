@@ -1,0 +1,209 @@
+---
+// Extras around the VRAM calculator. This component only READS the numbers
+// the calculator already prints (#out-weights, #out-kv, #out-overhead,
+// #out-total, #out-required). It never recomputes anything, so the math is the
+// same with or without it. Everything it stores stays in this browser.
+import AffiliateOptions from './AffiliateOptions.astro';
+---
+
+<div id="calc-extras" class="cx" hidden>
+  <section aria-labelledby="cx-bar-title" class="cx-block">
+    <p id="cx-bar-title" class="kicker m-0">Where the memory goes</p>
+    <div class="cx-bar" id="cx-bar" role="img" aria-label="Weights, KV cache and overhead">
+      <span class="cx-w" id="cx-seg-w"></span><span class="cx-k" id="cx-seg-k"></span><span class="cx-o" id="cx-seg-o"></span>
+    </div>
+    <ul class="cx-legend">
+      <li><span class="cx-dot cx-w"></span>Weights <span class="num" id="cx-lw"></span></li>
+      <li><span class="cx-dot cx-k"></span>KV cache <span class="num" id="cx-lk"></span></li>
+      <li><span class="cx-dot cx-o"></span>Overhead (10%) <span class="num" id="cx-lo"></span></li>
+    </ul>
+  </section>
+
+  <div class="cx-block cx-badge-row">
+    <span id="cx-badge" class="fit-badge"></span>
+    <span id="cx-badge-note" class="cx-note"></span>
+  </div>
+
+  <div id="cx-aff-over" hidden><AffiliateOptions state="over" /></div>
+  <div id="cx-aff-fit" hidden><AffiliateOptions state="fit" /></div>
+
+  <section aria-labelledby="cx-run-title" class="cx-block">
+    <p id="cx-run-title" class="kicker m-0">Run it</p>
+    <pre class="cx-code"><code id="cx-cmd"></code></pre>
+    <p class="cx-note" id="cx-cmd-note"></p>
+    <div class="cx-actions">
+      <button type="button" id="cx-copy" class="cx-btn">Copy command</button>
+      <button type="button" id="cx-save" class="cx-btn">Save this configuration</button>
+      <button type="button" id="cx-restore" class="cx-btn" hidden>Restore saved</button>
+    </div>
+    <p class="cx-note" id="cx-status" role="status"></p>
+  </section>
+</div>
+
+<div id="cx-sticky" class="cx-sticky" hidden>
+  <span><span class="cx-sticky-total num" id="cx-sticky-total"></span> <span id="cx-sticky-badge" class="fit-badge"></span></span>
+  <button type="button" id="cx-sticky-cta" class="cx-btn cx-btn-primary">Check hardware</button>
+</div>
+
+<script is:inline>
+  (function () {
+    const extras = document.getElementById('calc-extras');
+    const total = document.getElementById('out-total');
+    const anchor = document.getElementById('fit-status');
+    if (!extras || !total || !anchor) return;
+    anchor.insertAdjacentElement('afterend', extras);
+
+    const num = function (id) {
+      const el = document.getElementById(id);
+      if (!el || el.classList.contains('hidden')) return NaN;
+      return parseFloat(String(el.textContent).replace(',', ''));
+    };
+    const $ = function (id) { return document.getElementById(id); };
+    const sticky = $('cx-sticky');
+    const STORE = 'lno-calc-config';
+    const FIELDS = ['model-source', 'quant', 'model-quant', 'model-size-num', 'context-num', 'gpu-profile', 'gpu-qty', 'system-ram'];
+
+    function badgeState(need) {
+      const gpu = parseFloat(($('gpu-vram') || {}).value);
+      const qty = parseFloat(($('gpu-qty') || {}).value) || 1;
+      const ram = parseFloat(($('system-ram') || {}).value);
+      const cap = (Number.isFinite(gpu) && gpu > 0 ? gpu : 24) * qty;
+      const ref = Number.isFinite(gpu) && gpu > 0 ? cap + ' GB selected GPU memory' : '24 GB reference card';
+      const usableRam = Number.isFinite(ram) ? Math.max(0, ram - 4) : 0;
+      if (need <= cap) return { cls: 'fit-fits', text: 'Fits fully on GPU', note: 'Against ' + ref + '.', over: false };
+      if (need <= cap + usableRam) return { cls: 'fit-offload', text: 'Needs CPU offload, speed will drop', note: 'Against ' + ref + '.', over: true };
+      return { cls: 'fit-oom', text: 'High OOM risk on ' + cap + ' GB', note: 'Against ' + ref + '.', over: true };
+    }
+
+    function command() {
+      const engine = (document.querySelector('input[name="engine"]:checked') || {}).value;
+      const ctx = parseInt(($('context-num') || {}).value, 10) || 4096;
+      const src = $('model-source');
+      const opt = src && src.selectedOptions[0];
+      const named = opt && /^model:/.test(src.value);
+      const name = named ? opt.textContent.replace(/-GGUF.*$/i, '').trim() : null;
+      if (engine === 'vllm') {
+        return {
+          cmd: 'vllm serve ' + (name ? '<hf-repo-for-' + name + '>' : '<model-id>') + ' --max-model-len ' + ctx + ' --gpu-memory-utilization 0.90',
+          note: 'Template: replace the model id. vLLM reserves memory up front, so the calculator divides the total by 0.90.',
+        };
+      }
+      return {
+        cmd: 'llama-server -m ./' + (name ? name : 'model') + '.gguf --ctx-size ' + ctx + ' --n-gpu-layers 999',
+        note: 'Template: point -m at your downloaded .gguf file (the file name depends on the repo you download from).',
+      };
+    }
+
+    function update() {
+      const t = num('out-total');
+      if (!Number.isFinite(t)) { extras.hidden = true; sticky.hidden = true; return; }
+      extras.hidden = false;
+      const w = num('out-weights'), k = num('out-kv'), o = num('out-overhead');
+      const sum = w + k + o;
+      if (sum > 0) {
+        $('cx-seg-w').style.flexGrow = String(w);
+        $('cx-seg-k').style.flexGrow = String(k);
+        $('cx-seg-o').style.flexGrow = String(o);
+        $('cx-lw').textContent = w.toFixed(2) + ' GB (' + Math.round((w / sum) * 100) + '%)';
+        $('cx-lk').textContent = k.toFixed(2) + ' GB (' + Math.round((k / sum) * 100) + '%)';
+        $('cx-lo').textContent = o.toFixed(2) + ' GB (' + Math.round((o / sum) * 100) + '%)';
+        $('cx-bar').setAttribute('aria-label', 'Weights ' + w.toFixed(2) + ' GB, KV cache ' + k.toFixed(2) + ' GB, overhead ' + o.toFixed(2) + ' GB');
+      }
+      const req = num('out-required');
+      const need = Number.isFinite(req) ? req : t;
+      const st = badgeState(need);
+      $('cx-badge').className = 'fit-badge ' + st.cls;
+      $('cx-badge').textContent = st.text;
+      $('cx-badge-note').textContent = st.note;
+      $('cx-aff-over').hidden = !st.over;
+      $('cx-aff-fit').hidden = st.over;
+      const c = command();
+      $('cx-cmd').textContent = c.cmd;
+      $('cx-cmd-note').textContent = c.note;
+      $('cx-sticky-total').textContent = t.toFixed(1) + ' GB';
+      $('cx-sticky-badge').className = 'fit-badge ' + st.cls;
+      $('cx-sticky-badge').textContent = st.text;
+    }
+
+    ['out-weights', 'out-kv', 'out-overhead', 'out-total', 'out-required'].forEach(function (id) {
+      const el = $(id);
+      if (el) new MutationObserver(update).observe(el, { childList: true, characterData: true, subtree: true });
+    });
+    document.addEventListener('change', update);
+    document.addEventListener('input', function () { window.setTimeout(update, 0); });
+
+    // Result bar: shows the total once the main result has scrolled out of view.
+    if ('IntersectionObserver' in window) {
+      new IntersectionObserver(function (entries) {
+        sticky.hidden = !(!entries[0].isIntersecting && Number.isFinite(num('out-total')));
+      }).observe(total);
+    }
+    $('cx-sticky-cta').addEventListener('click', function () {
+      const open = $('open-hardware-modal');
+      if (open) open.click();
+    });
+
+    function say(msg) { $('cx-status').textContent = msg; window.setTimeout(function () { $('cx-status').textContent = ''; }, 2500); }
+    $('cx-copy').addEventListener('click', function () {
+      const text = $('cx-cmd').textContent;
+      if (navigator.clipboard && navigator.clipboard.writeText) {
+        navigator.clipboard.writeText(text).then(function () {
+          $('cx-copy').textContent = 'Copied';
+          window.setTimeout(function () { $('cx-copy').textContent = 'Copy command'; }, 2000);
+        }, function () { say('Copy failed. Select the command and copy it.'); });
+      } else { say('Select the command and copy it.'); }
+    });
+
+    function saved() {
+      try { return JSON.parse(window.localStorage.getItem(STORE) || 'null'); } catch (e) { return null; }
+    }
+    $('cx-save').addEventListener('click', function () {
+      const cfg = { fields: {}, engine: (document.querySelector('input[name="engine"]:checked') || {}).value };
+      FIELDS.forEach(function (id) { const el = $(id); if (el) cfg.fields[id] = el.value; });
+      try { window.localStorage.setItem(STORE, JSON.stringify(cfg)); say('Saved on this device'); $('cx-restore').hidden = false; }
+      catch (e) { say('Could not save in this browser'); }
+    });
+    $('cx-restore').addEventListener('click', function () {
+      const cfg = saved();
+      if (!cfg) return;
+      FIELDS.forEach(function (id) {
+        const el = $(id);
+        if (el && cfg.fields[id] !== undefined && cfg.fields[id] !== '') {
+          // A select can only take a value it actually offers right now.
+          if (el.tagName === 'SELECT' && !el.querySelector('option[value="' + cfg.fields[id] + '"]')) return;
+          el.value = cfg.fields[id];
+          el.dispatchEvent(new Event('input', { bubbles: true }));
+          el.dispatchEvent(new Event('change', { bubbles: true }));
+        }
+      });
+      const radio = cfg.engine && document.getElementById('engine-' + cfg.engine);
+      if (radio) radio.click();
+      say('Restored');
+    });
+    if (saved()) $('cx-restore').hidden = false;
+
+    window.setTimeout(update, 0);
+  })();
+</script>
+
+<style is:global>
+  .cx{display:flex;flex-direction:column;gap:.9rem;margin-top:1rem}
+  .cx[hidden],.cx-sticky[hidden]{display:none}
+  .cx-block{display:flex;flex-direction:column;gap:.4rem}
+  .cx-bar{display:flex;height:.9rem;border-radius:9999px;overflow:hidden;background:var(--border-subtle)}
+  .cx-bar span{flex:0 0 auto;transition:flex-grow .25s}
+  .cx-w{background:var(--accent-primary-solid)}.cx-k{background:var(--accent-secondary-container)}.cx-o{background:var(--text-secondary)}
+  .cx-legend{display:flex;flex-wrap:wrap;gap:.3rem .9rem;margin:0;padding:0;list-style:none;font-size:.85rem;color:var(--text-primary)}
+  .cx-dot{display:inline-block;width:.7rem;height:.7rem;border-radius:9999px;margin-right:.3rem}
+  .cx-badge-row{flex-direction:row;flex-wrap:wrap;align-items:center;gap:.6rem}
+  .cx-note{margin:0;font-size:.8rem;line-height:1.45;color:var(--text-secondary)}
+  .cx-code{margin:0;padding:.7rem .9rem;border-radius:.6rem;background:#0f172a;color:#e2e8f0;overflow-x:auto;font-size:.85rem}
+  .cx-actions{display:flex;flex-wrap:wrap;gap:.4rem}
+  .cx-btn{min-height:2.75rem;padding:0 .9rem;border:1px solid var(--border-color);border-radius:9999px;background:var(--bg-base);color:var(--text-primary);font-size:.9rem;font-weight:700;cursor:pointer}
+  .cx-btn[hidden]{display:none}
+  .cx-btn-primary{background:var(--brand-3);border-color:var(--brand-3);color:var(--ink)}
+  .cx-btn:focus-visible{outline:2px solid var(--accent-primary);outline-offset:2px}
+  .cx-sticky{position:fixed;left:0;right:0;bottom:0;z-index:40;display:flex;align-items:center;justify-content:space-between;gap:.6rem;padding:.6rem 1rem calc(.6rem + env(safe-area-inset-bottom));background:var(--bg-base);border-top:1px solid var(--border-color);box-shadow:0 -6px 18px rgb(0 0 0 / .12)}
+  .cx-sticky-total{font-size:1.15rem;font-weight:700;color:var(--accent-primary)}
+  @media (min-width:768px){.cx-sticky{left:50%;right:auto;transform:translateX(-50%);bottom:.75rem;width:min(44rem,calc(100% - 2rem));border:1px solid var(--border-color);border-radius:9999px;padding:.5rem 1rem}}
+</style>

@@ -6,7 +6,7 @@
 // one of them visible based on whether the current estimate fits any
 // local GPU profile — this file only renders markup.
 
-import { RUNPOD_URL, LAMBDA_URL, AMAZON_RTX_4090_URL } from '../lib/affiliate';
+import { RUNPOD_URL, LAMBDA_URL, AMAZON_RTX_4090_URL, AFFILIATE_REL } from '../lib/affiliate';
 
 interface Provider {
   name: string;
@@ -80,11 +80,12 @@ const amazonProvider: Provider = {
           id={provider.umamiEvent}
           data-umami-event={provider.umamiEvent}
           target="_blank"
-          rel={provider.name === 'RunPod' ? 'noopener noreferrer sponsored' : 'noopener noreferrer'}
+          rel={provider.name === 'RunPod' ? AFFILIATE_REL : 'noopener noreferrer'}
           class={provider.primary ? BTN_PRIMARY : BTN_SECONDARY}
         >
           {provider.cta}
         </a>
+        {provider.name === 'RunPod' && <p class="text-body-md text-secondary mt-xs mb-0" style="font-size:.8rem">(affiliate link)</p>}
       </div>
     ))}
   </div>
@@ -119,13 +120,13 @@ const amazonProvider: Provider = {
     id="outbound-amazon"
     data-umami-event="outbound-amazon"
     target="_blank"
-    rel="noopener noreferrer sponsored"
+    rel={AFFILIATE_REL}
     class={`${BTN_PRIMARY} w-full sm:w-auto`}
   >
     <span id="local-cta-btn-text">{amazonProvider.cta}</span>
   </a>
   <p class="text-body-md text-secondary mt-xs mb-0" id="local-cta-blurb">
-    {amazonProvider.blurb} Prices and stock change daily.
+    {amazonProvider.blurb} Prices and stock change daily. (affiliate link)
   </p>
 
   <!--
@@ -144,11 +145,12 @@ const amazonProvider: Provider = {
       id="outbound-runpod-budget"
       data-umami-event="outbound-runpod-budget"
       target="_blank"
-      rel="noopener noreferrer sponsored"
+      rel={AFFILIATE_REL}
       class={`${BTN_SECONDARY} w-full sm:w-auto`}
     >
       <span id="local-cta-runpod-text">Deploy closest cloud equivalent on RunPod</span>
     </a>
+    <span class="text-body-md text-secondary" style="font-size:.8rem"> (affiliate link)</span>
   </div>
 
   <p class="text-body-md text-secondary mt-md border-t border-border pt-sm m-0">

@@ -1,14 +1,15 @@
 ---
 interface Props {
   categories: string[];
+  label?: string;
 }
 
-const { categories } = Astro.props;
+const { categories, label = 'Filter hardware benchmarks by category' } = Astro.props;
 ---
 
 <div
   role="group"
-  aria-label="Filter hardware benchmarks by category"
+  aria-label={label}
   class="flex items-center gap-sm overflow-x-auto pb-xs"
   id="category-filter"
 >
